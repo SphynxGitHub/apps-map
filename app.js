@@ -1,35 +1,26 @@
-/* Operations Library SPA — consolidated file
- 
-Features kept/added:
-- Apps + Functions + Integrations Matrix combined on /apps
-- Apps with function chips and autosuggest (card layout with global Icons / Details toggle)
-- App modal: inline name edit, icon box (emoji/library/upload)
-- Modal sections: Functions, Datapoints (Master / Inbound / Outbound), Used In Resources (grouped), Integrations (App + Direct/Zapier matrix)
-  -> Each section opens right-side slideout for editing; autosaves on change
-- Functions section (below apps): details and icons views with app lists and icon borders
-- Integrations Matrix section: details and icons views, bi-directional jump between apps
-- Functions catalog retained (no type column on main page; types still stored for guessType)
-- Tech Comparison (apps weighted criteria)
-- Resources: Zaps, Forms, Workflows (card editor), Scheduling, Email Campaigns
-- Settings: Team, Segments, Datapoints, Folder Hierarchy, Naming Conventions
-- Workflow editor: card layout, step templates modal, drag-reorder, resources, outcomes, tokens
-- Cross-references: resources/datapoints backlinks
-
-Routes:
-  /apps, /apps/tech
-  /resources/zaps, /resources/forms, /resources/workflows, /resources/scheduling, /resources/email-campaigns
-  /settings/team, /settings/segments, /settings/datapoints, /settings/folder-hierarchy, /settings/naming-conventions
-*/
-
-(function () {
+;(function () {
   // ---------- Persistence ----------
   const store = {
-    get(k, def){ try{ return JSON.parse(localStorage.getItem(k)) ?? def; }catch(_){ return def; } },
-    set(k, v){ localStorage.setItem(k, JSON.stringify(v)); },
+    get(k, def) {
+      try {
+        const raw = localStorage.getItem(k);
+        return raw == null ? def : JSON.parse(raw);
+      } catch (e) {
+        console.warn('store.get failed', k, e);
+        return def;
+      }
+    },
+    set(k, v) {
+      try {
+        localStorage.setItem(k, JSON.stringify(v));
+      } catch (e) {
+        console.warn('store.set failed', k, e);
+      }
+    },
   };
 
-  // ---------- Catalogs ----------
-  const FUNCTION_TYPES = [
+  // ---------- Constants ----------
+  const FUNCTION_TYPES_SEED = [
     "Automation","Billing / Invoicing","Bookkeeping","Calendar","CRM","Custodian / TAMP",
     "Data Aggregation","Data Gathering","eSignature","Email","Email Marketing",
     "File Sharing / Document Storage","Financial Planning","Lead Generation","Mind Mapping",
@@ -39,58 +30,80 @@ Routes:
     "Video Recording","Website","Other"
   ];
 
+  const FUNCTION_LEVELS = ["primary","available","evaluating"];
+
+  // Color helpers for functions + integrations
+  const FN_LEVEL_COLORS = {
+    primary:  "#a855f7", // purple
+    available:"#0f172a", // near black
+    evaluating:"#6b7280" // grey
+  };
+
+  const INTEG_COLORS = {
+    direct: "#3b82f6", // blue
+    zapier: "#facc15", // yellow
+    both:   "#22c55e"  // green
+  };
+
   // ---------- State ----------
   let state = {
     apps: store.get('apps', [
       {
         id: uid(),
         name:'Calendly',
-        category:'Scheduler', // kept for backward compatibility; not used in UI anymore
         notes:'Client scheduling links for prospect + review meetings.',
         needsFilter:true,
         functions:["Scheduler"],
         icon:{ type:'emoji', value:'📅' },
         datapointMappings:[
-          { id: uid(), datapoint:'First Name', inbound:'invitee_first', outbound:'{invitee_first}' },
-          { id: uid(), datapoint:'Last Name', inbound:'invitee_last', outbound:'{invitee_last}' },
-          { id: uid(), datapoint:'Email', inbound:'invitee_email', outbound:'{invitee_email}' }
-        ],
-        // app.integrations: [{id, appId, direct:boolean, zapier:boolean}]
-        integrations: []
+          { id: uid(), datapoint:'First Name', inbound:'Invitee First', outbound:'' },
+          { id: uid(), datapoint:'Last Name',  inbound:'Invitee Last',  outbound:'' },
+          { id: uid(), datapoint:'Email',      inbound:'Invitee Email', outbound:'' }
+        ]
       },
       {
         id: uid(),
         name:'ScheduleOnce',
-        category:'Scheduler',
         notes:'Legacy scheduler; may be deprecated.',
         needsFilter:true,
         functions:["Scheduler"],
         icon:{ type:'emoji', value:'🗓' },
-        datapointMappings:[],
-        integrations:[]
+        datapointMappings:[]
       },
       {
         id: uid(),
         name:'Wealthbox',
-        category:'CRM',
         notes:'',
         needsFilter:false,
         functions:["CRM","Pipeline Management","Task Management"],
         icon:{ type:'emoji', value:'📇' },
-        datapointMappings:[],
-        integrations:[]
+        datapointMappings:[]
       },
     ]),
 
-    // Functions catalog used by autosuggests
-    functions: store.get('functions', FUNCTION_TYPES.map(t => ({ id: uid(), type: t, name: t }))),
+    // Functions catalog – we now only care about name; type is legacy
+    functions: store.get('functions',
+      FUNCTION_TYPES_SEED.map(t => ({ id: uid(), name: t, type: t }))
+    ),
 
+    // Function ↔ App level assignments
+    // each: { id, functionId, appId, level: 'primary'|'available'|'evaluating' }
+    functionAssignments: store.get('functionAssignments', []),
+
+    // Integrations Matrix: app pair relationships
+    // each: { id, appAId, appBId, hasDirect, hasZapier, directNotes:[], zapierNotes:[] }
+    integrationsMatrix: store.get('integrationsMatrix', []),
+
+    // Reusable integration descriptions
+    integrationPatterns: store.get('integrationPatterns', []), // [{id,text}]
+
+    // Resources
     zaps: store.get('zaps', []),
     forms: store.get('forms', []),
     workflows: store.get('workflows', []), // migrated below if legacy
     scheduling: store.get('scheduling', []),
     emailCampaigns: store.get('emailCampaigns', []),
-    emailTemplates: store.get('emailTemplates', []), // optional: {id, name, body?}
+    emailTemplates: store.get('emailTemplates', []),
 
     // Settings
     teamMembers: store.get('teamMembers', [{ id: uid(), name:'Arielle', roleNotes:'', roles: ['Managing Partner'] }]),
@@ -98,7 +111,6 @@ Routes:
     segments: store.get('segments', ['Prospects','Paid AUM','Hourly','Pro Bono']),
     datapoints: store.get('datapoints', ['First Name','Last Name','Email','Domain','Household','householdName']),
 
-    // Combined Naming Conventions
     naming: store.get('naming', {
       household: {
         individual: '{Last}, {First}',
@@ -112,7 +124,6 @@ Routes:
       }
     }),
 
-    // Folder hierarchy authoring text (with tokens) + sample preview values
     folderHierarchy: store.get('folderHierarchy',
 `Clients/
   {householdName}/
@@ -125,7 +136,6 @@ Routes:
       householdName: 'Taylor, Alex & Jordan'
     }),
 
-    // Step templates (modal in workflows)
     stepTemplates: store.get('stepTemplates', [
       { id: uid(), type:'Schedule Meeting',    title:'Schedule {Meeting Type}', notes:'Send link; confirm agenda; share pre-reads', checklist:['Send link','Confirm agenda','Attach docs'] },
       { id: uid(), type:'Pre-Meeting Prep',    title:'Prep for {Meeting Type}', notes:'Review CRM notes; prep questions; confirm objectives', checklist:['Review notes','Prep questions','Confirm objectives'] },
@@ -142,14 +152,15 @@ Routes:
 
     pricing: { zapStep:80, emailStep:80, schedulerPage:125, otherHourly:300 },
 
-    // Global view mode for Apps / Functions / Integrations Matrix
     appsViewMode: store.get('appsViewMode', 'details'),
+    functionsViewMode: store.get('functionsViewMode', 'details'),
+    integrationsViewMode: store.get('integrationsViewMode', 'details'),
 
-    // volatile cross-ref cache (not persisted)
+    // volatile cross-ref cache
     _refs: { resources:{}, datapoints:{} }
   };
 
-  // Migrate legacy workflows shape if needed
+  // ---------- Legacy workflow migration ----------
   if (Array.isArray(state.workflows) && state.workflows.length && !state.workflows[0]?.steps) {
     state.workflows = [{
       id: uid(),
@@ -171,25 +182,36 @@ Routes:
     }];
   }
 
-  // Migrate datapointMappings to new inbound/outbound shape
-  (state.apps || []).forEach(app => {
-    if (!Array.isArray(app.datapointMappings)) app.datapointMappings = [];
-    app.datapointMappings.forEach(row => {
-      if (row.inbound === undefined && row.inAppName !== undefined) {
-        row.inbound = row.inAppName;
-      }
-      if (row.outbound === undefined) {
-        row.outbound = '';
-      }
+  // ---------- Initial sync helpers ----------
+  // Ensure every app.functions entry has a function record + basic assignment
+  function bootstrapFunctionAssignmentsFromApps() {
+    if ((state.functionAssignments || []).length) return;
+    (state.apps || []).forEach(app => {
+      (app.functions || []).forEach(fnName => {
+        const fn = getOrCreateFunctionByName(fnName);
+        if (!state.functionAssignments.some(a => a.functionId === fn.id && a.appId === app.id)) {
+          state.functionAssignments.push({
+            id: uid(),
+            functionId: fn.id,
+            appId: app.id,
+            level: 'available'
+          });
+        }
+      });
     });
-    if (!Array.isArray(app.integrations)) app.integrations = [];
-  });
+  }
 
+  bootstrapFunctionAssignmentsFromApps();
   persist();
 
-  function persist(){
+  // ---------- Persist ----------
+  function persist() {
     store.set('apps', state.apps);
     store.set('functions', state.functions);
+    store.set('functionAssignments', state.functionAssignments);
+    store.set('integrationsMatrix', state.integrationsMatrix);
+    store.set('integrationPatterns', state.integrationPatterns);
+
     store.set('zaps', state.zaps);
     store.set('forms', state.forms);
     store.set('workflows', state.workflows);
@@ -208,6 +230,8 @@ Routes:
     store.set('stepTemplates', state.stepTemplates);
 
     store.set('appsViewMode', state.appsViewMode);
+    store.set('functionsViewMode', state.functionsViewMode);
+    store.set('integrationsViewMode', state.integrationsViewMode);
 
     rebuildCrossRefs();
   }
@@ -219,7 +243,7 @@ Routes:
   function money(n){ return `$${Number(n||0).toFixed(2)}`; }
   function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function dedupe(arr){ return Array.from(new Set(arr)); }
-  function currentFunctionNames(){ return dedupe((state.functions||[]).map(f=>f.name).filter(Boolean)); }
+  function findById(arr,id){ return (arr||[]).find(x=>x.id===id); }
   function tokensIn(text){
     const out = [];
     String(text||'').replace(/\{([A-Za-z0-9_ ]+)\}/g, (_,k)=>{ out.push(k); return _; });
@@ -228,16 +252,37 @@ Routes:
   function teamOptions(){
     return (state.teamMembers||[]).map(m=>({ id:m.id, name:m.name||'(Unnamed)' }));
   }
-  function findById(arr,id){ return (arr||[]).find(x=>x.id===id); }
-  function guessType(name){
-    if (FUNCTION_TYPES.includes(name)) return name;
-    const n = (name||'').toLowerCase();
-    if (n.includes('email')) return 'Email';
-    if (n.includes('calendar') || n.includes('schedule')) return 'Scheduler';
-    if (n.includes('crm') || n.includes('pipeline')) return 'CRM';
-    if (n.includes('invoice') || n.includes('billing')) return 'Billing / Invoicing';
-    return 'Other';
+
+  function currentFunctionNames(){
+    return dedupe((state.functions||[]).map(f=>f.name).filter(Boolean));
   }
+
+  function getOrCreateFunctionByName(name){
+    name = (name || '').trim();
+    if (!name) return null;
+    let fn = (state.functions || []).find(f => f.name === name);
+    if (!fn) {
+      fn = { id: uid(), name, type: 'Other' };
+      state.functions.push(fn);
+    }
+    return fn;
+  }
+
+  // App icon HTML shared across sections
+  function appIconHTML(app, size) {
+    const icon = app && app.icon;
+    const innerSizeClass = size === 'small' ? 'small' : '';
+    if (icon && icon.type === 'emoji' && icon.value) {
+      return `<span class="app-icon-emoji">${esc(icon.value)}</span>`;
+    }
+    if (icon && icon.type === 'image' && icon.value) {
+      return `<img src="${esc(icon.value)}" alt="">`;
+    }
+    const initials = (app?.name || '?').trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    return `<span class="app-icon-emoji">${esc(initials || '?')}</span>`;
+  }
+
+  // Attach autosuggest dropdown to an input
   function attachAutosuggest(input, { suggestions = [], max = 8, onPick } = {}){
     let list = document.createElement('div');
     Object.assign(list.style, {
@@ -257,7 +302,7 @@ Routes:
     function show(){ list.style.display='block'; position(); }
     function build(){
       const q = (input.value||'').toLowerCase().trim();
-      const opts = suggestions.filter(s=>!q || s.toLowerCase().includes(q)).slice(0,max);
+      const opts = (suggestions || []).filter(s=>!q || s.toLowerCase().includes(q)).slice(0,max);
       list.innerHTML = '';
       if(!opts.length){ hide(); return; }
       opts.forEach((opt,i)=>{
@@ -290,13 +335,54 @@ Routes:
       else if(e.key==='Enter'){ if(curIdx>=0){ e.preventDefault(); pick(list.children[curIdx].textContent); } }
       else if(e.key==='Escape'){ hide(); }
     });
-    return { updateSuggestions(arr){ suggestions = arr||[]; build(); }, destroy(){ document.body.removeChild(list); } };
+    return {
+      updateSuggestions(arr){ suggestions = arr||[]; build(); },
+      destroy(){ document.body.removeChild(list); }
+    };
+  }
+
+  // ---------- Integrations helpers ----------
+  function getIntegrationPair(appId1, appId2, createIfMissing = false) {
+    if (!appId1 || !appId2 || appId1 === appId2) return null;
+    const [a, b] = appId1 < appId2 ? [appId1, appId2] : [appId2, appId1];
+    let pair = (state.integrationsMatrix || []).find(p => p.appAId === a && p.appBId === b);
+    if (!pair && createIfMissing) {
+      pair = {
+        id: uid(),
+        appAId: a,
+        appBId: b,
+        hasDirect: false,
+        hasZapier: false,
+        directNotes: [],
+        zapierNotes: []
+      };
+      state.integrationsMatrix.push(pair);
+    }
+    return pair;
+  }
+
+  function integrationPairsForApp(appId) {
+    return (state.integrationsMatrix || []).filter(p => p.appAId === appId || p.appBId === appId);
+  }
+
+  function integrationPairColor(pair) {
+    if (pair.hasDirect && pair.hasZapier) return 'both';
+    if (pair.hasDirect) return 'direct';
+    if (pair.hasZapier) return 'zapier';
+    return null;
+  }
+
+  function integrationColorStyle(pair) {
+    const key = integrationPairColor(pair);
+    if (!key) return '';
+    const color = INTEG_COLORS[key];
+    return `border:1px solid ${color}; box-shadow:0 0 0 1px ${color}33;`;
   }
 
   // ---------- Cross-refs ----------
   function rebuildCrossRefs(){
-    const resMap = {};   // key: `${kind}:${id}` -> [{wfId,wfName,stepId,stepTitle}]
-    const dpMap  = {};   // key: token -> [{wfId,wfName,stepId,field:'title'|'description'}]
+    const resMap = {};
+    const dpMap  = {};
     (state.workflows||[]).forEach(wf=>{
       (wf.steps||[]).forEach(st=>{
         (st.resources||[]).forEach(r=>{
@@ -326,6 +412,7 @@ Routes:
     if (!row) return { name:`(${kind}:${id})` };
     return { name: row.title || row.name || row.campaign || row.event || row.id };
   }
+
   function resourceOptions(kind){
     const src = ({
       zap: state.zaps,
@@ -336,15 +423,18 @@ Routes:
     })[kind] || [];
     return src.map(x=>({ id:x.id, name: x.title||x.name||x.campaign||x.event||x.id }));
   }
+
   function kindLabel(k){
     return ({zap:'Zap', form:'Form', scheduler:'Scheduling', emailCampaign:'Email Campaign', emailTemplate:'Email Template'})[k] || k;
   }
 
   // ---------- Routing ----------
   const routes = {
-    '/apps': renderApps,
+    '/apps': renderAppsPage,              // combined: Apps + Functions + Integrations Matrix
+    '/apps/functions': renderAppsPage,    // back-compat
     '/apps/tech': renderTechComparison,
 
+    '/resources': renderZaps,
     '/resources/zaps': renderZaps,
     '/resources/forms': renderForms,
     '/resources/workflows': renderWorkflows,
@@ -363,6 +453,7 @@ Routes:
     const h = (location.hash || '#/apps').slice(1);
     return h || '/apps';
   }
+
   function navigate(){
     const path = currentPath();
     const view = $('#view');
@@ -395,15 +486,6 @@ Routes:
         try{
           const obj = JSON.parse(fr.result);
           Object.assign(state, obj);
-          // ensure migrations on import
-          (state.apps||[]).forEach(app=>{
-            if (!Array.isArray(app.datapointMappings)) app.datapointMappings = [];
-            app.datapointMappings.forEach(row=>{
-              if (row.inbound === undefined && row.inAppName !== undefined) row.inbound = row.inAppName;
-              if (row.outbound === undefined) row.outbound = '';
-            });
-            if (!Array.isArray(app.integrations)) app.integrations = [];
-          });
           persist(); navigate();
         }catch(_){ alert('Invalid JSON'); }
       };
@@ -416,12 +498,12 @@ Routes:
     localStorage.clear(); location.reload();
   });
 
-  // ---------- Pages ----------
+  // ---------- Generic pages ----------
   function renderNotFound(el){
     el.innerHTML = `<div class="card"><h2>Not Found</h2><div class="muted">No route for ${currentPath()}</div></div>`;
   }
 
-  // Tech Comparison
+  // ---------- Tech Comparison (unchanged) ----------
   function renderTechComparison(el){
     el.innerHTML = `
       <div class="card sticky">
@@ -435,7 +517,9 @@ Routes:
       <div class="card">
         <div class="row" style="margin-bottom:8px">
           <label style="min-width:120px">Compare Apps</label>
-          <select id="tcApps" multiple size="6" style="min-width:280px"></select>
+          <select id="tcApps" multiple size="6" style="min-width:280px">
+            ${ (state.apps||[]).map(a=>`<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('') }
+          </select>
         </div>
 
         <div class="row" style="margin:10px 0">
@@ -459,14 +543,6 @@ Routes:
 
     const page = { criteria: [] };
     const tbody = el.querySelector('#tcTable tbody');
-    const tcApps = el.querySelector('#tcApps');
-
-    (state.apps||[]).forEach(a=>{
-      const opt = document.createElement('option');
-      opt.value = a.id;
-      opt.textContent = `${a.name} (${a.category || 'Other'})`;
-      tcApps.appendChild(opt);
-    });
 
     function drawCriteria(){
       tbody.innerHTML = '';
@@ -495,2057 +571,971 @@ Routes:
     });
 
     el.querySelector('#calcScores').addEventListener('click', ()=>{
-      const selApps = Array.from(tcApps.selectedOptions).map(o=>o.value);
+      const selApps = Array.from(el.querySelector('#tcApps').selectedOptions).map(o=>o.value);
       if (!selApps.length) { alert('Pick at least one app.'); return; }
       if (!page.criteria.length) { alert('Add at least one criterion.'); return; }
 
       const totalWeight = page.criteria.reduce((s,c)=> s + Number(c.weight||0), 0) || 1;
       const result = selApps.map(id=>{
         const app = (state.apps||[]).find(a=>a.id===id);
-        const score = totalWeight; // placeholder; per-app ratings can be added later
+        const score = totalWeight; // placeholder
         return { id, name: app?.name || id, score };
       }).sort((a,b)=> b.score - a.score);
 
-      el.querySelector('#tcResult').textContent = `Rank: ${result.map(r=>`${r.name} (${r.score})`).join('  ·  ')}`;
+      el.querySelector('#tcResult').textContent =
+        `Rank: ${result.map(r=>`${r.name} (${r.score})`).join('  ·  ')}`;
     });
 
     drawCriteria();
   }
 
-  // Apps page — Applications + Functions + Integrations Matrix
-  function renderApps(el){
-    const wrap = document.createElement('div');
-    wrap.innerHTML = `
-      <div class="card sticky">
-        <h2 style="padding-bottom:0">Applications</h2>
-        <div class="row" style="padding-top:2px">
-          <div class="muted">Catalog your tools, functions, datapoints, resources, and integrations.</div>
-          <div class="spacer"></div>
-          <div class="row" style="gap:6px">
-            <div class="seg-group" id="appsViewToggle">
-              <button class="seg-btn" data-mode="details">Details</button>
-              <button class="seg-btn" data-mode="icons">Icons</button>
-            </div>
-            <button class="btn small" id="addApp">Add App</button>
-          </div>
-        </div>
-        <div class="row" style="padding-top:0">
-          <input type="text" id="appSearch" placeholder="Search by name, function, notes…" />
-          <select id="appFunctionFilter">
-            <option value="">All Functions</option>
-          </select>
-        </div>
-      </div>
+  // ========================================================================
+  //  APPS PAGE (Applications + Functions + Integrations Matrix)
+  // ========================================================================
 
-      <div class="card">
-        <div id="appsGrid" class="grid"></div>
-        <div class="notice" style="margin-top:8px">Click any app card to view its details; sections open in a slideout for editing.</div>
-      </div>
-
-      <div class="card">
-        <div class="row" style="align-items:center; margin-bottom:6px">
-          <h3 style="margin:0">Functions</h3>
-          <div class="spacer"></div>
-          <button class="btn small" id="addFunction">Add Function</button>
-        </div>
-        <div id="functionsGrid" class="grid cols-3"></div>
-      </div>
-
-      <div class="card">
-        <div class="row" style="align-items:center; margin-bottom:6px">
-          <h3 style="margin:0">Integrations Matrix</h3>
-        </div>
-        <div id="integrationsGrid" class="grid cols-3"></div>
-      </div>
-    `;
-    el.appendChild(wrap);
-
-    const searchEl   = $('#appSearch', wrap);
-    const fnFilterEl = $('#appFunctionFilter', wrap);
-    const gridEl     = $('#appsGrid', wrap);
-    const toggleEl   = $('#appsViewToggle', wrap);
-    const fnGridEl   = $('#functionsGrid', wrap);
-    const imGridEl   = $('#integrationsGrid', wrap);
-
-    populateFunctionFilter();
-    applyToggleUI();
-    drawAllSections();
-
-    // --- helpers for this page ---
-    function applyToggleUI(){
-      $all('.seg-btn', toggleEl).forEach(btn=>{
-        btn.classList.toggle('active', btn.dataset.mode === state.appsViewMode);
-      });
-    }
-
-    function populateFunctionFilter(){
-      const keepFirst = fnFilterEl.querySelector('option');
-      fnFilterEl.innerHTML = '';
-      fnFilterEl.appendChild(keepFirst);
-      (state.functions||[])
-        .map(f=>f.name)
-        .filter(Boolean)
-        .sort((a,b)=>a.localeCompare(b))
-        .forEach(name=>{
-          const opt = document.createElement('option');
-          opt.value = name;
-          opt.textContent = name;
-          fnFilterEl.appendChild(opt);
-        });
-    }
-
-    function filteredApps(){
-      const q    = (searchEl.value||'').toLowerCase().trim();
-      const func = fnFilterEl.value || '';
-      return state.apps.filter(app=>{
-        const okFunc = !func || (app.functions||[]).includes(func);
-        const haystack = [
-          app.name, app.notes || '',
-          (app.functions||[]).join(' '),
-          (app.datapointMappings||[]).map(m=>`${m.datapoint} ${m.inbound||''} ${m.outbound||''}`).join(' ')
-        ].join(' ').toLowerCase();
-        const okQ = !q || haystack.includes(q);
-        return okFunc && okQ;
-      });
-    }
-
-    function renderIcon(app){
-      const icon = app.icon;
-      if (icon && icon.type === 'emoji' && icon.value){
-        return `<span class="app-icon-emoji">${esc(icon.value)}</span>`;
-      }
-      if (icon && icon.type === 'image' && icon.value){
-        return `<img src="${esc(icon.value)}" alt="">`;
-      }
-      const initials = (app.name||'?').trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
-      return `<span class="app-icon-emoji">${esc(initials || '?')}</span>`;
-    }
-
-    function drawAppsGrid(){
-      const apps = filteredApps();
-      gridEl.innerHTML = '';
-      gridEl.classList.toggle('small-icon-grid', state.appsViewMode === 'icons');
-
-      apps.forEach(app=>{
-        if (state.appsViewMode === 'icons'){
-          const card = document.createElement('div');
-          card.className = 'app-icon-card';
-          card.innerHTML = `
-            <div class="app-icon-box small">
-              <div class="app-icon-inner">${renderIcon(app)}</div>
-            </div>
-            <div class="app-icon-name">${esc(app.name || 'Untitled app')}</div>
-          `;
-          card.addEventListener('click', ()=> openAppModal(app, drawAllSections));
-          gridEl.appendChild(card);
-        } else {
-          const card = document.createElement('div');
-          card.className = 'card app-card';
-          card.innerHTML = `
-            <div class="row" style="align-items:flex-start">
-              <div class="app-icon-box">
-                <div class="app-icon-inner">${renderIcon(app)}</div>
-              </div>
-              <div style="flex:1; min-width:0">
-                <div class="row" style="align-items:center; gap:6px">
-                  <div class="app-title">${esc(app.name || 'Untitled app')}</div>
-                </div>
-                <div class="muted" style="margin-top:2px; font-size:12px; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                  ${esc(app.notes || '')}
-                </div>
-                <div class="row" style="margin-top:6px; flex-wrap:wrap; gap:4px">
-                  ${(app.functions||[]).length
-                    ? (app.functions||[]).map(fn=>`<span class="pill">${esc(fn)}</span>`).join('')
-                    : '<span class="muted" style="font-size:12px">No functions yet</span>'}
-                </div>
-              </div>
-              <button class="btn small ghost" data-act="deleteApp">✕</button>
-            </div>
-          `;
-          card.addEventListener('click', e=>{
-            if (e.target && e.target.getAttribute('data-act') === 'deleteApp') return;
-            openAppModal(app, drawAllSections);
-          });
-          card.querySelector('[data-act="deleteApp"]').addEventListener('click', e=>{
-            e.stopPropagation();
-            if (!confirm('Delete this app?')) return;
-            state.apps = state.apps.filter(a=>a.id!==app.id);
-            persist();
-            drawAllSections();
-          });
-          gridEl.appendChild(card);
-        }
-      });
-    }
-
-    function drawFunctionsSection(){
-      fnGridEl.innerHTML = '';
-      const funcs = (state.functions||[]).slice().sort((a,b)=> (a.name||'').localeCompare(b.name||''));
-      if (!funcs.length){
-        fnGridEl.innerHTML = '<div class="muted">No functions yet.</div>';
-        return;
-      }
-
-      funcs.forEach(fn=>{
-        const fnName = fn.name || '(Unnamed)';
-        const appsForFn = (state.apps||[]).filter(app => (app.functions||[]).includes(fnName));
-        const primary = appsForFn[0];
-
-        if (state.appsViewMode === 'icons'){
-          const card = document.createElement('div');
-          card.className = 'card fn-card';
-          card.innerHTML = `
-            <div class="row" style="margin-bottom:6px">
-              <div style="font-weight:600">${esc(fnName)}</div>
-            </div>
-            <div class="row" style="flex-wrap:wrap; gap:6px"></div>
-          `;
-          const row = card.querySelector('.row:last-child');
-          if (!appsForFn.length){
-            row.innerHTML = '<span class="muted" style="font-size:12px">No apps assigned</span>';
-          } else {
-            appsForFn.forEach(app=>{
-              const box = document.createElement('div');
-              box.className = 'app-icon-box small';
-              const inner = document.createElement('div');
-              inner.className = 'app-icon-inner';
-              inner.innerHTML = renderIcon(app);
-              // border colors: primary purple, others dark
-              if (primary && app.id === primary.id){
-                inner.style.border = '2px solid #a855f7';
-              } else {
-                inner.style.border = '2px solid #1f2937';
-              }
-              box.appendChild(inner);
-              box.title = app.name || '';
-              row.appendChild(box);
-            });
-          }
-          fnGridEl.appendChild(card);
-        } else {
-          const card = document.createElement('div');
-          card.className = 'card fn-card';
-          card.innerHTML = `
-            <div style="font-weight:600; margin-bottom:6px">${esc(fnName)}</div>
-            <div class="fn-app-list"></div>
-          `;
-          const list = card.querySelector('.fn-app-list');
-          if (!appsForFn.length){
-            list.innerHTML = '<span class="muted" style="font-size:12px">No apps assigned</span>';
-          } else {
-            appsForFn.forEach((app, idx)=>{
-              const row = document.createElement('div');
-              row.style.display = 'flex';
-              row.style.alignItems = 'center';
-              row.style.gap = '6px';
-              row.style.fontSize = '13px';
-              const dot = document.createElement('span');
-              dot.className = 'status-dot';
-              Object.assign(dot.style, {
-                display:'inline-block',
-                width:'8px',
-                height:'8px',
-                borderRadius:'999px',
-                marginRight:'2px',
-                background: idx===0 ? '#a855f7' : '#111827'
-              });
-              row.appendChild(dot);
-              const label = document.createElement('span');
-              label.textContent = app.name || '';
-              row.appendChild(label);
-              list.appendChild(row);
-            });
-          }
-          fnGridEl.appendChild(card);
-        }
-      });
-    }
-
-    function drawIntegrationsMatrix(){
-      imGridEl.innerHTML = '';
-      const apps = (state.apps||[]);
-
-      if (!apps.length){
-        imGridEl.innerHTML = '<div class="muted">No apps yet.</div>';
-        return;
-      }
-
-      apps.forEach(app=>{
-        const directList = [];
-        const zapList = [];
-        (app.integrations||[]).forEach(row=>{
-          const other = findById(state.apps, row.appId);
-          if (!other) return;
-          if (row.direct) directList.push(other);
-          if (row.zapier) zapList.push(other);
-        });
-
-        if (state.appsViewMode === 'icons'){
-          const card = document.createElement('div');
-          card.className = 'card im-card';
-          const borderColor = (() => {
-            const hasDirect = directList.length > 0;
-            const hasZap    = zapList.length > 0;
-            if (hasDirect && hasZap) return '#16a34a';  // both
-            if (hasDirect) return '#3b82f6';           // direct
-            if (hasZap) return '#facc15';              // zapier
-            return '#374151';
-          })();
-          card.innerHTML = `
-            <div class="row" style="align-items:center; gap:6px">
-              <div class="app-icon-box small">
-                <div class="app-icon-inner" style="border:2px solid ${borderColor}">${renderIcon(app)}</div>
-              </div>
-              <div>${esc(app.name || '')}</div>
-            </div>
-          `;
-          imGridEl.appendChild(card);
-        } else {
-          const card = document.createElement('div');
-          card.className = 'card im-card';
-          card.id = `imCard_${app.id}`;
-          card.innerHTML = `
-            <div style="font-weight:600; margin-bottom:6px">${esc(app.name || '')}</div>
-            <div class="row" style="align-items:flex-start; gap:20px">
-              <div style="flex:1">
-                <div style="font-size:12px; font-weight:600; margin-bottom:4px">Direct</div>
-                <div class="im-direct"></div>
-              </div>
-              <div style="flex:1">
-                <div style="font-size:12px; font-weight:600; margin-bottom:4px">Zapier</div>
-                <div class="im-zap"></div>
-              </div>
-            </div>
-          `;
-          const directBox = card.querySelector('.im-direct');
-          const zapBox    = card.querySelector('.im-zap');
-
-          function addRow(box, other, label){
-            const row = document.createElement('div');
-            row.style.display = 'flex';
-            row.style.alignItems = 'center';
-            row.style.gap = '6px';
-            row.style.fontSize = '13px';
-            row.innerHTML = `
-              <span>${esc(label)}</span>
-              <button class="btn small ghost" data-act="jump" data-target="${other.id}">↔</button>
-            `;
-            box.appendChild(row);
-          }
-
-          if (!directList.length){
-            directBox.innerHTML = '<span class="muted" style="font-size:12px">None</span>';
-          } else {
-            directList.forEach(o=> addRow(directBox, o, o.name || 'Other'));
-          }
-
-          if (!zapList.length){
-            zapBox.innerHTML = '<span class="muted" style="font-size:12px">None</span>';
-          } else {
-            zapList.forEach(o=> addRow(zapBox, o, o.name || 'Other'));
-          }
-
-          card.addEventListener('click', e=>{
-            const btn = e.target.closest('[data-act="jump"]');
-            if (!btn) return;
-            e.preventDefault();
-            const targetId = btn.getAttribute('data-target');
-            const targetCard = document.getElementById(`imCard_${targetId}`);
-            if (targetCard) targetCard.scrollIntoView({ behavior:'smooth', block:'center' });
-          });
-
-          imGridEl.appendChild(card);
-        }
-      });
-    }
-
-    function drawAllSections(){
-      drawAppsGrid();
-      drawFunctionsSection();
-      drawIntegrationsMatrix();
-    }
-
-    // events
-    toggleEl.addEventListener('click', e=>{
-      const btn = e.target.closest('.seg-btn');
-      if (!btn) return;
-      state.appsViewMode = btn.dataset.mode;
-      persist();
-      applyToggleUI();
-      drawAllSections();
-    });
-
-    $('#addApp', wrap).addEventListener('click', ()=>{
-      state.apps.unshift({
-        id: uid(),
-        name:'New App',
-        category:'Other',
-        notes:'',
-        needsFilter:false,
-        functions:[],
-        icon:null,
-        datapointMappings:[],
-        integrations:[]
-      });
-      persist();
-      drawAllSections();
-    });
-
-    $('#addFunction', wrap).addEventListener('click', ()=>{
-      state.functions.unshift({ id:uid(), type: FUNCTION_TYPES[0], name:'' });
-      persist();
-      populateFunctionFilter();
-      drawAllSections();
-    });
-
-    searchEl.addEventListener('input', drawAllSections);
-    fnFilterEl.addEventListener('change', drawAllSections);
-
-    // --- App modal (unchanged structure, updated sections) ---
-    function openAppModal(app, refreshAll){
-      const overlay = document.createElement('div');
-      overlay.className = 'overlay';
-      overlay.innerHTML = `
-        <div class="card app-modal">
-          <div class="row app-modal-header">
-            <div class="app-icon-box app-icon-box-main">
-              <div class="app-icon-inner">${renderIcon(app)}</div>
-            </div>
-            <div class="app-modal-title-wrap">
-              <div class="muted" style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em;">App</div>
-              <div class="app-modal-name">
-                <span class="editable-title app-modal-name-display">${esc(app.name || 'Untitled app')}</span>
-                <input class="app-modal-name-input" type="text" value="${esc(app.name || '')}" style="display:none" />
-              </div>
-            </div>
-            <div class="spacer"></div>
-            <button class="btn small ghost" data-act="closeModal">✕</button>
-          </div>
-          <div class="row" style="margin-top:6px; margin-bottom:10px">
-            ${app.notes ? `<span class="muted" style="font-size:12px">${esc(app.notes)}</span>` : ''}
-          </div>
-          <div class="grid app-sections-grid">
-            <div class="section-tile" data-section="functions">
-              <div class="section-title">Functions</div>
-              <div class="section-sub"></div>
-            </div>
-            <div class="section-tile" data-section="datapoints">
-              <div class="section-title">Datapoints</div>
-              <div class="section-sub"></div>
-            </div>
-            <div class="section-tile" data-section="usedIn">
-              <div class="section-title">Used In Resources</div>
-              <div class="section-sub"></div>
-            </div>
-            <div class="section-tile" data-section="integrations">
-              <div class="section-title">Integrations</div>
-              <div class="section-sub"></div>
-            </div>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(overlay);
-
-      const modalCard = overlay.querySelector('.app-modal');
-      modalCard.addEventListener('click', e=> e.stopPropagation());
-      overlay.addEventListener('click', e=>{
-        if (e.target === overlay) overlay.remove();
-      });
-      overlay.querySelector('[data-act="closeModal"]').addEventListener('click', ()=> overlay.remove());
-
-      // Name editing
-      const nameDisplay = overlay.querySelector('.app-modal-name-display');
-      const nameInput   = overlay.querySelector('.app-modal-name-input');
-
-      function saveName(){
-        const v = nameInput.value.trim();
-        app.name = v || 'Untitled app';
-        nameDisplay.textContent = app.name;
-        nameDisplay.style.display = 'inline';
-        nameInput.style.display = 'none';
-        persist();
-        if (typeof refreshAll === 'function') refreshAll();
-      }
-
-      nameDisplay.addEventListener('click', ()=>{
-        nameInput.value = app.name || '';
-        nameDisplay.style.display = 'none';
-        nameInput.style.display = 'inline-block';
-        nameInput.focus();
-        nameInput.select();
-      });
-      nameInput.addEventListener('blur', saveName);
-      nameInput.addEventListener('keydown', e=>{
-        if (e.key === 'Enter'){ e.preventDefault(); nameInput.blur(); }
-        if (e.key === 'Escape'){
-          nameInput.value = app.name || '';
-          nameDisplay.style.display = 'inline';
-          nameInput.style.display = 'none';
-        }
-      });
-
-      // Icon picker
-      const iconBox = overlay.querySelector('.app-icon-box-main');
-      function updateIcon(){
-        const inner = iconBox.querySelector('.app-icon-inner');
-        inner.innerHTML = renderIcon(app);
-      }
-
-      function openIconPicker(){
-        const existing = iconBox.querySelector('.icon-picker');
-        if (existing){ existing.remove(); return; }
-        const picker = document.createElement('div');
-        picker.className = 'icon-picker';
-        picker.innerHTML = `
-          <div class="row" style="margin-bottom:6px">
-            <b style="font-size:12px">Icon</b>
-            <div class="spacer"></div>
-            <button class="btn small ghost" data-act="closeIcon">✕</button>
-          </div>
-          <div class="row" style="flex-wrap:wrap; gap:4px; margin-bottom:6px">
-            ${['📅','📧','📊','⚙️','🧩','📝','💬','📂'].map(e=>`<button type="button" class="btn small ghost icon-choice" data-val="${e}">${e}</button>`).join('')}
-          </div>
-          <label style="margin-top:4px; margin-bottom:2px">Custom emoji / text</label>
-          <input type="text" class="iconInput" placeholder="Type emoji or up to 2 letters">
-          <label style="margin-top:6px; margin-bottom:2px">Upload image</label>
-          <input type="file" class="iconFile" accept="image/*">
-        `;
-        iconBox.appendChild(picker);
-
-        picker.querySelector('[data-act="closeIcon"]').addEventListener('click', ()=> picker.remove());
-        picker.querySelectorAll('.icon-choice').forEach(btn=>{
-          btn.addEventListener('click', ()=>{
-            app.icon = { type:'emoji', value:btn.dataset.val };
-            picker.remove();
-            updateIcon();
-            persist();
-            if (typeof refreshAll === 'function') refreshAll();
-          });
-        });
-        const iconInput = picker.querySelector('.iconInput');
-        iconInput.addEventListener('keydown', e=>{
-          if (e.key === 'Enter'){
-            const v = iconInput.value.trim();
-            if (!v) return;
-            app.icon = { type:'emoji', value:v.slice(0,2) };
-            picker.remove();
-            updateIcon();
-            persist();
-            if (typeof refreshAll === 'function') refreshAll();
-          }
-        });
-        picker.querySelector('.iconFile').addEventListener('change', e=>{
-          const file = e.target.files[0];
-          if (!file) return;
-          const reader = new FileReader();
-          reader.onload = ev=>{
-            app.icon = { type:'image', value:ev.target.result };
-            picker.remove();
-            updateIcon();
-            persist();
-            if (typeof refreshAll === 'function') refreshAll();
-          };
-          reader.readAsDataURL(file);
-        });
-      }
-
-      iconBox.addEventListener('click', openIconPicker);
-
-      // Section summaries
-      function computeUsedIn(app){
-        const out = [];
-        (state.zaps||[]).forEach(z=>{
-          if (!z) return;
-          const match = (z.appId === app.id) || ((z.app||'').toLowerCase() === (app.name||'').toLowerCase());
-          if (match) out.push({ kind:'zap', id:z.id, label:z.title || z.event || 'Zap step' });
-        });
-        (state.forms||[]).forEach(f=>{
-          if (!f) return;
-          const match = (f.appId === app.id) || ((f.app||'').toLowerCase() === (app.name||'').toLowerCase());
-          if (match) out.push({ kind:'form', id:f.id, label:f.title || 'Form' });
-        });
-        (state.scheduling||[]).forEach(s=>{
-          if (!s) return;
-          const match = (s.appId === app.id) || ((s.app||'').toLowerCase() === (app.name||'').toLowerCase());
-          if (match) out.push({ kind:'scheduler', id:s.id, label:s.title || s.name || s.event || 'Scheduling' });
-        });
-        (state.emailCampaigns||[]).forEach(c=>{
-          if (!c) return;
-          const match = (c.appId === app.id) || ((c.app||'').toLowerCase() === (app.name||'').toLowerCase());
-          if (match) out.push({ kind:'emailCampaign', id:c.id, label:c.name || 'Email Campaign' });
-        });
-        (state.emailTemplates||[]).forEach(t=>{
-          if (!t) return;
-          const match = (t.appId === app.id) || ((t.app||'').toLowerCase() === (app.name||'').toLowerCase());
-          if (match) out.push({ kind:'emailTemplate', id:t.id, label:t.name || 'Email Template' });
-        });
-        return out;
-      }
-
-      function refreshSectionCounts(){
-        const fnSub  = overlay.querySelector('[data-section="functions"] .section-sub');
-        const dpSub  = overlay.querySelector('[data-section="datapoints"] .section-sub');
-        const useSub = overlay.querySelector('[data-section="usedIn"] .section-sub');
-        const intSub = overlay.querySelector('[data-section="integrations"] .section-sub');
-
-        const fnList = app.functions || [];
-        if (fnSub){
-          if (!fnList.length){
-            fnSub.textContent = 'No functions assigned';
-          } else {
-            fnSub.innerHTML = fnList.map(n=>`<span class="pill">${esc(n)}</span>`).join(' ');
-          }
-        }
-
-        const dpList = app.datapointMappings || [];
-        if (dpSub){
-          dpSub.textContent = dpList.length
-            ? `${dpList.length} mapping${dpList.length!==1?'s':''}`
-            : 'No datapoints mapped';
-        }
-
-        const usedList = computeUsedIn(app);
-        if (useSub){
-          useSub.textContent = usedList.length
-            ? `${usedList.length} resource${usedList.length!==1?'s':''}`
-            : 'Not referenced in resources yet';
-        }
-
-        const ints = app.integrations || [];
-        if (intSub){
-          if (!ints.length){
-            intSub.textContent = 'No integrations defined';
-          } else {
-            // show icons with border colors
-            const frag = document.createElement('div');
-            frag.className = 'row';
-            frag.style.flexWrap = 'wrap';
-            frag.style.gap = '4px';
-            ints.forEach(row=>{
-              const other = findById(state.apps, row.appId);
-              if (!other) return;
-              const box = document.createElement('div');
-              box.className = 'app-icon-box small';
-              const inner = document.createElement('div');
-              inner.className = 'app-icon-inner';
-              inner.innerHTML = renderIcon(other);
-              const hasDirect = !!row.direct;
-              const hasZap    = !!row.zapier;
-              if (hasDirect && hasZap) inner.style.border = '2px solid #16a34a';
-              else if (hasDirect)      inner.style.border = '2px solid #3b82f6';
-              else if (hasZap)         inner.style.border = '2px solid #facc15';
-              else                     inner.style.border = '2px solid #374151';
-              box.title = other.name || '';
-              box.appendChild(inner);
-              frag.appendChild(box);
-            });
-            intSub.innerHTML = '';
-            intSub.appendChild(frag);
-          }
-        }
-      }
-      refreshSectionCounts();
-
-      // Slideouts
-      let openPanel = null;
-      function showSlideout(title, buildBody){
-        if (openPanel) openPanel.remove();
-        const panel = document.createElement('div');
-        panel.className = 'slideout';
-        panel.innerHTML = `
-          <div class="slideout-header">
-            <div style="font-weight:600;font-size:14px">${esc(title)}</div>
-            <div class="spacer"></div>
-            <button class="btn small ghost" data-act="closeSlideout">✕</button>
-          </div>
-          <div class="slideout-body"></div>
-        `;
-        overlay.appendChild(panel);
-        const body = panel.querySelector('.slideout-body');
-        buildBody(body);
-        panel.querySelector('[data-act="closeSlideout"]').addEventListener('click', ()=> panel.remove());
-        openPanel = panel;
-      }
-
-      // Section click handlers
-      $all('.section-tile', overlay).forEach(tile=>{
-        tile.addEventListener('click', ()=>{
-          const sec = tile.dataset.section;
-          if (sec === 'functions'){
-            showSlideout('Functions', body=>{
-              body.innerHTML = `
-                <p class="muted">Assign high-level functions this app covers. These are shared with the Functions catalog.</p>
-                <div class="row" style="flex-wrap:wrap; gap:6px" id="fnChips"></div>
-                <div class="row" style="margin-top:8px">
-                  <input type="text" id="fnAddInput" placeholder="Type to search or add new function">
-                  <button class="btn small" id="fnAddBtn">Add</button>
-                </div>
-              `;
-              const chipsBox = body.querySelector('#fnChips');
-              function drawFnChips(){
-                chipsBox.innerHTML = '';
-                const list = app.functions || [];
-                if (!list.length){
-                  chipsBox.innerHTML = '<span class="muted">No functions yet.</span>';
-                  return;
-                }
-                list.forEach(fnName=>{
-                  const chipEl = document.createElement('span');
-                  chipEl.className = 'pill';
-                  chipEl.textContent = fnName;
-                  const x = document.createElement('button');
-                  x.className = 'btn small ghost';
-                  x.textContent = '×';
-                  x.style.border='none'; x.style.padding='0 4px';
-                  x.addEventListener('click', ()=>{
-                    app.functions = (app.functions||[]).filter(n=>n!==fnName);
-                    persist();
-                    drawFnChips();
-                    refreshSectionCounts();
-                    if (typeof refreshAll === 'function') refreshAll();
-                  });
-                  chipEl.appendChild(x);
-                  chipsBox.appendChild(chipEl);
-                });
-              }
-              drawFnChips();
-
-              const input = body.querySelector('#fnAddInput');
-              const btn   = body.querySelector('#fnAddBtn');
-              const sug   = attachAutosuggest(input, {
-                suggestions: currentFunctionNames(),
-                onPick: val => addFn(val)
-              });
-
-              function addFn(val){
-                const v = (val || input.value || '').trim();
-                if (!v) return;
-                app.functions = dedupe([...(app.functions||[]), v]);
-                if (!state.functions.some(f=>f.name===v)){
-                  state.functions.push({ id:uid(), type:guessType(v), name:v });
-                }
-                persist();
-                input.value = '';
-                populateFunctionFilter();
-                sug.updateSuggestions(currentFunctionNames());
-                drawFnChips();
-                refreshSectionCounts();
-                if (typeof refreshAll === 'function') refreshAll();
-              }
-              btn.addEventListener('click', ()=> addFn());
-            });
-          } else if (sec === 'datapoints'){
-            showSlideout('Datapoints', body=>{
-              body.innerHTML = `
-                <p class="muted">Map global datapoints to this app’s internal field names.</p>
-                <table>
-                  <thead><tr><th>Master</th><th>Inbound Merge Tag</th><th>Outbound Merge Tag</th><th></th></tr></thead>
-                  <tbody id="dpTbody"></tbody>
-                </table>
-                <div class="row" style="margin-top:8px">
-                  <button class="btn small" id="dpAddRow">Add Mapping</button>
-                </div>
-              `;
-              app.datapointMappings = app.datapointMappings || [];
-              const tb = body.querySelector('#dpTbody');
-
-              function drawRows(){
-                tb.innerHTML = '';
-                if (!app.datapointMappings.length){
-                  const tr = document.createElement('tr');
-                  tr.innerHTML = `<td colspan="4"><span class="muted">No mappings yet.</span></td>`;
-                  tb.appendChild(tr);
-                  return;
-                }
-                app.datapointMappings.forEach(row=>{
-                  const tr = document.createElement('tr');
-                  tr.innerHTML = `
-                    <td><input type="text" class="dpName" value="${esc(row.datapoint || '')}" placeholder="Choose datapoint"></td>
-                    <td><input type="text" class="dpInbound" value="${esc(row.inbound || '')}" placeholder="Inbound merge tag"></td>
-                    <td><input type="text" class="dpOutbound" value="${esc(row.outbound || '')}" placeholder="Outbound merge tag"></td>
-                    <td><button class="btn small" data-act="del">Delete</button></td>
-                  `;
-                  const nameInput = tr.querySelector('.dpName');
-                  const inboundInput = tr.querySelector('.dpInbound');
-                  const outboundInput = tr.querySelector('.dpOutbound');
-                  attachAutosuggest(nameInput, {
-                    suggestions: state.datapoints || [],
-                    onPick: val => {
-                      row.datapoint = val;
-                      persist();
-                      refreshSectionCounts();
-                    }
-                  });
-                  nameInput.addEventListener('input', e=>{
-                    row.datapoint = e.target.value;
-                    persist();
-                    refreshSectionCounts();
-                  });
-                  inboundInput.addEventListener('input', e=>{
-                    row.inbound = e.target.value;
-                    persist();
-                    refreshSectionCounts();
-                  });
-                  outboundInput.addEventListener('input', e=>{
-                    row.outbound = e.target.value;
-                    persist();
-                    refreshSectionCounts();
-                  });
-                  tr.querySelector('[data-act="del"]').addEventListener('click', ()=>{
-                    app.datapointMappings = (app.datapointMappings||[]).filter(r=>r!==row);
-                    persist();
-                    drawRows();
-                    refreshSectionCounts();
-                    if (typeof refreshAll === 'function') refreshAll();
-                  });
-                  tb.appendChild(tr);
-                });
-              }
-
-              body.querySelector('#dpAddRow').addEventListener('click', ()=>{
-                app.datapointMappings.push({ id:uid(), datapoint:'', inbound:'', outbound:'' });
-                persist();
-                drawRows();
-                refreshSectionCounts();
-                if (typeof refreshAll === 'function') refreshAll();
-              });
-
-              drawRows();
-            });
-          } else if (sec === 'usedIn'){
-            showSlideout('Used In Resources', body=>{
-              const list = computeUsedIn(app);
-              if (!list.length){
-                body.innerHTML = `<p class="muted">This app is not currently linked to any Zaps, forms, scheduling links, or email assets.</p>`;
-                return;
-              }
-              const groups = {};
-              list.forEach(item=>{
-                (groups[item.kind] ||= []).push(item);
-              });
-              Object.keys(groups).forEach(kind=>{
-                const h = document.createElement('h4');
-                h.style.fontSize = '13px';
-                h.style.margin = '8px 0 4px';
-                h.textContent = kindLabel(kind);
-                body.appendChild(h);
-                const ul = document.createElement('ul');
-                ul.style.listStyle='none';
-                ul.style.padding='0';
-                ul.style.margin='0 0 6px';
-                groups[kind].forEach(item=>{
-                  const li = document.createElement('li');
-                  li.style.margin='4px 0';
-                  li.innerHTML = `
-                    <a href="#" class="used-link" data-kind="${item.kind}" data-id="${item.id}" style="color:#72a0ff">
-                      ${esc(item.label)}
-                    </a>
-                  `;
-                  ul.appendChild(li);
-                });
-                body.appendChild(ul);
-              });
-
-              body.addEventListener('click', e=>{
-                const link = e.target.closest('.used-link');
-                if (!link) return;
-                e.preventDefault();
-                const kind = link.dataset.kind;
-                if (kind === 'zap') location.hash = '#/resources/zaps';
-                else if (kind === 'form') location.hash = '#/resources/forms';
-                else if (kind === 'scheduler') location.hash = '#/resources/scheduling';
-                else if (kind === 'emailCampaign') location.hash = '#/resources/email-campaigns';
-                else if (kind === 'emailTemplate') location.hash = '#/resources/email-campaigns';
-                overlay.remove();
-              }, { once:true });
-            });
-          } else if (sec === 'integrations'){
-            showSlideout('Integrations', body=>{
-              body.innerHTML = `
-                <p class="muted">Track how this app connects to others. Blue = Direct, Yellow = Zapier, Green = Both.</p>
-                <table>
-                  <thead><tr><th>App</th><th>Direct</th><th>Zapier</th><th></th></tr></thead>
-                  <tbody id="intTbody"></tbody>
-                </table>
-                <div class="row" style="margin-top:8px">
-                  <button class="btn small" id="intAdd">Add Integration</button>
-                </div>
-              `;
-              app.integrations = app.integrations || [];
-              const tb = body.querySelector('#intTbody');
-
-              function drawRows(){
-                tb.innerHTML = '';
-                if (!app.integrations.length){
-                  const tr = document.createElement('tr');
-                  tr.innerHTML = `<td colspan="4"><span class="muted">No integrations yet.</span></td>`;
-                  tb.appendChild(tr);
-                  return;
-                }
-                app.integrations.forEach(row=>{
-                  const tr = document.createElement('tr');
-                  const allApps = (state.apps||[]).filter(a=>a.id !== app.id);
-                  tr.innerHTML = `
-                    <td>
-                      <select class="intApp">
-                        <option value="">— Select app —</option>
-                        ${allApps.map(a=>`<option value="${esc(a.id)}" ${row.appId===a.id?'selected':''}>${esc(a.name||'')}</option>`).join('')}
-                      </select>
-                    </td>
-                    <td style="text-align:center"><input type="checkbox" class="intDirect" ${row.direct?'checked':''}></td>
-                    <td style="text-align:center"><input type="checkbox" class="intZap" ${row.zapier?'checked':''}></td>
-                    <td><button class="btn small" data-act="del">Delete</button></td>
-                  `;
-                  tr.querySelector('.intApp').addEventListener('change', e=>{
-                    row.appId = e.target.value || '';
-                    persist();
-                    refreshSectionCounts();
-                    if (typeof refreshAll === 'function') refreshAll();
-                  });
-                  tr.querySelector('.intDirect').addEventListener('change', e=>{
-                    row.direct = e.target.checked;
-                    persist();
-                    refreshSectionCounts();
-                    if (typeof refreshAll === 'function') refreshAll();
-                  });
-                  tr.querySelector('.intZap').addEventListener('change', e=>{
-                    row.zapier = e.target.checked;
-                    persist();
-                    refreshSectionCounts();
-                    if (typeof refreshAll === 'function') refreshAll();
-                  });
-                  tr.querySelector('[data-act="del"]').addEventListener('click', ()=>{
-                    app.integrations = (app.integrations||[]).filter(r=>r!==row);
-                    persist();
-                    drawRows();
-                    refreshSectionCounts();
-                    if (typeof refreshAll === 'function') refreshAll();
-                  });
-                  tb.appendChild(tr);
-                });
-              }
-
-              body.querySelector('#intAdd').addEventListener('click', ()=>{
-                app.integrations.push({ id:uid(), appId:'', direct:true, zapier:false });
-                persist();
-                drawRows();
-                refreshSectionCounts();
-                if (typeof refreshAll === 'function') refreshAll();
-              });
-
-              drawRows();
-            });
-          }
-        });
-      });
-    }
+  function renderAppsPage(el) {
+    // Applications section
+    renderAppsSection(el);
+    // Functions section (cards)
+    renderFunctionsSection(el);
+    // Integrations Matrix section
+    renderIntegrationsMatrixSection(el);
   }
 
-  // Zaps
-  function renderZaps(el){
-    const wrap = document.createElement('div');
-    wrap.innerHTML = `
-      <div class="card sticky">
-        <h2>Zaps</h2>
-        <div class="row">
-          <button class="btn small" id="addZap">Add Zap Step</button>
-          <div class="spacer"></div>
-          <div class="pill">Pricing: $${state.pricing.zapStep}/step</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <table id="zapTable">
-          <thead><tr>
-            <th>Title</th><th>App</th><th>Type</th><th>Event</th><th>Needs Filter</th><th>Price</th><th></th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
-        <div class="row" style="margin-top:10px">
-          <div class="spacer"></div>
-          <div>Total Approved (Do Now, Sphynx/Joint): <b id="zapTotal">$0.00</b></div>
-        </div>
-      </div>
-    `;
-    el.appendChild(wrap);
-
-    function priceRow(){ return state.pricing.zapStep; }
-    function renderTable(){
-      const tb = $('#zapTable tbody', wrap); tb.innerHTML = '';
-      state.zaps.forEach(z=>{
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><input type="text" value="${esc(z.title||'')}" data-f="title"></td>
-          <td><input type="text" value="${esc(z.app||'')}" data-f="app"></td>
-          <td><select data-f="stepType">${['Trigger','Action'].map(t=>`<option ${z.stepType===t?'selected':''}>${t}</option>`).join('')}</select></td>
-          <td><input type="text" value="${esc(z.event||'')}" data-f="event"></td>
-          <td><input type="checkbox" ${z.needsFilter?'checked':''} data-f="needsFilter"></td>
-          <td>${money(priceRow())}</td>
-          <td><button class="btn small" data-act="del">Delete</button></td>
-        `;
-        tr.querySelectorAll('[data-f]').forEach(inp=>{
-          inp.addEventListener('input', ()=>{
-            const f = inp.getAttribute('data-f');
-            if (inp.type==='checkbox') z[f]=inp.checked; else z[f]=inp.value;
-            persist(); renderTotals();
-          });
-        });
-        tr.querySelector('[data-act="del"]').addEventListener('click', ()=>{
-          if(!confirm('Delete step?')) return;
-          state.zaps = state.zaps.filter(x=>x.id!==z.id); persist(); renderTable(); renderTotals();
-        });
-        tb.appendChild(tr);
-      });
-    }
-    function renderTotals(){
-      const total = state.zaps.length * priceRow();
-      $('#zapTotal', wrap).textContent = money(total);
-    }
-    $('#addZap', wrap).addEventListener('click', ()=>{
-      state.zaps.unshift({ id:uid(), title:'', app:'', stepType:'Action', event:'', needsFilter:false });
-      persist(); renderTable(); renderTotals();
-    });
-    renderTable(); renderTotals();
-
-    // backlinks
-    renderResourceBacklinks(el, 'zap', state.zaps, z => z.title||z.name||z.id);
-  }
-
-  // Forms
-  function renderForms(el){
-    const wrap = document.createElement('div');
-    wrap.innerHTML = `
-      <div class="card sticky">
-        <h2>Forms</h2>
-        <div class="row">
-          <button class="btn small" id="addForm">Add Form Item</button>
-          <div class="spacer"></div>
-          <div class="pill">Pricing: Questions/Conditions/PDFs/Emails/Signatures/Add-ons</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <table id="formsTable">
-          <thead><tr>
-            <th>Title</th><th>Questions</th><th>Conditions</th><th>PDFs</th><th>Emails</th><th>Signatures</th><th>Add-ons</th><th></th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-
-      <div class="card">
-        <div class="collapse" id="livePrefill">
-          <div class="c-head"><span class="caret">▶</span><b>Live Prefill (Spreadsheet → Form) – Collapsible</b></div>
-          <div class="c-body">
-            <div class="row" style="margin:12px 12px 0">
-              <button class="btn small" id="initPrefill">Load Prefill Module</button>
-              <span class="muted">Mounts your existing mapping/prefill UI here.</span>
-            </div>
-            <div id="prefillMount" style="padding:12px"></div>
-          </div>
-        </div>
-      </div>
-    `;
-    el.appendChild(wrap);
-
-    const col = $('#livePrefill', wrap);
-    $('.c-head', col).addEventListener('click', ()=> col.classList.toggle('open'));
-
-    function renderTable(){
-      const tb = $('#formsTable tbody', wrap); tb.innerHTML = '';
-      state.forms.forEach(f=>{
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><input type="text" value="${esc(f.title||'')}" data-f="title"></td>
-          <td><input type="number" value="${Number(f.questions||0)}" data-f="questions"></td>
-          <td><input type="number" value="${Number(f.conditions||0)}" data-f="conditions"></td>
-          <td><input type="number" value="${Number(f.pdfs||0)}" data-f="pdfs"></td>
-          <td><input type="number" value="${Number(f.emails||0)}" data-f="emails"></td>
-          <td><input type="number" value="${Number(f.signatures||0)}" data-f="signatures"></td>
-          <td><input type="number" value="${Number(f.addons||0)}" data-f="addons"></td>
-          <td><button class="btn small" data-act="del">Delete</button></td>
-        `;
-        tr.querySelectorAll('[data-f]').forEach(inp=>{
-          inp.addEventListener('input', ()=>{
-            const fkey = inp.getAttribute('data-f');
-            f[fkey] = inp.type==='number' ? Number(inp.value||0) : inp.value;
-            persist();
-          });
-        });
-        tr.querySelector('[data-act="del"]').addEventListener('click', ()=>{
-          if(!confirm('Delete form item?')) return;
-          state.forms = state.forms.filter(x=>x.id!==f.id); persist(); renderTable();
-        });
-        tb.appendChild(tr);
-      });
-    }
-
-    $('#addForm', wrap).addEventListener('click', ()=>{
-      state.forms.unshift({ id:uid(), title:'', questions:0, conditions:0, pdfs:0, emails:0, signatures:0, addons:0 });
-      persist(); renderTable();
-    });
-    $('#initPrefill', wrap).addEventListener('click', ()=>{
-      const mount = $('#prefillMount', wrap);
-      mount.innerHTML = '<div class="muted">Mount point ready. Paste/initialize your existing Prefill module here.</div>';
-    });
-
-    renderTable();
-
-    // backlinks
-    renderResourceBacklinks(el, 'form', state.forms, f => f.title||f.name||f.id);
-  }
-
-  // Workflows — card editor with templates
-  function renderWorkflows(el){
-    const wrap = document.createElement('div');
-    wrap.innerHTML = `
-      <div class="card sticky">
-        <h2>Workflows</h2>
-        <div class="row">
-          <div class="muted">Card editor with assignee, due, milestones, outcomes, resources, tokens.</div>
-          <div class="spacer"></div>
-          <button class="btn small" id="addWorkflow">New Workflow</button>
-        </div>
-      </div>
-      <div id="wfGrid" class="grid cols-2"></div>
-    `;
-    el.appendChild(wrap);
-
-    $('#addWorkflow', wrap).addEventListener('click', ()=>{
-      const wf = { id:uid(), name:'New Workflow', notes:'', steps:[] };
-      state.workflows.unshift(wf); persist(); draw();
-    });
-
-    function draw(){
-      const grid = $('#wfGrid', wrap);
-      grid.innerHTML = '';
-      (state.workflows||[]).forEach(wf=>{
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.innerHTML = `
-          <div class="row" style="align-items:center">
-            <input type="text" class="wfName" value="${esc(wf.name||'')}" style="font-weight:700; font-size:16px; background:#0f131b; border-radius:8px; padding:6px 8px; border:1px solid var(--line); flex:1" />
-            <button class="btn small" data-act="templates">Templates</button>
-            <button class="btn small" data-act="duplicate">Duplicate</button>
-            <button class="btn small" data-act="delete">Delete</button>
-          </div>
-          <div class="row" style="margin-top:6px">
-            <textarea class="wfNotes" placeholder="Workflow notes…" style="width:100%; min-height:50px; background:#0f131b; border:1px solid var(--line); border-radius:8px; padding:8px">${esc(wf.notes||'')}</textarea>
-          </div>
-
-          <div class="row" style="margin:10px 0">
-            <button class="btn small" data-act="addStep">Add Step</button>
-          </div>
-
-          <div class="grid" id="steps_${wf.id}" style="gap:10px"></div>
-        `;
-        grid.appendChild(card);
-
-        // header actions
-        card.querySelector('.wfName').addEventListener('input', e=>{ wf.name = e.target.value; persist(); });
-        card.querySelector('.wfNotes').addEventListener('input', e=>{ wf.notes = e.target.value; persist(); });
-
-        card.querySelector('[data-act="delete"]').addEventListener('click', ()=>{
-          if(!confirm('Delete workflow?')) return;
-          state.workflows = state.workflows.filter(x=>x.id!==wf.id); persist(); draw();
-        });
-        card.querySelector('[data-act="duplicate"]').addEventListener('click', ()=>{
-          const copy = JSON.parse(JSON.stringify(wf));
-          copy.id = uid(); copy.name = wf.name + ' (Copy)';
-          copy.steps.forEach(s=> s.id = uid());
-          state.workflows.unshift(copy); persist(); draw();
-        });
-        card.querySelector('[data-act="templates"]').addEventListener('click', ()=> openTemplateModal(wf));
-        card.querySelector('[data-act="addStep"]').addEventListener('click', ()=>{
-          wf.steps.push(newBlankStep()); persist(); paintSteps();
-        });
-
-        // steps UI
-        function paintSteps(){
-          const host = card.querySelector(`#steps_${wf.id}`);
-          host.innerHTML = '';
-          (wf.steps||[]).forEach((st, idx)=>{
-            const step = document.createElement('div');
-            step.className = 'card';
-            step.style.borderStyle = st.milestone ? 'double' : 'solid';
-            step.style.cursor = 'move';
-            step.draggable = true;
-            step.dataset.id = st.id;
-
-            step.innerHTML = `
-              <div class="row" style="align-items:center">
-                <span class="pill">${idx+1}</span>
-                <select class="s_type">
-                  ${dedupe(['Schedule Meeting','Pre-Meeting Prep','Conduct Meeting','Post-Meeting Prep','Conduct Phone Call','Send Email','Send Text Message','Request Item','Follow Up','Item Received','Task']).map(t=>`<option ${st.type===t?'selected':''}>${esc(t)}</option>`).join('')}
-                </select>
-                <input type="text" class="s_title" value="${esc(st.title||'')}" placeholder="Step title (supports {Tokens})" style="flex:1">
-                <label class="row" style="gap:6px"><input type="checkbox" class="s_milestone" ${st.milestone?'checked':''}> Milestone</label>
-                <button class="btn small" data-act="expand">${st._open?'▾':'▸'}</button>
-                <button class="btn small" data-act="dup">Duplicate</button>
-                <button class="btn small" data-act="del">Delete</button>
-              </div>
-
-              <div class="s_detail" style="margin-top:8px; display:${st._open?'block':'none'}">
-                <div class="grid cols-2">
-                  <div>
-                    <label>Description (supports {Tokens})</label>
-                    <textarea class="s_desc" style="min-height:70px">${esc(st.description||'')}</textarea>
-                  </div>
-                  <div>
-                    <div class="grid">
-                      <div class="row">
-                        <div style="flex:1">
-                          <label>Assignee</label>
-                          <select class="s_assignee">
-                            <option value="">—</option>
-                            ${teamOptions().map(o=>`<option value="${esc(o.id)}" ${st.assigneeId===o.id?'selected':''}>${esc(o.name)}</option>`).join('')}
-                          </select>
-                        </div>
-                        <div>
-                          <label>Due Offset (days)</label>
-                          <input type="number" class="s_due" value="${Number(st.dueOffsetDays||0)}" style="width:110px">
-                        </div>
-                      </div>
-
-                      <div>
-                        <label>Outcomes</label>
-                        <div class="row" style="flex-wrap:wrap; gap:6px" data-box="outcomes"></div>
-                        <div class="row" style="margin-top:6px">
-                          <input type="text" class="s_outcomeInp" placeholder="Add outcome…">
-                          <button class="btn small" data-act="addOutcome">Add</button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label>Resources</label>
-                        <div class="row" style="flex-wrap:wrap; gap:6px" data-box="resources"></div>
-                        <div class="row" style="margin-top:6px; gap:6px">
-                          <select class="s_resKind" style="min-width:160px">
-                            <option value="zap">Zaps</option>
-                            <option value="form">Forms</option>
-                            <option value="scheduler">Scheduling</option>
-                            <option value="emailCampaign">Email Campaigns</option>
-                            <option value="emailTemplate">Email Templates</option>
-                          </select>
-                          <select class="s_resItem" style="min-width:220px"></select>
-                          <button class="btn small" data-act="addRes">Link</button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label>Tokens</label>
-                        <div class="row" style="flex-wrap:wrap; gap:6px" data-box="tokens"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            `;
-            // wire main
-            step.querySelector('.s_type').addEventListener('change', e=>{ st.type = e.target.value; persist(); });
-            step.querySelector('.s_title').addEventListener('input', e=>{ st.title = e.target.value; persist(); });
-            step.querySelector('.s_milestone').addEventListener('change', e=>{ st.milestone = e.target.checked; persist(); step.style.borderStyle = st.milestone?'double':'solid'; });
-            step.querySelector('.s_desc').addEventListener('input', e=>{ st.description = e.target.value; persist(); });
-            step.querySelector('.s_assignee').addEventListener('change', e=>{ st.assigneeId = e.target.value; persist(); });
-            step.querySelector('.s_due').addEventListener('input', e=>{ st.dueOffsetDays = Number(e.target.value||0); persist(); });
-
-            // outcomes UI
-            const outBox = step.querySelector('[data-box="outcomes"]');
-            function paintOutcomes(){
-              outBox.innerHTML = '';
-              (st.outcomes||[]).forEach(name=>{
-                const c = chip(name);
-                const x = miniX(); x.addEventListener('click', ()=>{ st.outcomes = st.outcomes.filter(n=>n!==name); persist(); paintOutcomes(); });
-                c.appendChild(x); outBox.appendChild(c);
-              });
-            }
-            step.querySelector('[data-act="addOutcome"]').addEventListener('click', ()=>{
-              const inp = step.querySelector('.s_outcomeInp');
-              const v = (inp.value||'').trim(); if(!v) return;
-              st.outcomes = dedupe([...(st.outcomes||[]), v]); inp.value=''; persist(); paintOutcomes();
-            });
-            paintOutcomes();
-
-            // resources UI
-            const resKind = step.querySelector('.s_resKind');
-            const resItem = step.querySelector('.s_resItem');
-            function loadResItems(){
-              const opts = resourceOptions(resKind.value);
-              resItem.innerHTML = opts.map(o=>`<option value="${esc(o.id)}">${esc(o.name)}</option>`).join('') || `<option value="">(none)</option>`;
-            }
-            loadResItems();
-            resKind.addEventListener('change', loadResItems);
-            step.querySelector('[data-act="addRes"]').addEventListener('click', ()=>{
-              const kind = resKind.value; const id = resItem.value; if(!id) return;
-              st.resources = st.resources || [];
-              if (!st.resources.some(r=>r.kind===kind && r.id===id)){
-                st.resources.push({ kind, id });
-                persist(); paintResources();
-              }
-            });
-
-            const resBox = step.querySelector('[data-box="resources"]');
-            function paintResources(){
-              resBox.innerHTML = '';
-              (st.resources||[]).forEach(r=>{
-                const info = resourceLookup(r.kind, r.id);
-                const c = chip(`${kindLabel(r.kind)}: ${info.name}`);
-                const x = miniX(); x.addEventListener('click', ()=>{
-                  st.resources = st.resources.filter(x=> !(x.kind===r.kind && x.id===r.id));
-                  persist(); paintResources();
-                });
-                c.appendChild(x); resBox.appendChild(c);
-              });
-            }
-            paintResources();
-
-            // tokens helper
-            const tokBox = step.querySelector('[data-box="tokens"]');
-            function paintTokens(){
-              tokBox.innerHTML = '';
-              const toks = dedupe(['householdName', ...state.datapoints]).map(t=>`{${t}}`);
-              toks.forEach(tok=>{
-                const p = chip(tok); p.style.cursor='pointer';
-                p.addEventListener('click', ()=>{
-                  const titleEl = step.querySelector('.s_title');
-                  const descEl = step.querySelector('.s_desc');
-                  if (document.activeElement === descEl) {
-                    insertAtCursor(descEl, tok); st.description = descEl.value;
-                  } else {
-                    insertAtCursor(titleEl, tok); st.title = titleEl.value;
-                  }
-                  persist();
-                });
-                tokBox.appendChild(p);
-              });
-            }
-            paintTokens();
-
-            // row actions
-            step.querySelector('[data-act="expand"]').addEventListener('click', ()=>{
-              st._open = !st._open;
-              step.querySelector('.s_detail').style.display = st._open ? 'block':'none';
-              step.querySelector('[data-act="expand"]').textContent = st._open ? '▾':'▸';
-              persist();
-            });
-            step.querySelector('[data-act="dup"]').addEventListener('click', ()=>{
-              const clone = JSON.parse(JSON.stringify(st)); clone.id = uid(); wf.steps.splice(idx+1,0,clone); persist(); paintSteps();
-            });
-            step.querySelector('[data-act="del"]').addEventListener('click', ()=>{
-              if(!confirm('Delete step?')) return;
-              wf.steps = wf.steps.filter(x=>x.id!==st.id); persist(); paintSteps();
-            });
-
-            // drag & drop
-            step.addEventListener('dragstart', e=>{
-              e.dataTransfer.setData('text/plain', st.id);
-              step.style.opacity = '.6';
-            });
-            step.addEventListener('dragend', ()=> step.style.opacity = '');
-            step.addEventListener('dragover', e=> e.preventDefault());
-            step.addEventListener('drop', e=>{
-              e.preventDefault();
-              const draggedId = e.dataTransfer.getData('text/plain');
-              const srcIdx = wf.steps.findIndex(x=>x.id===draggedId);
-              const dstIdx = wf.steps.findIndex(x=>x.id===st.id);
-              if (srcIdx<0 || dstIdx<0 || srcIdx===dstIdx) return;
-              const [moved] = wf.steps.splice(srcIdx,1);
-              wf.steps.splice(dstIdx,0,moved);
-              persist(); paintSteps();
-            });
-
-            host.appendChild(step);
-          });
-        }
-        paintSteps();
-      });
-    }
-    draw();
-
-    // Template modal
-    function openTemplateModal(wf){
-      const modal = document.createElement('div');
-      Object.assign(modal.style, {
-        position:'fixed', inset:'0', background:'rgba(0,0,0,.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:99
-      });
-      modal.innerHTML = `
-        <div class="card" style="width:800px; max-height:80vh; overflow:auto">
-          <div class="row" style="align-items:center">
-            <h3 style="margin:0">Step Templates</h3>
-            <div class="spacer"></div>
-            <button class="btn small" data-act="close">Close</button>
-          </div>
-          <div class="row" style="margin:8px 0">
-            <input type="text" id="tplQ" placeholder="Search templates…" style="flex:1">
-            <select id="tplType"><option value="">All Types</option>${dedupe(state.stepTemplates.map(t=>t.type)).map(t=>`<option>${esc(t)}</option>`).join('')}</select>
-            <button class="btn small" data-act="newTpl">New</button>
-          </div>
-          <table id="tplTbl">
-            <thead><tr><th>Type</th><th>Title</th><th>Notes</th><th></th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      `;
-      document.body.appendChild(modal);
-
-      function paint(){
-        const q = ($('#tplQ', modal).value||'').toLowerCase().trim();
-        const ty = $('#tplType', modal).value || '';
-        const rows = state.stepTemplates.filter(t=>{
-          const okT = !ty || t.type===ty;
-          const okQ = !q || [t.type,t.title,t.notes,(t.checklist||[]).join(' ')].join(' ').toLowerCase().includes(q);
-          return okT && okQ;
-        });
-        const tb = $('#tplTbl tbody', modal); tb.innerHTML='';
-        rows.forEach(tpl=>{
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${esc(tpl.type)}</td>
-            <td>${esc(tpl.title)}</td>
-            <td class="muted">${esc((tpl.notes||'').slice(0,80))}</td>
-            <td style="text-align:right">
-              <button class="btn small" data-act="insert">Insert</button>
-              <button class="btn small" data-act="edit">Edit</button>
-              <button class="btn small" data-act="del">Delete</button>
-            </td>
-          `;
-          tr.querySelector('[data-act="insert"]').addEventListener('click', ()=>{
-            wf.steps.push({
-              id:uid(),
-              type:tpl.type, title:tpl.title, description:tpl.notes||'',
-              assigneeId:'', dueOffsetDays:0, milestone:false,
-              outcomes:[], resources:[], checklist:(tpl.checklist||[]).slice(), _open:true
-            });
-            persist();
-          });
-          tr.querySelector('[data-act="edit"]').addEventListener('click', ()=> editTpl(tpl));
-          tr.querySelector('[data-act="del"]').addEventListener('click', ()=>{
-            if(!confirm('Delete template?')) return;
-            state.stepTemplates = state.stepTemplates.filter(x=>x.id!==tpl.id); persist(); paint();
-          });
-          tb.appendChild(tr);
-        });
-      }
-      function editTpl(tpl){
-        const panel = document.createElement('div');
-        panel.className='card';
-        panel.style.margin='10px 0';
-        panel.innerHTML = `
-          <div class="grid cols-2">
-            <div>
-              <label>Type</label>
-              <select id="et_type">${dedupe(['Schedule Meeting','Pre-Meeting Prep','Conduct Meeting','Post-Meeting Prep','Conduct Phone Call','Send Email','Send Text Message','Request Item','Follow Up','Item Received','Task']).map(t=>`<option ${tpl.type===t?'selected':''}>${esc(t)}</option>`).join('')}</select>
-            </div>
-            <div>
-              <label>Title</label>
-              <input type="text" id="et_title" value="${esc(tpl.title||'')}">
-            </div>
-          </div>
-          <label style="margin-top:8px">Notes (becomes description)</label>
-          <textarea id="et_notes" style="min-height:70px">${esc(tpl.notes||'')}</textarea>
-          <label style="margin-top:8px">Checklist (one per line)</label>
-          <textarea id="et_chk" style="min-height:70px">${esc((tpl.checklist||[]).join('\n'))}</textarea>
-          <div class="row" style="margin-top:8px"><button class="btn small" id="et_save">Save</button></div>
-        `;
-        modal.querySelector('.card').appendChild(panel);
-        $('#et_save', panel).addEventListener('click', ()=>{
-          tpl.type = $('#et_type', panel).value;
-          tpl.title = $('#et_title', panel).value;
-          tpl.notes = $('#et_notes', panel).value;
-          tpl.checklist = ($('#et_chk', panel).value||'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-          persist(); panel.remove(); paint();
-        });
-      }
-      $('#tplQ', modal).addEventListener('input', paint);
-      $('#tplType', modal).addEventListener('change', paint);
-      modal.addEventListener('click', e=>{ if(e.target.dataset.act==='close' || e.target===modal) modal.remove(); });
-      $('[data-act="newTpl"]', modal).addEventListener('click', ()=>{
-        const t={ id:uid(), type:'Task', title:'New Template', notes:'', checklist:[] };
-        state.stepTemplates.unshift(t); persist(); paint();
-      });
-      paint();
-    }
-
-    function newBlankStep(){
-      return { id:uid(), type:'Task', title:'New Step', description:'', assigneeId:'', dueOffsetDays:0, milestone:false, outcomes:[], resources:[], checklist:[], _open:true };
-    }
-
-    // local helpers
-    function miniX(){
-      const b = document.createElement('button');
-      b.className='btn small ghost';
-      b.style.border='none';
-      b.style.padding='0 6px';
-      b.style.lineHeight='1.4';
-      b.textContent='×';
-      return b;
-    }
-    function chip(text){ const c=document.createElement('span'); c.className='pill'; c.textContent=text; return c; }
-    function insertAtCursor(input, text){
-      const start = input.selectionStart ?? input.value.length;
-      const end   = input.selectionEnd ?? input.value.length;
-      input.value = input.value.slice(0,start) + text + input.value.slice(end);
-      input.selectionStart = input.selectionEnd = start + text.length;
-      input.dispatchEvent(new Event('input', {bubbles:true}));
-      input.focus();
-    }
-  }
-
-  // Scheduling
-  function renderScheduling(el){
-    el.innerHTML = `
-      <div class="card sticky"><h2>Scheduling</h2><div class="row"><div class="pill">Pricing: $${state.pricing.schedulerPage} / page / event / team member</div></div></div>
-      <div class="card"><div class="muted">Track each scheduling asset here. Add columns as needed.</div></div>
-    `;
-    renderResourceBacklinks(el, 'scheduler', state.scheduling, s => s.title||s.name||s.event||s.id);
-  }
-
-  // Email Campaigns
-  function renderEmailCampaigns(el){
-    el.innerHTML = `
-      <div class="card sticky">
-        <h2>Email Campaigns</h2>
-        <div class="row"><div class="pill">Pricing: $${state.pricing.emailStep}/step</div></div>
-      </div>
-      <div class="card">
-        <table id="ecTable">
-          <thead><tr><th>Campaign</th><th>Steps</th><th>Assets/Notes</th><th>Price</th><th></th></tr></thead>
-          <tbody></tbody>
-        </table>
-        <div class="row" style="margin-top:10px">
-          <button class="btn small" id="addEC">Add Campaign</button>
-          <div class="spacer"></div>
-          <div>Total: <b id="ecTotal">$0.00</b></div>
-        </div>
-      </div>
-    `;
-    function rowPrice(steps){ return (Number(steps||0) * state.pricing.emailStep); }
-    function draw(){
-      const tb = $('#ecTable tbody', el); tb.innerHTML='';
-      (state.emailCampaigns||[]).forEach(c=>{
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><input type="text" value="${esc(c.name||'')}" data-f="name"></td>
-          <td><input type="number" value="${Number(c.steps||0)}" data-f="steps"></td>
-          <td><input type="text" value="${esc(c.notes||'')}" data-f="notes"></td>
-          <td>${money(rowPrice(c.steps))}</td>
-          <td><button class="btn small" data-act="del">Delete</button></td>
-        `;
-        tr.querySelectorAll('[data-f]').forEach(inp=>{
-          inp.addEventListener('input', ()=>{
-            const f = inp.getAttribute('data-f');
-            c[f] = inp.type==='number' ? Number(inp.value||0) : inp.value;
-            persist(); totals();
-          });
-        });
-        tr.querySelector('[data-act="del"]').addEventListener('click', ()=>{
-          if(!confirm('Delete campaign?')) return;
-          state.emailCampaigns = state.emailCampaigns.filter(x=>x.id!==c.id); persist(); draw(); totals();
-        });
-        tb.appendChild(tr);
-      });
-    }
-    function totals(){
-      const total = (state.emailCampaigns||[]).reduce((sum,c)=> sum + rowPrice(c.steps), 0);
-      $('#ecTotal', el).textContent = money(total);
-    }
-    $('#addEC', el).addEventListener('click', ()=>{
-      state.emailCampaigns.unshift({ id:uid(), name:'', steps:0, notes:'' }); persist(); draw(); totals();
-    });
-    draw(); totals();
-
-    // backlinks
-    renderResourceBacklinks(el, 'emailCampaign', state.emailCampaigns, c => c.name||c.title||c.id);
-  }
-
-  // Settings home
-  function renderSettingsHome(el){
-    el.innerHTML = `
-      <div class="grid cols-3">
-        <a class="card" href="#/settings/team" data-route><h3>Team</h3><div class="muted">Members & roles with cross-refs.</div></a>
-        <a class="card" href="#/settings/segments" data-route><h3>Segments</h3><div class="muted">Client segments for scoping & workflows.</div></a>
-        <a class="card" href="#/settings/datapoints" data-route><h3>Datapoints</h3><div class="muted">Standard fields used across tools.</div></a>
-        <a class="card" href="#/settings/folder-hierarchy" data-route><h3>Folder Hierarchy</h3><div class="muted">Visual tree + merge-field pills.</div></a>
-        <a class="card" href="#/settings/naming-conventions" data-route><h3>Naming Conventions</h3><div class="muted">Household & Folder naming patterns.</div></a>
-      </div>
-    `;
-  }
-
-  // Team (Members + Roles; chip editor)
-  function renderTeam(el){
-    const wrap = document.createElement('div');
-    wrap.innerHTML = `
-      <div class="card sticky"><h2>Team</h2></div>
-      <div class="grid cols-2">
-        <div class="card">
-          <h3>Team Members</h3>
-          <table id="tmTable">
-            <thead><tr><th>Name</th><th>Role Notes</th><th>Roles</th><th></th></tr></thead>
-            <tbody></tbody>
-          </table>
-          <div class="row" style="margin-top:10px"><button class="btn small" id="addTM">Add Member</button></div>
-        </div>
-        <div class="card">
-          <h3>Roles</h3>
-          <table id="rolesTable">
-            <thead><tr><th>Role</th><th>Assigned</th><th></th></tr></thead>
-            <tbody></tbody>
-          </table>
-          <div class="row" style="margin-top:10px">
-            <input type="text" id="newRole" placeholder="New role…">
-            <button class="btn small" id="addRole">Add Role</button>
-          </div>
-        </div>
-      </div>
-    `;
-    el.appendChild(wrap);
-
-    function drawMembers(){
-      const tb = $('#tmTable tbody', wrap); tb.innerHTML='';
-      state.teamMembers.forEach(m=>{
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><input type="text" value="${esc(m.name||'')}" data-f="name"></td>
-          <td><input type="text" value="${esc(m.roleNotes||'')}" data-f="roleNotes"></td>
-          <td>
-            <div class="chips" data-f="roles"></div>
-            <div class="row" style="margin-top:6px">
-              <input type="text" class="roleInput" placeholder="Add role…">
-              <button class="btn small addRoleBtn">Add</button>
-            </div>
-          </td>
-          <td><button class="btn small" data-act="del">Delete</button></td>
-        `;
-        tr.querySelectorAll('[data-f]').forEach(inp=>{
-          if (inp.classList.contains('chips')) return;
-          inp.addEventListener('input', ()=>{
-            m[inp.getAttribute('data-f')] = inp.value; persist(); drawRoles();
-          });
-        });
-        // chips
-        const box = tr.querySelector('.chips');
-        function drawChips(){
-          box.innerHTML='';
-          (m.roles||[]).forEach(r=>{
-            const chip = pill(r);
-            const x = miniX();
-            x.addEventListener('click', ()=>{
-              m.roles = (m.roles||[]).filter(x=>x!==r); persist(); drawChips(); drawRoles();
-            });
-            chip.appendChild(x);
-            box.appendChild(chip);
-          });
-        }
-        drawChips();
-        const input = tr.querySelector('.roleInput');
-        const addBtn = tr.querySelector('.addRoleBtn');
-        const sug = attachAutosuggest(input, { suggestions: state.roles, onPick: val=>add(val) });
-        function add(val){
-          const v = (val||input.value||'').trim(); if(!v) return;
-          if (!state.roles.includes(v)) state.roles.push(v);
-          m.roles = dedupe([...(m.roles||[]), v]);
-          input.value=''; sug.updateSuggestions(state.roles);
-          persist(); drawChips(); drawRoles();
-        }
-        addBtn.addEventListener('click', ()=> add());
-
-        tr.querySelector('[data-act="del"]').addEventListener('click', ()=>{
-          if(!confirm('Remove member?')) return;
-          state.teamMembers = state.teamMembers.filter(x=>x.id!==m.id); persist(); drawMembers(); drawRoles();
-        });
-
-        tb.appendChild(tr);
-      });
-    }
-
-    function drawRoles(){
-      const tb = $('#rolesTable tbody', wrap); tb.innerHTML='';
-      state.roles.forEach(role=>{
-        const assigned = state.teamMembers.filter(m => (m.roles||[]).includes(role)).map(m=>m.name);
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${esc(role)}</td>
-          <td>${assigned.map(n=>`<span class="pill" style="margin-right:6px">${esc(n)}</span>`).join('') || '<span class="muted">—</span>'}</td>
-          <td><button class="btn small" data-act="del">Delete</button></td>
-        `;
-        tr.querySelector('[data-act="del"]').addEventListener('click', ()=>{
-          if(!confirm('Delete role? (removes from members too)')) return;
-          state.roles = state.roles.filter(r=>r!==role);
-          state.teamMembers.forEach(m=> m.roles = (m.roles||[]).filter(r=>r!==role));
-          persist(); drawMembers(); drawRoles();
-        });
-        tb.appendChild(tr);
-      });
-    }
-
-    $('#addTM', wrap).addEventListener('click', ()=>{
-      state.teamMembers.unshift({ id:uid(), name:'', roleNotes:'', roles:[] });
-      persist(); drawMembers(); drawRoles();
-    });
-    $('#addRole', wrap).addEventListener('click', ()=>{
-      const v = ($('#newRole', wrap).value||'').trim(); if(!v) return;
-      if (!state.roles.includes(v)) state.roles.push(v);
-      $('#newRole', wrap).value=''; persist(); drawRoles();
-    });
-
-    drawMembers(); drawRoles();
-
-    function pill(text){
-      const span = document.createElement('span');
-      span.className = 'pill';
-      span.style.display='inline-flex';
-      span.style.alignItems='center';
-      span.style.gap='6px';
-      span.textContent = text;
-      return span;
-    }
-    function miniX(){
-      const b = document.createElement('button');
-      b.className='btn small ghost';
-      b.style.border='none';
-      b.style.padding='0 6px';
-      b.style.lineHeight='1.4';
-      b.textContent='×';
-      return b;
-    }
-  }
-
-  // Segments
-  function renderSegments(el){
-    el.innerHTML = `
-      <div class="card sticky"><h2>Segments</h2></div>
-      <div class="card">
-        <div id="segList"></div>
-        <div class="row" style="margin-top:10px">
-          <input type="text" id="segNew" placeholder="New segment…">
-          <button class="btn small" id="segAdd">Add</button>
-        </div>
-      </div>
-    `;
-    function draw(){
-      const box = $('#segList', el); box.innerHTML='';
-      const t = document.createElement('table');
-      t.innerHTML = `<thead><tr><th>Segment</th><th></th></tr></thead><tbody></tbody>`;
-      const tb = t.querySelector('tbody');
-      state.segments.forEach((s, idx)=>{
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><input type="text" value="${esc(s)}" data-i="${idx}"></td>
-          <td><button class="btn small" data-i="${idx}" data-act="del">Delete</button></td>
-        `;
-        tr.querySelector('input').addEventListener('input', e=>{ state.segments[idx] = e.target.value; persist(); });
-        tr.querySelector('[data-act="del"]').addEventListener('click', ()=>{
-          state.segments.splice(idx,1); persist(); draw();
-        });
-        tb.appendChild(tr);
-      });
-      box.appendChild(t);
-    }
-    $('#segAdd', el).addEventListener('click', ()=>{
-      const v = ($('#segNew', el).value||'').trim(); if(!v) return;
-      state.segments.push(v); persist(); $('#segNew', el).value=''; draw();
-    });
-    draw();
-  }
-
-  // Datapoints (+ backlinks)
-  function renderDatapoints(el){
-    el.innerHTML = `
-      <div class="card sticky"><h2>Datapoints</h2></div>
-      <div class="card">
-        <div id="dpList"></div>
-        <div class="row" style="margin-top:10px">
-          <input type="text" id="dpNew" placeholder="New datapoint…">
-          <button class="btn small" id="dpAdd">Add</button>
-        </div>
-      </div>
-    `;
-    function draw(){
-      const box = $('#dpList', el); box.innerHTML='';
-      const t = document.createElement('table');
-      t.innerHTML = `<thead><tr><th>Datapoint</th><th></th></tr></thead><tbody></tbody>`;
-      const tb = t.querySelector('tbody');
-      state.datapoints.forEach((d, idx)=>{
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><input type="text" value="${esc(d)}" data-i="${idx}"></td>
-          <td><button class="btn small" data-i="${idx}" data-act="del">Delete</button></td>
-        `;
-        tr.querySelector('input').addEventListener('input', e=>{ state.datapoints[idx] = e.target.value; persist(); });
-        tr.querySelector('[data-act="del"]').addEventListener('click', ()=>{
-          state.datapoints.splice(idx,1); persist(); draw();
-        });
-        tb.appendChild(tr);
-      });
-      box.appendChild(t);
-    }
-    $('#dpAdd', el).addEventListener('click', ()=>{
-      const v = ($('#dpNew', el).value||'').trim(); if(!v) return;
-      state.datapoints.push(v); persist(); $('#dpNew', el).value=''; draw();
-    });
-    draw();
-
-    renderDatapointBacklinks(el);
-  }
-
-  // Folder Hierarchy — visual tree + merge-field pills
-  function renderFolderHierarchy(el){
-    const wrap = document.createElement('div');
-    wrap.innerHTML = `
-      <div class="card sticky"><h2>Folder Hierarchy</h2></div>
-      <div class="grid cols-2">
-        <div class="card">
-          <h3>Editor</h3>
-          <label>Structure (indent with two spaces). Click a pill to insert at cursor.</label>
-          <div class="row" style="flex-wrap:wrap; gap:6px; margin-bottom:8px" id="dpPills"></div>
-          <textarea id="fh" spellcheck="false">${esc(state.folderHierarchy)}</textarea>
-          <div class="row" style="margin-top:8px">
-            <button class="btn small" id="saveFH">Save</button>
-            <div class="spacer"></div>
-            <label>Sample values JSON</label>
-            <input type="text" id="sampleJSON" value="${esc(JSON.stringify(state.folderPreviewSamples))}">
-          </div>
-        </div>
-        <div class="card">
-          <h3>Preview</h3>
-          <div id="treePreview" style="white-space:normal"></div>
-        </div>
-      </div>
-    `;
-    el.appendChild(wrap);
-
-    // Merge-field pills
-    const pillsBox = $('#dpPills', wrap);
-    const tokens = dedupe(['householdName', ...state.datapoints]).map(t => `{${t}}`);
-    tokens.forEach(tok=>{
-      const p = pill(tok);
-      p.style.cursor='pointer';
-      p.addEventListener('click', ()=> insertAtCursor($('#fh', wrap), tok));
-      pillsBox.appendChild(p);
-    });
-
-    // Save + live preview
-    $('#saveFH', wrap).addEventListener('click', ()=>{
-      state.folderHierarchy = $('#fh', wrap).value;
-      try{
-        state.folderPreviewSamples = JSON.parse($('#sampleJSON', wrap).value || '{}');
-      }catch(_){}
-      persist(); buildPreview();
-    });
-
-    $('#fh', wrap).addEventListener('input', buildPreview);
-    $('#sampleJSON', wrap).addEventListener('change', buildPreview);
-    buildPreview();
-
-    function buildPreview(){
-      const raw = $('#fh', wrap).value;
-      const replaced = replaceTokens(raw, state.folderPreviewSamples);
-      const tree = indentToTree(replaced);
-      $('#treePreview', wrap).innerHTML = renderTree(tree);
-    }
-
-    function pill(text){
-      const span = document.createElement('span');
-      span.className = 'pill';
-      span.style.display='inline-flex';
-      span.style.alignItems='center';
-      span.style.gap='6px';
-      span.textContent = text;
-      return span;
-    }
-    function insertAtCursor(input, text){
-      const start = input.selectionStart ?? input.value.length;
-      const end   = input.selectionEnd ?? input.value.length;
-      input.value = input.value.slice(0,start) + text + input.value.slice(end);
-      input.selectionStart = input.selectionEnd = start + text.length;
-      input.dispatchEvent(new Event('input', {bubbles:true}));
-      input.focus();
-    }
-    function replaceTokens(s, dict){
-      return String(s||'').replace(/\{([A-Za-z0-9_ ]+)\}/g, (_,k)=> dict[k] ?? `{${k}}`);
-    }
-    function indentToTree(text){
-      const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
-      const root = { name:'/', children:[], depth:-1 };
-      const stack = [root];
-      lines.forEach(line=>{
-        const m = line.match(/^(\s*)(.*)$/);
-        const depth = Math.floor((m[1]||'').length / 2);
-        const name = m[2].trim();
-        const node = { name, children:[], depth };
-        while (stack.length && stack[stack.length-1].depth >= depth) stack.pop();
-        stack[stack.length-1].children.push(node);
-        stack.push(node);
-      });
-      return root;
-    }
-    function renderTree(node){
-      if (!node.children || !node.children.length) return '';
-      const ul = document.createElement('ul');
-      ul.style.listStyle='none';
-      ul.style.paddingLeft='16px';
-      node.children.forEach(ch=>{
-        const li = document.createElement('li');
-        li.style.margin='4px 0';
-        li.innerHTML = `<span style="color:#c8d3eb">📁 ${esc(ch.name)}</span>`;
-        const inner = renderTree(ch);
-        if (inner){
-          const div = document.createElement('div');
-          div.innerHTML = inner;
-          li.appendChild(div.firstChild);
-        }
-        ul.appendChild(li);
-      });
-      const wrap = document.createElement('div'); wrap.appendChild(ul);
-      return wrap.innerHTML;
-    }
-  }
-
-  // Naming Conventions — combined page
-  function renderNaming(el){
-    const wrap = document.createElement('div');
-    wrap.innerHTML = `
-      <div class="card sticky"><h2>Naming Conventions</h2></div>
-
-      <div class="card">
-        <h3>Household Naming</h3>
-        ${threeCols('household')}
-      </div>
-
-      <div class="card">
-        <h3>Folder Naming</h3>
-        ${threeCols('folder')}
-      </div>
-
-      <div class="card">
-        <h3>Quick Tokens</h3>
-        <div class="row" id="ncPills" style="flex-wrap:wrap; gap:6px"></div>
-      </div>
-    `;
-    el.appendChild(wrap);
-
-    // Wire inputs
-    wireSet('household');
-    wireSet('folder');
-
-    // Token pills insert into focused input
-    const ncPills = $('#ncPills', wrap);
-    const tokens = dedupe(['householdName', ...state.datapoints]).map(t => `{${t}}`);
-    tokens.forEach(tok=>{
-      const p = pill(tok); p.style.cursor='pointer';
-      p.addEventListener('click', ()=>{
-        const target = wrap.querySelector('input.__focused');
-        if (target) insertAtCursor(target, tok);
-      });
-      ncPills.appendChild(p);
-    });
-    wrap.querySelectorAll('input[type="text"]').forEach(inp=>{
-      inp.addEventListener('focus', ()=> inp.classList.add('__focused'));
-      inp.addEventListener('blur',  ()=> inp.classList.remove('__focused'));
-    });
-
-    function threeCols(key){
-      const v = state.naming[key];
-      return `
-        <div class="grid cols-3">
-          <div>
-            <label>Individual</label>
-            <input type="text" id="${key}_individual" value="${esc(v.individual||'')}" />
-          </div>
-          <div>
-            <label>Joint (Same Last Name)</label>
-            <input type="text" id="${key}_jointSame" value="${esc(v.jointSame||'')}" />
-          </div>
-          <div>
-            <label>Joint (Different Last Name)</label>
-            <input type="text" id="${key}_jointDifferent" value="${esc(v.jointDifferent||'')}" />
-          </div>
-        </div>
-      `;
-    }
-    function wireSet(key){
-      ['individual','jointSame','jointDifferent'].forEach(k=>{
-        const id = `${key}_${k}`;
-        const inp = $('#'+id, wrap);
-        inp.addEventListener('input', ()=>{
-          state.naming[key][k] = inp.value;
-          persist();
-        });
-      });
-    }
-
-    function pill(text){
-      const span = document.createElement('span');
-      span.className = 'pill';
-      span.style.display='inline-flex';
-      span.style.alignItems='center';
-      span.style.gap='6px';
-      span.textContent = text;
-      return span;
-    }
-    function insertAtCursor(input, text){
-      const start = input.selectionStart ?? input.value.length;
-      const end   = input.selectionEnd ?? input.value.length;
-      input.value = input.value.slice(0,start) + text + input.value.slice(end);
-      input.selectionStart = input.selectionEnd = start + text.length;
-      input.dispatchEvent(new Event('input', {bubbles:true}));
-      input.focus();
-    }
-  }
-
-  // ---------- Backlinks helpers ----------
-  function renderResourceBacklinks(el, kind, rows, labelGetter){
+  // ----- Apps page (Applications + Functions + Integrations Matrix) -----
+  // ---------------------------------------------------------------------------------
+  //  APPS SECTION
+  // ---------------------------------------------------------------------------------
+
+  function renderAppsSection(el) {
     const card = document.createElement('div');
-    card.className='card';
-    card.innerHTML = `<h3>Linked From Workflows</h3><div id="bk_${kind}"></div>`;
+    card.className = 'card sticky';
+    card.innerHTML = `
+      <h2>Applications</h2>
+      <div class="row">
+        <button class="btn small" id="appsIcons">Icons</button>
+        <button class="btn small" id="appsDetails">Details</button>
+        <div class="spacer"></div>
+        <select id="appsFilter" style="min-width:160px">
+          <option value="">All Functions</option>
+          ${ currentFunctionNames().map(f=>`<option>${esc(f)}</option>`).join('') }
+        </select>
+      </div>
+    `;
     el.appendChild(card);
 
-    const box = card.querySelector(`#bk_${kind}`);
-    const table = document.createElement('table');
-    table.innerHTML = `<thead><tr><th>${esc(kindLabel(kind))}</th><th>Links</th><th>Details</th></tr></thead><tbody></tbody>`;
-    const tb = table.querySelector('tbody');
+    document.getElementById('appsIcons').onclick = ()=>{ state.appsViewMode='icons'; persist(); navigate();};
+    document.getElementById('appsDetails').onclick = ()=>{ state.appsViewMode='details'; persist(); navigate();};
 
-    rows.forEach(item=>{
-      const id = item.id;
-      const refs = state._refs.resources[`${kind}:${id}`] || [];
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${esc(labelGetter(item))}</td>
-        <td>${refs.length}</td>
-        <td>${refs.length ? refs.map(r=>`${esc(r.wfName)} » ${esc(r.stepTitle)}`).join('<br>') : '<span class="muted">—</span>'}</td>
-      `;
-      tb.appendChild(tr);
+    const filterSel = document.getElementById('appsFilter');
+    filterSel.onchange = ()=> navigate();
+
+    const showFilter = filterSel.value.trim();
+
+    // container
+    const wrap = document.createElement('div');
+    wrap.style.display='grid';
+    wrap.style.gridTemplateColumns='repeat(auto-fill,minmax(280px,1fr))';
+    wrap.style.gridGap='12px';
+    wrap.style.marginTop='8px';
+    el.appendChild(wrap);
+
+    (state.apps||[]).forEach(app=>{
+      if (showFilter) {
+        const fns = app.functions || [];
+        if (!fns.includes(showFilter)) return;
+      }
+      wrap.appendChild(renderAppCard(app));
     });
-    box.appendChild(table);
   }
 
-  function renderDatapointBacklinks(el){
-    const card = document.createElement('div'); card.className='card';
-    card.innerHTML = `<h3>Datapoint References</h3>`;
-    const t = document.createElement('table');
-    t.innerHTML = `<thead><tr><th>Datapoint</th><th>Used In</th></tr></thead><tbody></tbody>`;
-    const tb = t.querySelector('tbody');
 
-    const tokens = dedupe(['householdName', ...state.datapoints]);
-    tokens.forEach(tok=>{
-      const refs = state._refs.datapoints[tok] || [];
-      const tr = document.createElement('tr');
-      const wfName = r => r.wfName || '';
-      const stepTitle = r => {
-        const wf = findById(state.workflows, r.wfId);
-        const st = findById(wf?.steps||[], r.stepId);
-        return st?.title || '';
+  function renderAppCard(app) {
+    const d = document.createElement('div');
+    d.className='card';
+    d.style.cursor='pointer';
+
+    const iconHTML = appIconHTML(app);
+
+    if (state.appsViewMode==='details') {
+      d.innerHTML = `
+        <div class="row">
+          <div style="font-size:20px">${iconHTML}</div>
+          <div style="font-weight:600">${esc(app.name)}</div>
+        </div>
+        <div class="muted" style="margin:6px 0">${esc(app.notes||'')}</div>
+        <label>Functions</label>
+        <div class="row" style="flex-wrap:wrap; gap:4px">
+          ${
+            (app.functions||[]).map(fn=>{
+              return `<span class="pill" style="color:${FN_LEVEL_COLORS.available}">${esc(fn)}</span>`;
+            }).join('')
+          }
+        </div>
+        <label style="margin-top:10px">Integrations</label>
+        <div class="row" style="margin-top:4px; flex-wrap:wrap; gap:6px">
+          ${ renderAppIntegrationsIcons(app) }
+        </div>
+      `;
+    }
+    else {
+      // icon mode
+      d.innerHTML = `
+        <div class="row">
+          <div style="font-size:22px">${iconHTML}</div>
+          <div>${esc(app.name)}</div>
+        </div>
+        <div class="row" style="flex-wrap:wrap; margin-top:6px; gap:4px;">
+          ${
+            (app.functions||[]).map(fn=>{
+              return `<span class="pill" style="color:${FN_LEVEL_COLORS.available}; font-size:11px">${esc(fn)}</span>`;
+            }).join('')
+          }
+        </div>
+      `;
+    }
+
+    d.onclick = ()=> openAppModal(app.id);
+    return d;
+  }
+
+
+  function renderAppIntegrationsIcons(app){
+    const pairs = integrationPairsForApp(app.id) || [];
+    return pairs.map(pair=>{
+      const other = (pair.appAId===app.id) ? pair.appBId : pair.appAId;
+      const otherApp = findById(state.apps, other);
+      const color = integrationPairColor(pair);
+      return `<div class="pill" style="border-color:${INTEG_COLORS[color]};">${esc(otherApp?.name||'?')}</div>`;
+    }).join('');
+  }
+
+
+  // ---------------------------------------------------------------------------------
+  //  FUNCTIONS SECTION
+  // ---------------------------------------------------------------------------------
+
+  function renderFunctionsSection(el){
+    const cap = document.createElement('div');
+    cap.className='card sticky';
+    cap.style.marginTop='28px';
+    cap.innerHTML=`
+      <h2>Functions</h2>
+      <div class="row">
+        <button class="btn small" id="fIcons">Icons</button>
+        <button class="btn small" id="fDetails">Details</button>
+        <div class="spacer"></div>
+        <button class="btn small" id="addFunction">+ Add New</button>
+      </div>
+    `;
+    el.appendChild(cap);
+
+    // button events
+    $('#fIcons').onclick = ()=>{ state.functionsViewMode='icons'; persist(); navigate();};
+    $('#fDetails').onclick = ()=>{ state.functionsViewMode='details'; persist(); navigate();};
+    $('#addFunction').onclick = ()=> newFunction();
+
+    // draw cards
+    const wrap = document.createElement('div');
+    wrap.style.display='grid';
+    wrap.style.gridTemplateColumns='repeat(auto-fill,minmax(260px,1fr))';
+    wrap.style.gridGap='12px';
+    wrap.style.marginTop='12px';
+    el.appendChild(wrap);
+
+    (state.functions||[]).forEach(fn=>{
+      wrap.appendChild(renderFunctionCard(fn));
+    });
+  }
+
+
+  function renderFunctionCard(fn){
+    const appsAssigned = (state.functionAssignments||[])
+      .filter(a=>a.functionId===fn.id)
+      .map(a=>({ app:findById(state.apps,a.appId), level: a.level }));
+
+    const d = document.createElement('div');
+    d.className='card';
+    d.style.cursor='pointer';
+
+    // summary of apps
+    if (state.functionsViewMode==='details') {
+      d.innerHTML = `
+        <div style="font-weight:600; margin-bottom:6px">${esc(fn.name)}</div>
+        ${
+          appsAssigned.length
+          ? appsAssigned.map(a=>{
+              let border = FN_LEVEL_COLORS[a.level] || '#666';
+              return `<div class="pill" style="border:1px solid ${border};">${esc(a.app?.name||'?')}</div>`;
+            }).join(' ')
+          : `<span class="muted">No apps assigned</span>`
+        }
+      `;
+    }
+    else {
+      // icon mode
+      d.innerHTML = `
+        <div style="font-weight:600; margin-bottom:4px; font-size:13px">${esc(fn.name)}</div>
+        <div style="display:flex; flex-wrap:wrap; gap:4px">
+          ${ appsAssigned.map(a=>{
+              let border = FN_LEVEL_COLORS[a.level] || '#666';
+              const icon = appIconHTML(a.app,'small');
+              return `<div class="pill" style="border:1px solid ${border}">${icon}</div>`;
+          }).join('') }
+        </div>
+      `;
+    }
+
+    // card click → modal
+    d.onclick = ()=> openFunctionModal(fn.id);
+
+    return d;
+  }
+
+
+  function newFunction(){
+    const name = prompt('Name of function?');
+    if (!name) return;
+    const fn = getOrCreateFunctionByName(name);
+    persist(); navigate();
+  }
+
+
+  // ---------------------------------------------------------------------------------
+  //  INTEGRATIONS MATRIX SECTION
+  // ---------------------------------------------------------------------------------
+
+  function renderIntegrationsMatrixSection(el){
+    const cap = document.createElement('div');
+    cap.className='card sticky';
+    cap.style.marginTop='28px';
+    cap.innerHTML=`
+      <h2>Integrations Matrix</h2>
+      <div class="row">
+        <button class="btn small" id="iIcons">Icons</button>
+        <button class="btn small" id="iDetails">Details</button>
+      </div>
+    `;
+    el.appendChild(cap);
+
+    $('#iIcons').onclick = ()=>{ state.integrationsViewMode='icons'; persist(); navigate();};
+    $('#iDetails').onclick = ()=>{ state.integrationsViewMode='details'; persist(); navigate();};
+
+    const wrap=document.createElement('div');
+    wrap.style.display='grid';
+    wrap.style.gridTemplateColumns='repeat(auto-fill,minmax(280px,1fr))';
+    wrap.style.gridGap='12px';
+    wrap.style.marginTop='12px';
+    el.appendChild(wrap);
+
+    const pairs = state.integrationsMatrix||[];
+
+    pairs.forEach(pair=>{
+      // only if relationship exists
+      if (!pair.hasDirect && !pair.hasZapier) return;
+      wrap.appendChild(renderIntegrationCard(pair));
+    });
+  }
+
+
+  function renderIntegrationCard(pair){
+    const d = document.createElement('div');
+    d.className='card';
+    d.style.cursor='pointer';
+
+    const a = findById(state.apps,pair.appAId);
+    const b = findById(state.apps,pair.appBId);
+
+    if (state.integrationsViewMode==='details') {
+      d.innerHTML = `
+        <div style="font-weight:600; margin-bottom:6px">
+          ${esc(a?.name||'?')} ↔ ${esc(b?.name||'?')}
+        </div>
+        <div>
+          <span class="pill" style="border:1px solid ${INTEG_COLORS.direct}">Direct</span>
+          <span class="pill" style="border:1px solid ${INTEG_COLORS.zapier}">Zapier</span>
+        </div>
+        ${
+          (pair.directNotes.length||pair.zapierNotes.length)
+          ? `<div style="margin-top:8px; font-size:12px; line-height:1.3">
+              ${pair.directNotes.map(n=>`<div>• ${esc(n)}</div>`).join('')}
+              ${pair.zapierNotes.map(n=>`<div>• ${esc(n)}</div>`).join('')}
+            </div>`
+          : `<div class="muted" style="margin-top:8px">No description yet</div>`
+        }
+      `;
+    }
+    else {
+      // icons
+      const color = integrationPairColor(pair);
+      const borderColor = INTEG_COLORS[color];
+
+      d.style.border = `2px solid ${borderColor}`;
+      d.innerHTML = `
+        <div class="row">
+          <div style="font-size:18px">${appIconHTML(a)}</div>
+          <div style="font-size:18px">↔</div>
+          <div style="font-size:18px">${appIconHTML(b)}</div>
+        </div>
+      `;
+    }
+
+    d.onclick = ()=> openIntegrationModal(pair.id);
+    return d;
+  }
+
+
+  // ---------------------------------------------------------------------------------
+  // APP MODAL
+  // ---------------------------------------------------------------------------------
+
+  function openAppModal(appId){
+    const app = findById(state.apps,appId);
+    if (!app) return;
+
+    showModal(mod=>{
+      mod.innerHTML = `
+        <div class="modal-head">
+          <div style="font-size:24px;display:flex;align-items:center;gap:10px;">
+            <div style="cursor:pointer;" id="appIconEdit">${appIconHTML(app)}</div>
+            <span contenteditable="true" id="appEditName">${esc(app.name)}</span>
+          </div>
+          <div class="modal-close" id="xClose">×</div>
+        </div>
+        <div class="modal-body" style="padding:20px; display:flex; flex-direction:column; gap:22px;">
+          
+          <section>
+            <h3>Functions</h3>
+            <div class="row" style="flex-wrap:wrap; gap:6px">
+              ${
+                (app.functions||[]).map(fn=>
+                  `<div class="pill">${esc(fn)}</div>`
+                ).join('')
+              }
+            </div>
+          </section>
+
+          <section>
+            <h3>Datapoints</h3>
+            ${renderAppDatapointsTable(app)}
+          </section>
+
+          <section>
+            <h3>Used In Resources</h3>
+            <div>
+              ${renderAppUsedInResources(appId)}
+            </div>
+          </section>
+
+          <section>
+            <h3>Integrations</h3>
+            <div style="font-size:12px; margin-bottom:6px;">
+              <span class="pill" style="border:1px solid ${INTEG_COLORS.direct}">Direct</span>
+              <span class="pill" style="border:1px solid ${INTEG_COLORS.zapier}">Zapier</span>
+              <span class="pill" style="border:1px solid ${INTEG_COLORS.both}">Both</span>
+            </div>
+            <div class="row" style="flex-wrap:wrap; gap:6px">
+              ${renderAppIntegrationsIcons(app)}
+            </div>
+          </section>
+        </div>
+      `;
+
+      $('#xClose').onclick = hideModal;
+      $('#appEditName').onblur = ()=>{
+        app.name = $('#appEditName').innerText;
+        persist(); navigate();
       };
-      tr.innerHTML = `
-        <td>{${esc(tok)}}</td>
-        <td>${refs.length
-          ? refs.map(r=>`${esc(wfName(r))} » Step ${esc(stepTitle(r))} (${esc(r.field)})`).join('<br>')
-          : '<span class="muted">—</span>'}</td>
-      `;
-      tb.appendChild(tr);
     });
-    card.appendChild(t);
-    el.appendChild(card);
   }
 
-})();
+
+  function renderAppDatapointsTable(app){
+    const rows = app.datapointMappings||[];
+    if (!rows.length) return `<div class="muted">No datapoints yet</div>`;
+    let out = `
+      <table style="font-size:13px; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:4px;">Master</th>
+            <th style="text-align:left; padding:4px;">Inbound Merge Tag</th>
+            <th style="text-align:left; padding:4px;">Outbound Merge Tag</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    rows.forEach(r=>{
+      out+=`
+        <tr>
+          <td style="padding:4px;">${esc(r.datapoint)}</td>
+          <td style="padding:4px;">${esc(r.inbound)}</td>
+          <td style="padding:4px;">${esc(r.outbound)}</td>
+        </tr>
+      `;
+    });
+    out+=`</tbody></table>`;
+    return out;
+  }
+
+
+  function renderAppUsedInResources(appId){
+    let out = '';
+    for (const [key, refs] of Object.entries(state._refs.resources)) {
+      refs.forEach(ref=>{
+        const wf = findById(state.workflows,ref.wfId);
+        const step = findById(wf.steps,ref.stepId);
+        if (step.title.includes(findById(state.apps,appId).name)) {
+          out+=`<div><a href="#/resources/workflows" style="color:#72a0ff">${esc(wf.name)}</a>: ${esc(step.title)}</div>`;
+        }
+      });
+    }
+    return out || `<div class="muted">No references</div>`;
+  }
+
+
+  // ---------------------------------------------------------------------------------
+  // FUNCTION MODAL
+  // ---------------------------------------------------------------------------------
+
+  function openFunctionModal(fnId){
+    const fn = findById(state.functions,fnId);
+    if (!fn) return;
+
+    showModal(mod=>{
+      mod.innerHTML = `
+        <div class="modal-head">
+          <span contenteditable="true" id="fnEditName">${esc(fn.name)}</span>
+          <div id="xClose" class="modal-close">×</div>
+        </div>
+        <div class="modal-body" style="padding:20px;">
+          
+          <section>
+            <h3>Apps</h3>
+            <div class="row" style="flex-wrap:wrap; gap:6px;">
+              ${
+                listFunctionAppsForModal(fnId)
+                  .map(a=>renderFunctionAppPill(a))
+                  .join('')
+              }
+            </div>
+            <div style="margin-top:12px;">
+              <button class="btn small" id="assignApp">Assign App</button>
+            </div>
+          </section>
+
+        </div>
+      `;
+
+      $('#xClose').onclick = hideModal;
+
+      $('#fnEditName').onblur = ()=>{
+        fn.name = $('#fnEditName').innerText;
+        persist(); navigate();
+      };
+
+      $('#assignApp').onclick = ()=> openAssignAppToFunction(fnId);
+    });
+  }
+
+
+  function listFunctionAppsForModal(fnId){
+    return (state.functionAssignments||[])
+      .filter(a=>a.functionId===fnId)
+      .map(a=>({
+        app: findById(state.apps,a.appId),
+        level:a.level,
+        assign:a
+      }));
+  }
+
+
+  function renderFunctionAppPill(a){
+    const app=a.app, level=a.level;
+    const border = FN_LEVEL_COLORS[level] || '#666';
+    return `
+      <span class="pill" style="border:2px solid ${border}; cursor:pointer;"
+            onclick="document.ignoreClick=true; openSetFnAppLevel('${a.assign.id}')">
+        ${esc(app?.name||'?')}
+      </span>
+    `;
+  }
+
+
+  function openAssignAppToFunction(fnId){
+    const fn=findById(state.functions,fnId);
+    const allApps = state.apps||[];
+    const assigned= (state.functionAssignments||[])
+      .filter(a=>a.functionId===fnId)
+      .map(a=>a.appId);
+
+    const candidates = allApps.filter(a=>!assigned.includes(a.id));
+
+    if (!candidates.length) {
+      alert('All apps already assigned.');
+      return;
+    }
+
+    const choices = candidates.map(a=>a.name).join('\n');
+    const name = prompt(`Assign functional ownership to which app?\n${choices}`);
+    if (!name) return;
+
+    const match = allApps.find(a=>a.name===name);
+    if (!match) { alert('No such app'); return; }
+
+    state.functionAssignments.push({
+      id:uid(), functionId: fnId, appId: match.id, level:'available'
+    });
+    persist(); navigate();
+  }
+
+
+  function openSetFnAppLevel(assignId){
+    const as = findById(state.functionAssignments,assignId);
+    if (!as) return;
+
+    const cur= as.level;
+    const next= prompt(`Set level for this assignment (primary / available / evaluating)`, cur);
+    if (!next) return;
+    if (!FUNCTION_LEVELS.includes(next)) { alert('Invalid'); return; }
+
+    as.level=next;
+    persist(); navigate();
+  }
+
+
+  // ---------------------------------------------------------------------------------
+  // INTEGRATION MODAL
+  // ---------------------------------------------------------------------------------
+
+  function openIntegrationModal(pairId){
+    const pair = findById(state.integrationsMatrix,pairId);
+    if (!pair) return;
+    const a=findById(state.apps,pair.appAId);
+    const b=findById(state.apps,pair.appBId);
+
+    showModal(mod=>{
+      mod.innerHTML=`
+        <div class="modal-head">
+          <div style="font-size:20px">${esc(a?.name||'?')} ↔ ${esc(b?.name||'?')}</div>
+          <div id="xClose" class="modal-close">×</div>
+        </div>
+
+        <div class="modal-body" style="padding:20px; display:flex;gap:16px;">
+          <section style="flex:1;">
+            <h3>Direct</h3>
+            ${pair.directNotes.map(n=>`<div>• ${esc(n)}</div>`).join('')}
+            <button class="btn small" id="addDirect">+ Add</button>
+          </section>
+
+          <section style="flex:1;">
+            <h3>Zapier</h3>
+            ${pair.zapierNotes.map(n=>`<div>• ${esc(n)}</div>`).join('')}
+            <button class="btn small" id="addZap">+ Add</button>
+          </section>
+        </div>
+      `;
+
+      $('#xClose').onclick = hideModal;
+
+      $('#addDirect').onclick = ()=>{
+        const val = prompt('Describe direct integration');
+        if (!val) return;
+        pair.hasDirect=true;
+        pair.directNotes.push(val);
+        persist(); navigate();
+      };
+      $('#addZap').onclick = ()=>{
+        const val = prompt('Describe Zapier integration');
+        if (!val) return;
+        pair.hasZapier=true;
+        pair.zapierNotes.push(val);
+        persist(); navigate();
+      };
+    });
+  }
+
+
+  // ---------------------------------------------------------------------------------
+  // MODAL CORE
+  // ---------------------------------------------------------------------------------
+
+  function showModal(draw){
+    let m=document.getElementById('modal');
+    if (!m){
+      m=document.createElement('div');
+      m.id='modal';
+      m.innerHTML=`<div id="modalInner"></div>`;
+      Object.assign(m.style,{
+        position:'fixed',inset:'0',background:'rgba(0,0,0,.5)',
+        display:'flex',alignItems:'center',justifyContent:'center',
+        zIndex:999
+      });
+      document.body.appendChild(m);
+    }
+    const inner=document.getElementById('modalInner');
+    Object.assign(inner.style,{
+      background:'var(--panel)',border:'1px solid var(--line)',borderRadius:'10px',
+      minWidth:'460px',maxWidth:'900px',maxHeight:'90vh',overflow:'auto'
+    });
+    draw(inner);
+    m.style.display='flex';
+  }
+
+  function hideModal(){
+    let m=document.getElementById('modal');
+    if (m) m.style.display='none';
+  }
+  // ---------------------------------------------------------------------------------
+  // WORKFLOWS
+  // ---------------------------------------------------------------------------------
+
+  function renderWorkflows(el) {
+    const cap=document.createElement('div');
+    cap.className='card sticky';
+    cap.innerHTML=`
+      <h2>Workflows</h2>
+      <div class="row">
+        <button class="btn small" id="wfAdd">+ Add Workflow</button>
+      </div>
+    `;
+    el.appendChild(cap);
+
+    $('#wfAdd').onclick = newWorkflow;
+
+    (state.workflows||[]).forEach(wf=>{
+      const d=document.createElement('div');
+      d.className='card';
+      d.style.cursor='pointer';
+      d.style.marginTop='10px';
+      d.innerHTML=`
+        <div style="font-weight:600">${esc(wf.name)}</div>
+        <div class="muted" style="font-size:12px">${wf.steps.length} steps</div>
+      `;
+      d.onclick=()=> openWorkflow(wf.id);
+      el.appendChild(d);
+    });
+  }
+
+  function newWorkflow(){
+    const name = prompt('Workflow name?');
+    if (!name) return;
+    state.workflows.push({ id: uid(), name, steps:[]});
+    persist(); navigate();
+  }
+
+  function openWorkflow(wfId){
+    const wf=findById(state.workflows,wfId);
+    if (!wf) return;
+
+    showModal(mod=>{
+      mod.innerHTML=`
+        <div class="modal-head">
+          <span contenteditable="true" id="wfEditName">${esc(wf.name)}</span>
+          <div id="xClose" class="modal-close">×</div>
+        </div>
+        <div class="modal-body" style="padding:20px; max-height:80vh; overflow:auto;">
+          ${renderWorkflowSteps(wf)}
+        </div>
+      `;
+
+      $('#xClose').onclick = hideModal;
+
+      $('#wfEditName').onblur = ()=>{
+        wf.name = $('#wfEditName').innerText;
+        persist(); navigate();
+      };
+    });
+  }
+
+  function renderWorkflowSteps(wf){
+    return `
+      <div>
+        ${wf.steps.map((s,i)=>renderWorkflowStepCard(wf,s,i)).join('')}
+        <button class="btn small" onclick="addWorkflowStep('${wf.id}')">+ Add Step</button>
+      </div>
+    `;
+  }
+
+  function renderWorkflowStepCard(wf,step,i){
+    return `
+      <div class="card" style="margin-bottom:10px;">
+        <div style="font-weight:600; font-size:15px">
+          <span contenteditable="true" onblur="renameStep('${wf.id}','${step.id}',this.innerText)">
+            ${esc(step.title)}
+          </span>
+        </div>
+        <div class="muted" style="font-size:12px">${esc(step.description||'')}</div>
+        <div class="row" style="margin-top:8px; gap:4px;">
+          <button class="btn small" onclick="moveStep('${wf.id}','${step.id}',-1)">↑</button>
+          <button class="btn small" onclick="moveStep('${wf.id}','${step.id}',1)">↓</button>
+          <button class="btn small" onclick="deleteStep('${wf.id}','${step.id}')">Delete</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renameStep(wfId,stepId,title){
+    const wf=findById(state.workflows,wfId);
+    if (!wf) return;
+    const st=findById(wf.steps,stepId);
+    if (!st) return;
+    st.title=title;
+    persist();
+  }
+
+  function addWorkflowStep(wfId){
+    const wf=findById(state.workflows,wfId);
+    if (!wf) return;
+    const title=prompt('Step title?');
+    if (!title) return;
+    wf.steps.push({ id:uid(), title, description:''});
+    persist();
+    openWorkflow(wfId);
+  }
+  
+  function moveStep(wfId,stepId,dir){
+    const wf=findById(state.workflows,wfId);
+    const idx = wf.steps.findIndex(s=>s.id===stepId);
+    if (idx<0) return;
+    const newIdx=idx+dir;
+    if (newIdx<0 || newIdx>=wf.steps.length) return;
+    const temp=wf.steps[idx];
+    wf.steps[idx]=wf.steps[newIdx];
+    wf.steps[newIdx]=temp;
+    persist();
+    openWorkflow(wfId);
+  }
+
+  function deleteStep(wfId,stepId){
+    const wf=findById(state.workflows,wfId);
+    wf.steps = wf.steps.filter(s=>s.id!==stepId);
+    persist();
+    openWorkflow(wfId);
+  }
+
+  // ---------------------------------------------------------------------------------
+  // RESOURCES (Zaps / Forms / Scheduling / Email Campaigns)
+  // ---------------------------------------------------------------------------------
+
+  function renderZaps(el){
+    renderPlaceholder(el,'Zaps (coming soon)');
+  }
+  function renderForms(el){
+    renderPlaceholder(el,'Forms (coming soon)');
+  }
+  function renderScheduling(el){
+    renderPlaceholder(el,'Scheduling (coming soon)');
+  }
+  function renderEmailCampaigns(el){
+    renderPlaceholder(el,'Email Campaigns (coming soon)');
+  }
+
+  function renderPlaceholder(el,text){
+    const c=document.createElement('div');
+    c.className='card';
+    c.style.marginTop='20px';
+    c.innerHTML=`<div style="font-size:16px;">${text}</div>`;
+    el.appendChild(c);
+  }
+
+  // ---------------------------------------------------------------------------------
+  // TEAM
+  // ---------------------------------------------------------------------------------
+
+  function renderTeam(el){
+    const cap=document.createElement('div');
+    cap.className='card sticky';
+    cap.innerHTML=`
+      <h2>Team</h2>
+      <div class="row">
+        <button class="btn small" id="tmAdd">+ Add Member</button>
+      </div>
+    `;
+    el.appendChild(cap);
+
+    $('#tmAdd').onclick = newTeamMember;
+
+    (state.team||[]).forEach(m=>{
+      const d=document.createElement('div');
+      d.className='card';
+      d.style.marginTop='10px';
+      d.innerHTML=`
+        <div contenteditable="true" onblur="renameTeam('${m.id}',this.innerText)"
+            style="font-weight:600; font-size:15px">${esc(m.name)}</div>
+      `;
+      el.appendChild(d);
+    });
+  }
+
+  function newTeamMember(){
+    const name=prompt('Team member name?');
+    if (!name) return;
+    state.team.push({ id:uid(), name });
+    persist(); navigate();
+  }
+
+  function renameTeam(id,name){
+    const m=findById(state.team,id);
+    if (!m) return;
+    m.name=name;
+    persist();
+  }
+
+  // ---------------------------------------------------------------------------------
+  // SEGMENTS (client groups)
+  // ---------------------------------------------------------------------------------
+
+  function renderSegments(el){
+    renderSimpleList(el,'Segments', state.segments, v=>{
+      state.segments=v;
+    });
+  }
+
+  function renderSimpleList(el,title,list,setter){
+    const cap=document.createElement('div');
+    cap.className='card sticky';
+    cap.innerHTML=`
+      <h2>${title}</h2>
+      <div class="row">
+        <button class="btn small" id="slAdd">+ Add</button>
+      </div>
+    `;
+    el.appendChild(cap);
+
+    $('#slAdd').onclick = ()=>{
+      const val=prompt(`Add ${title} value:`);
+      if (!val) return;
+      list.push(val);
+      persist(); navigate();
+    };
+
+    list.forEach(v=>{
+      const d=document.createElement('div');
+      d.className='card';
+      d.style.marginTop='10px';
+      d.innerHTML=`
+        <div contenteditable="true" onblur="editSimple('${title}','${v}','${title}',this.innerText)"
+            style="font-size:14px">${esc(v)}</div>
+      `;
+      el.appendChild(d);
+    });
+  }
+
+  window.editSimple=function(title,old,newKey,newVal){
+    // Not needed for now
+  }
+
+  // ---------------------------------------------------------------------------------
+  // DATAPOINTS
+  // ---------------------------------------------------------------------------------
+
+  function renderDatapoints(el){
+    const cap=document.createElement('div');
+    cap.className='card sticky';
+    cap.innerHTML=`
+      <h2>Datapoints</h2>
+      <div class="row">
+        <button class="btn small" id="dpAdd">+ Add Datapoint</button>
+      </div>
+    `;
+    el.appendChild(cap);
+
+    $('#dpAdd').onclick = newDatapoint;
+
+    (state.datapoints||[]).forEach(dp=>{
+      const d=document.createElement('div');
+      d.className='card';
+      d.style.marginTop='10px';
+      d.innerHTML=`
+        <div style="font-weight:600">${esc(dp.name)}</div>
+        <div class="muted">${esc(dp.description||'')}</div>
+      `;
+      el.appendChild(d);
+    });
+  }
+
+  function newDatapoint(){
+    const name=prompt('Datapoint name?');
+    if (!name) return;
+    state.datapoints.push({ id:uid(), name });
+    persist(); navigate();
+  }
+
+  // ---------------------------------------------------------------------------------
+  // FOLDER HIERARCHY (tree view)
+  // ---------------------------------------------------------------------------------
+
+  function renderFolderHierarchy(el){
+    renderPlaceholder(el,'Folder Hierarchy (visual builder coming)');
+  }
+
+  // ---------------------------------------------------------------------------------
+  // NAMING CONVENTIONS
+  // ---------------------------------------------------------------------------------
+
+  function renderNamingConventions(el){
+    renderPlaceholder(el,'Naming Conventions (coming)');
+  }
+
+  // ---------------------------------------------------------------------------------
+  // ROUTING ENGINE
+  // ---------------------------------------------------------------------------------
+
+  const routes={
+    '/apps':viewApps,
+    '/resources/zaps':renderZaps,
+    '/resources/forms':renderForms,
+    '/resources/workflows':renderWorkflows,
+    '/resources/scheduling':renderScheduling,
+    '/resources/email-campaigns':renderEmailCampaigns,
+    '/settings/team':renderTeam,
+    '/settings/segments':renderSegments,
+    '/settings/datapoints':renderDatapoints,
+    '/settings/folder-hierarchy':renderFolderHierarchy,
+    '/settings/naming-conventions':renderNamingConventions
+  };
+
+  function navigate(){
+    const hash=location.hash||'#/apps';
+    const route=hash.split('?')[0];
+
+    const view=document.getElementById('view');
+    view.innerHTML='';
+
+    document.querySelectorAll('[data-route]').forEach(a=>{
+      if (a.getAttribute('href') === route) a.classList.add('active');
+      else a.classList.remove('active');
+    });
+
+    if (routes[route]) routes[route](view);
+    else view.innerHTML='Route not found: '+route;
+  }
+
+  // ---------------------------------------------------------------------------------
+  // STATE PERSISTENCE
+  // ---------------------------------------------------------------------------------
+
+  function persist(){
+    localStorage.setItem('opslib', JSON.stringify(state));
+  }
+
+  function load(){
+    try {
+      const raw=localStorage.getItem('opslib');
+      if (!raw) return;
+      Object.assign(state, JSON.parse(raw));
+    } catch(e){
+      console.error(e);
+    }
+  }
+
+  load();
+
+  // ---------------------------------------------------------------------------------
+  // INIT
+  // ---------------------------------------------------------------------------------
+
+  navigate();
+  window.onhashchange=navigate;
+
+})(); // END FULL APP
