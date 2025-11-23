@@ -2296,5 +2296,4 @@ Routes:
     el.appendChild(card);
   }
 
-})();```
-::contentReference[oaicite:0]{index=0}
+})();
