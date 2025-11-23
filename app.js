@@ -64,9 +64,23 @@
     String(text || '').replace(/\{([A-Za-z0-9_ ]+)\}/g, (_, k) => { out.push(k); return _; });
     return out;
   }
+  function money(n) {
+    return '$' + (Number(n || 0)).toFixed(2);
+  }
+
+  // ---------- Default icon library ----------
+  const DEFAULT_ICONS = [
+    { id: 'em_calendar', type: 'emoji', value: '📅', label: 'Calendar' },
+    { id: 'em_scheduler', type: 'emoji', value: '🗓️', label: 'Scheduler' },
+    { id: 'em_crm', type: 'emoji', value: '📇', label: 'CRM' },
+    { id: 'em_zap', type: 'emoji', value: '⚡', label: 'Automation' },
+    { id: 'em_docs', type: 'emoji', value: '📄', label: 'Docs' },
+  ];
 
   // ---------- State ----------
   let state = {
+    icons: store.get('icons', DEFAULT_ICONS),
+
     apps: store.get('apps', [
       {
         id: uid(),
@@ -74,7 +88,7 @@
         notes:'Client scheduling links for prospect + review meetings.',
         needsFilter:true,
         functions:["Scheduler"],
-        icon:{ type:'emoji', value:'📅' },
+        iconId:'em_calendar',
         datapointMappings:[
           { id: uid(), datapoint:'First Name', inbound:'Invitee First', outbound:'' },
           { id: uid(), datapoint:'Last Name',  inbound:'Invitee Last',  outbound:'' },
@@ -87,7 +101,7 @@
         notes:'Legacy scheduler; may be deprecated.',
         needsFilter:true,
         functions:["Scheduler"],
-        icon:{ type:'emoji', value:'🗓' },
+        iconId:'em_scheduler',
         datapointMappings:[]
       },
       {
@@ -96,7 +110,7 @@
         notes:'',
         needsFilter:false,
         functions:["CRM","Pipeline Management","Task Management"],
-        icon:{ type:'emoji', value:'📇' },
+        iconId:'em_crm',
         datapointMappings:[]
       },
     ]),
@@ -180,6 +194,10 @@
     functionsViewMode: store.get('functionsViewMode', 'details'),
     integrationsViewMode: store.get('integrationsViewMode', 'details'),
 
+    // Filters
+    functionsAppFilter: store.get('functionsAppFilter', ''),
+    integrationsAppFilter: store.get('integrationsAppFilter', ''),
+
     // volatile cross-ref cache
     _refs: { resources:{}, datapoints:{} }
   };
@@ -249,6 +267,7 @@
 
   // ---------- Persist ----------
   function persist() {
+    store.set('icons', state.icons);
     store.set('apps', state.apps);
     store.set('functions', state.functions);
     store.set('functionAssignments', state.functionAssignments);
@@ -275,6 +294,8 @@
     store.set('appsViewMode', state.appsViewMode);
     store.set('functionsViewMode', state.functionsViewMode);
     store.set('integrationsViewMode', state.integrationsViewMode);
+    store.set('functionsAppFilter', state.functionsAppFilter);
+    store.set('integrationsAppFilter', state.integrationsAppFilter);
 
     rebuildCrossRefs();
   }
@@ -295,16 +316,41 @@
     return fn;
   }
 
-  // App icon HTML
+  // Icon lookup
+  function getIconById(id) {
+    if (!id) return null;
+    return (state.icons || []).find(i => i.id === id) || null;
+  }
+
+  // App icon HTML (uses icon library; falls back to legacy app.icon)
   function appIconHTML(app) {
-    const icon = app && app.icon;
-    if (icon && icon.type === 'emoji' && icon.value) {
-      return `<span class="app-icon-emoji">${esc(icon.value)}</span>`;
+    if (!app) {
+      return `<span class="app-icon-emoji">?</span>`;
     }
-    if (icon && icon.type === 'image' && icon.value) {
-      return `<img src="${esc(icon.value)}" alt="">`;
+
+    // New: iconId → icon library
+    if (app.iconId) {
+      const icon = getIconById(app.iconId);
+      if (icon) {
+        if (icon.type === 'emoji') {
+          return `<span class="app-icon-emoji">${esc(icon.value)}</span>`;
+        }
+        if (icon.type === 'image' || icon.type === 'url') {
+          return `<img src="${esc(icon.value)}" alt="" class="app-icon-img">`;
+        }
+      }
     }
-    const initials = (app?.name || '?')
+
+    // Backward-compat: old app.icon object
+    const legacyIcon = app.icon;
+    if (legacyIcon && legacyIcon.type === 'emoji' && legacyIcon.value) {
+      return `<span class="app-icon-emoji">${esc(legacyIcon.value)}</span>`;
+    }
+    if (legacyIcon && legacyIcon.type === 'image' && legacyIcon.value) {
+      return `<img src="${esc(legacyIcon.value)}" alt="">`;
+    }
+
+    const initials = (app.name || '?')
       .trim()
       .split(/\s+/)
       .map(w => w[0])
@@ -605,6 +651,7 @@
       <div class="row">
         <button class="btn small" id="appsIcons">Icons</button>
         <button class="btn small" id="appsDetails">Details</button>
+        <button class="btn small" id="appsAdd">+ Add App</button>
         <div class="spacer"></div>
         <select id="appsFilter" style="min-width:160px">
           <option value="">All Functions</option>
@@ -616,6 +663,7 @@
 
     $('#appsIcons').onclick = () => { state.appsViewMode = 'icons'; persist(); navigate(); };
     $('#appsDetails').onclick = () => { state.appsViewMode = 'details'; persist(); navigate(); };
+    $('#appsAdd').onclick = newApp;
 
     const filterSel = $('#appsFilter');
     filterSel.onchange = () => navigate();
@@ -635,6 +683,23 @@
       }
       wrap.appendChild(renderAppCard(app));
     });
+  }
+
+  function newApp() {
+    const name = prompt('New application name?');
+    if (!name) return;
+    const app = {
+      id: uid(),
+      name: name.trim(),
+      notes: '',
+      needsFilter: false,
+      functions: [],
+      iconId: '',
+      datapointMappings: []
+    };
+    (state.apps ||= []).push(app);
+    persist();
+    openAppModal(app.id);
   }
 
   function renderAppCard(app) {
@@ -712,6 +777,10 @@
         <button class="btn small" id="fIcons">Icons</button>
         <button class="btn small" id="fDetails">Details</button>
         <div class="spacer"></div>
+        <select id="fnAppFilter" style="min-width:160px">
+          <option value="">All Apps</option>
+          ${(state.apps || []).map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('')}
+        </select>
         <button class="btn small" id="addFunction">+ Add New</button>
       </div>
     `;
@@ -721,6 +790,14 @@
     $('#fDetails').onclick = () => { state.functionsViewMode = 'details'; persist(); navigate(); };
     $('#addFunction').onclick = () => newFunction();
 
+    const appFilterSel = $('#fnAppFilter');
+    appFilterSel.value = state.functionsAppFilter || '';
+    appFilterSel.onchange = () => {
+      state.functionsAppFilter = appFilterSel.value || '';
+      persist();
+      navigate();
+    };
+
     const wrap = document.createElement('div');
     wrap.style.display = 'grid';
     wrap.style.gridTemplateColumns = 'repeat(auto-fill,minmax(260px,1fr))';
@@ -729,6 +806,12 @@
     el.appendChild(wrap);
 
     (state.functions || []).forEach(fn => {
+      if (state.functionsAppFilter) {
+        const hasAssignment = (state.functionAssignments || []).some(a =>
+          a.functionId === fn.id && a.appId === state.functionsAppFilter
+        );
+        if (!hasAssignment) return;
+      }
       wrap.appendChild(renderFunctionCard(fn));
     });
   }
@@ -736,7 +819,7 @@
   function renderFunctionCard(fn) {
     const appsAssigned = (state.functionAssignments || [])
       .filter(a => a.functionId === fn.id)
-      .map(a => ({ app: findById(state.apps, a.appId), level: a.level }));
+      .map(a => ({ app: findById(state.apps, a.appId), level: a.level, assignId: a.id }));
 
     const d = document.createElement('div');
     d.className = 'card';
@@ -749,7 +832,8 @@
           appsAssigned.length
             ? appsAssigned.map(a => {
                 const border = FN_LEVEL_COLORS[a.level] || '#666';
-                return `<div class="pill" style="border:1px solid ${border};">${esc(a.app?.name || '?')}</div>`;
+                return `<div class="pill fn-pill" data-assign-id="${esc(a.assignId)}"
+                          style="border:1px solid ${border};">${esc(a.app?.name || '?')}</div>`;
               }).join(' ')
             : `<span class="muted">No apps assigned</span>`
         }
@@ -758,16 +842,28 @@
       d.innerHTML = `
         <div style="font-weight:600; margin-bottom:4px; font-size:13px">${esc(fn.name)}</div>
         <div style="display:flex; flex-wrap:wrap; gap:4px">
-          ${appsAssigned.map(a => {
-            const border = FN_LEVEL_COLORS[a.level] || '#666';
-            const icon = appIconHTML(a.app);
-            return `<div class="pill" style="border:1px solid ${border}">${icon}</div>`;
-          }).join('')}
+          ${
+            appsAssigned.map(a => {
+              const border = FN_LEVEL_COLORS[a.level] || '#666';
+              const icon = appIconHTML(a.app);
+              return `<div class="pill fn-pill" data-assign-id="${esc(a.assignId)}"
+                        style="border:1px solid ${border}">${icon}</div>`;
+            }).join('')
+          }
         </div>
       `;
     }
 
     d.onclick = () => openFunctionModal(fn.id);
+
+    // allow in-card level cycling
+    $all('.fn-pill', d).forEach(pill => {
+      pill.addEventListener('click', e => {
+        e.stopPropagation();
+        openSetFnAppLevel(pill.getAttribute('data-assign-id'));
+      });
+    });
+
     return d;
   }
 
@@ -791,12 +887,25 @@
       <div class="row">
         <button class="btn small" id="iIcons">Icons</button>
         <button class="btn small" id="iDetails">Details</button>
+        <div class="spacer"></div>
+        <select id="iAppFilter" style="min-width:160px">
+          <option value="">All Apps</option>
+          ${(state.apps || []).map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('')}
+        </select>
       </div>
     `;
     el.appendChild(cap);
 
     $('#iIcons').onclick = () => { state.integrationsViewMode = 'icons'; persist(); navigate(); };
     $('#iDetails').onclick = () => { state.integrationsViewMode = 'details'; persist(); navigate(); };
+
+    const appFilterSel = $('#iAppFilter');
+    appFilterSel.value = state.integrationsAppFilter || '';
+    appFilterSel.onchange = () => {
+      state.integrationsAppFilter = appFilterSel.value || '';
+      persist();
+      navigate();
+    };
 
     const wrap = document.createElement('div');
     wrap.style.display = 'grid';
@@ -808,6 +917,10 @@
     const pairs = state.integrationsMatrix || [];
     pairs.forEach(pair => {
       if (!pair.hasDirect && !pair.hasZapier) return; // only show real relationships
+      if (state.integrationsAppFilter) {
+        const fId = state.integrationsAppFilter;
+        if (pair.appAId !== fId && pair.appBId !== fId) return;
+      }
       wrap.appendChild(renderIntegrationCard(pair));
     });
   }
@@ -894,6 +1007,63 @@
     if (m) m.style.display = 'none';
   }
 
+  // ----- ICON HELPERS FOR APP MODAL -----
+  function buildIconSelectOptions(selectEl, currentId) {
+    selectEl.innerHTML =
+      `<option value="">(No icon)</option>` +
+      (state.icons || []).map(icon => {
+        const label = icon.label || icon.value || icon.id;
+        return `<option value="${esc(icon.id)}">${esc(label)}</option>`;
+      }).join('');
+    selectEl.value = currentId || '';
+  }
+
+  function addEmojiIconForApp(app) {
+    const val = prompt('Enter emoji for this app icon:');
+    if (!val) return;
+    const id = 'em_' + uid();
+    state.icons.push({ id, type:'emoji', value:val.trim(), label:val.trim() });
+    app.iconId = id;
+    persist();
+    openAppModal(app.id);
+  }
+
+  function addUrlIconForApp(app) {
+    const url = prompt('Enter image URL for this app icon:');
+    if (!url) return;
+    const id = 'url_' + uid();
+    state.icons.push({ id, type:'url', value:url.trim(), label: url.trim().slice(0,50) });
+    app.iconId = id;
+    persist();
+    openAppModal(app.id);
+  }
+
+  function uploadIconForApp(app) {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'image/*';
+    inp.onchange = e => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const fr = new FileReader();
+      fr.onload = evt => {
+        const dataUrl = evt.target.result;
+        const id = 'img_' + uid();
+        state.icons.push({
+          id,
+          type:'image',
+          value:dataUrl,
+          label:f.name || 'Uploaded Icon'
+        });
+        app.iconId = id;
+        persist();
+        openAppModal(app.id);
+      };
+      fr.readAsDataURL(f);
+    };
+    inp.click();
+  }
+
   // ----- APP MODAL -----
   function openAppModal(appId) {
     const app = findById(state.apps, appId);
@@ -903,22 +1073,50 @@
       mod.innerHTML = `
         <div class="modal-head">
           <div style="font-size:24px;display:flex;align-items:center;gap:10px;">
-            <div>${appIconHTML(app)}</div>
+            <div id="appHeaderIcon">${appIconHTML(app)}</div>
             <span contenteditable="true" id="appEditName">${esc(app.name)}</span>
           </div>
           <div class="modal-close" id="xClose">×</div>
         </div>
         <div class="modal-body" style="padding:20px; display:flex; flex-direction:column; gap:22px;">
           <section>
-            <h3>Functions</h3>
-            <div class="row" style="flex-wrap:wrap; gap:6px">
-              ${(app.functions || []).map(fn => `<span class="pill">${esc(fn)}</span>`).join('')}
+            <h3>Icon</h3>
+            <div class="row" style="gap:6px;align-items:center;">
+              <select id="appIconSelect" style="min-width:180px"></select>
+              <button class="btn small" id="appIconEmoji">Add Emoji</button>
+              <button class="btn small" id="appIconUrl">Add URL</button>
+              <button class="btn small" id="appIconUpload">Upload</button>
             </div>
+          </section>
+
+          <section>
+            <h3>Details</h3>
+            <div style="margin-bottom:8px;">
+              <label class="muted">Notes</label>
+              <div id="appEditNotes"
+                   contenteditable="true"
+                   style="border:1px solid var(--line); border-radius:6px; padding:6px; min-height:40px;">
+                ${esc(app.notes || '')}
+              </div>
+            </div>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
+              <input type="checkbox" id="appNeedsFilter" ${app.needsFilter ? 'checked' : ''}>
+              Needs filter logic (e.g., by segment, pipeline, etc.)
+            </label>
+          </section>
+
+          <section>
+            <h3>Functions</h3>
+            <div class="row" style="flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+              ${(app.functions || []).map(fn => `<span class="pill">${esc(fn)}</span>`).join('') || '<span class="muted">No functions tagged</span>'}
+            </div>
+            <div style="font-size:12px;" class="muted">Assign detailed ownership and levels from the Functions view.</div>
           </section>
 
           <section>
             <h3>Datapoints</h3>
             ${renderAppDatapointsTable(app)}
+            <button class="btn small" id="addDpRow" style="margin-top:8px;">+ Add Mapping</button>
           </section>
 
           <section>
@@ -941,11 +1139,72 @@
       `;
 
       $('#xClose').onclick = hideModal;
+
+      // Name
       $('#appEditName').onblur = () => {
         app.name = $('#appEditName').innerText.trim();
         persist();
         navigate();
       };
+
+      // Notes
+      $('#appEditNotes').onblur = () => {
+        app.notes = $('#appEditNotes').innerText.trim();
+        persist();
+        navigate();
+      };
+
+      // Needs filter
+      $('#appNeedsFilter').onchange = () => {
+        app.needsFilter = !!$('#appNeedsFilter').checked;
+        persist();
+      };
+
+      // Icon select + actions
+      const iconSel = $('#appIconSelect');
+      buildIconSelectOptions(iconSel, app.iconId);
+      iconSel.onchange = () => {
+        app.iconId = iconSel.value || '';
+        persist();
+        // update header icon
+        $('#appHeaderIcon').innerHTML = appIconHTML(app);
+        navigate();
+      };
+      $('#appIconEmoji').onclick = () => addEmojiIconForApp(app);
+      $('#appIconUrl').onclick = () => addUrlIconForApp(app);
+      $('#appIconUpload').onclick = () => uploadIconForApp(app);
+
+      // datapoints editing
+      $('#addDpRow').onclick = () => {
+        (app.datapointMappings ||= []).push({
+          id: uid(),
+          datapoint: '',
+          inbound: '',
+          outbound: ''
+        });
+        persist();
+        openAppModal(app.id);
+      };
+
+      $all('input[data-dp-id]', mod).forEach(inp => {
+        inp.addEventListener('input', () => {
+          const id = inp.getAttribute('data-dp-id');
+          const field = inp.getAttribute('data-field');
+          const row = (app.datapointMappings || []).find(r => r.id === id);
+          if (!row) return;
+          row[field] = inp.value;
+          persist();
+        });
+      });
+
+      $all('button[data-dp-del]', mod).forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-dp-del');
+          app.datapointMappings = (app.datapointMappings || []).filter(r => r.id !== id);
+          persist();
+          openAppModal(app.id);
+        });
+      });
     });
   }
 
@@ -953,12 +1212,13 @@
     const rows = app.datapointMappings || [];
     if (!rows.length) return `<div class="muted">No datapoints yet</div>`;
     let out = `
-      <table style="font-size:13px; border-collapse:collapse;">
+      <table style="font-size:13px; border-collapse:collapse; width:100%;">
         <thead>
           <tr>
             <th style="text-align:left; padding:4px;">Master</th>
             <th style="text-align:left; padding:4px;">Inbound Merge Tag</th>
             <th style="text-align:left; padding:4px;">Outbound Merge Tag</th>
+            <th style="padding:4px;"></th>
           </tr>
         </thead>
         <tbody>
@@ -966,9 +1226,21 @@
     rows.forEach(r => {
       out += `
         <tr>
-          <td style="padding:4px;">${esc(r.datapoint)}</td>
-          <td style="padding:4px;">${esc(r.inbound)}</td>
-          <td style="padding:4px;">${esc(r.outbound)}</td>
+          <td style="padding:4px;">
+            <input type="text" data-dp-id="${esc(r.id)}" data-field="datapoint"
+                   value="${esc(r.datapoint || '')}" style="width:100%;">
+          </td>
+          <td style="padding:4px;">
+            <input type="text" data-dp-id="${esc(r.id)}" data-field="inbound"
+                   value="${esc(r.inbound || '')}" style="width:100%;">
+          </td>
+          <td style="padding:4px;">
+            <input type="text" data-dp-id="${esc(r.id)}" data-field="outbound"
+                   value="${esc(r.outbound || '')}" style="width:100%;">
+          </td>
+          <td style="padding:4px; text-align:right;">
+            <button class="btn small" data-dp-del="${esc(r.id)}">✕</button>
+          </td>
         </tr>
       `;
     });
@@ -1016,8 +1288,18 @@
                   : `<span class="muted">No apps assigned</span>`
               }
             </div>
-            <div style="margin-top:12px;">
-              <button class="btn small" id="assignApp">Assign App</button>
+            <div style="margin-top:12px; display:flex; gap:6px; align-items:center;">
+              <select id="fnAssignAppSel" style="min-width:180px">
+                <option value="">Assign app…</option>
+                ${(state.apps || []).map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('')}
+              </select>
+              <select id="fnAssignLevelSel">
+                ${FUNCTION_LEVELS.map(l => `<option value="${l}">${l}</option>`).join('')}
+              </select>
+              <button class="btn small" id="fnAssignAdd">Add</button>
+            </div>
+            <div class="muted" style="font-size:11px; margin-top:4px;">
+              Click an app pill to cycle level: primary → available → evaluating
             </div>
           </section>
         </div>
@@ -1031,7 +1313,29 @@
         navigate();
       };
 
-      $('#assignApp').onclick = () => openAssignAppToFunction(fnId);
+      // Add assignment from dropdown
+      $('#fnAssignAdd').onclick = () => {
+        const appId = $('#fnAssignAppSel').value;
+        const level = $('#fnAssignLevelSel').value;
+        if (!appId) return;
+        if (!FUNCTION_LEVELS.includes(level)) return;
+
+        const already = (state.functionAssignments || []).some(a =>
+          a.functionId === fnId && a.appId === appId
+        );
+        if (already) {
+          alert('App already assigned to this function.');
+          return;
+        }
+        (state.functionAssignments ||= []).push({
+          id: uid(),
+          functionId: fnId,
+          appId,
+          level
+        });
+        persist();
+        openFunctionModal(fnId);
+      };
 
       // wire click handlers for level change
       const wrap = $('#fnAppsWrap');
@@ -1065,54 +1369,15 @@
     `;
   }
 
-  function openAssignAppToFunction(fnId) {
-    const fn = findById(state.functions, fnId);
-    if (!fn) return;
-
-    const allApps = state.apps || [];
-    const assigned = (state.functionAssignments || [])
-      .filter(a => a.functionId === fnId)
-      .map(a => a.appId);
-
-    const candidates = allApps.filter(a => !assigned.includes(a.id));
-    if (!candidates.length) {
-      alert('All apps already assigned.');
-      return;
-    }
-
-    const choices = candidates.map(a => a.name).join('\n');
-    const name = prompt(`Assign functional ownership to which app?\n${choices}`);
-    if (!name) return;
-
-    const match = allApps.find(a => a.name === name);
-    if (!match) {
-      alert('No such app');
-      return;
-    }
-
-    state.functionAssignments.push({
-      id: uid(),
-      functionId: fnId,
-      appId: match.id,
-      level: 'available'
-    });
-    persist();
-    navigate();
-  }
-
   function openSetFnAppLevel(assignId) {
     const as = findById(state.functionAssignments, assignId);
     if (!as) return;
-    const cur = as.level;
-    const next = prompt('Set level for this assignment (primary / available / evaluating)', cur);
-    if (!next) return;
-    if (!FUNCTION_LEVELS.includes(next)) {
-      alert('Invalid');
-      return;
-    }
-    as.level = next;
+    const curIdx = FUNCTION_LEVELS.indexOf(as.level);
+    const nextIdx = (curIdx + 1) % FUNCTION_LEVELS.length;
+    as.level = FUNCTION_LEVELS[nextIdx];
     persist();
     navigate();
+    // if modal is open, you can re-open or re-render; for now we accept refresh on next open
   }
 
   // expose for inline (if you keep any older inline handlers)
@@ -1172,7 +1437,7 @@
   }
 
   // ======================================================================
-  //  WORKFLOWS (basic, mostly unchanged)
+  //  WORKFLOWS (basic)
   // ======================================================================
   function renderWorkflows(el) {
     const cap = document.createElement('div');
@@ -1231,6 +1496,11 @@
         persist();
         navigate();
       };
+
+      const btn = $('#addStepBtn');
+      if (btn) {
+        btn.onclick = () => addWorkflowStep(wf.id);
+      }
     });
   }
 
@@ -1311,12 +1581,11 @@
   window.deleteStep = deleteStep;
 
   // ======================================================================
-  //  RESOURCES (stubs)
+  //  RESOURCES (stubs + email campaigns)
   // ======================================================================
   function renderZaps(el) { renderPlaceholder(el, 'Zaps (coming soon)'); }
   function renderForms(el) { renderPlaceholder(el, 'Forms (coming soon)'); }
   function renderScheduling(el) { renderPlaceholder(el, 'Scheduling (coming soon)'); }
-  function renderEmailCampaigns(el) { renderPlaceholder(el, 'Email Campaigns (coming soon)'); }
 
   function renderPlaceholder(el, text) {
     const c = document.createElement('div');
@@ -1325,65 +1594,65 @@
     c.innerHTML = `<div style="font-size:16px;">${esc(text)}</div>`;
     el.appendChild(c);
   }
+
   function renderEmailCampaigns(el){
-  el.innerHTML = `
-    <div class="card sticky">
-      <h2>Email Campaigns</h2>
-      <div class="row"><div class="pill">Pricing: $${state.pricing.emailStep}/step</div></div>
-    </div>
-    <div class="card">
-      <table id="ecTable">
-        <thead><tr><th>Campaign</th><th>Steps</th><th>Assets/Notes</th><th>Price</th><th></th></tr></thead>
-        <tbody></tbody>
-      </table>
-      <div class="row" style="margin-top:10px">
-        <button class="btn small" id="addEC">Add Campaign</button>
-        <div class="spacer"></div>
-        <div>Total: <b id="ecTotal">$0.00</b></div>
+    el.innerHTML = `
+      <div class="card sticky">
+        <h2>Email Campaigns</h2>
+        <div class="row"><div class="pill">Pricing: $${state.pricing.emailStep}/step</div></div>
       </div>
-    </div>
-  `;
+      <div class="card">
+        <table id="ecTable">
+          <thead><tr><th>Campaign</th><th>Steps</th><th>Assets/Notes</th><th>Price</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="row" style="margin-top:10px">
+          <button class="btn small" id="addEC">Add Campaign</button>
+          <div class="spacer"></div>
+          <div>Total: <b id="ecTotal">$0.00</b></div>
+        </div>
+      </div>
+    `;
 
-  function rowPrice(steps){ return (Number(steps||0) * state.pricing.emailStep); }
+    function rowPrice(steps){ return (Number(steps||0) * state.pricing.emailStep); }
 
-  function draw(){
-    const tb = $('#ecTable tbody', el); tb.innerHTML='';
-    (state.emailCampaigns||[]).forEach(c=>{
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><input type="text" value="${esc(c.name||'')}" data-f="name"></td>
-        <td><input type="number" value="${Number(c.steps||0)}" data-f="steps"></td>
-        <td><input type="text" value="${esc(c.notes||'')}" data-f="notes"></td>
-        <td>${money(rowPrice(c.steps))}</td>
-        <td><button class="btn small" data-act="del">Delete</button></td>
-      `;
-      tr.querySelectorAll('[data-f]').forEach(inp=>{
-        inp.addEventListener('input', ()=>{
-          const f = inp.getAttribute('data-f');
-          c[f] = inp.type==='number' ? Number(inp.value||0) : inp.value;
-          persist(); totals();
+    function draw(){
+      const tb = $('#ecTable tbody', el); tb.innerHTML='';
+      (state.emailCampaigns||[]).forEach(c=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><input type="text" value="${esc(c.name||'')}" data-f="name"></td>
+          <td><input type="number" value="${Number(c.steps||0)}" data-f="steps"></td>
+          <td><input type="text" value="${esc(c.notes||'')}" data-f="notes"></td>
+          <td>${money(rowPrice(c.steps))}</td>
+          <td><button class="btn small" data-act="del">Delete</button></td>
+        `;
+        tr.querySelectorAll('[data-f]').forEach(inp=>{
+          inp.addEventListener('input', ()=>{
+            const f = inp.getAttribute('data-f');
+            c[f] = inp.type==='number' ? Number(inp.value||0) : inp.value;
+            persist(); totals();
+          });
         });
+        tr.querySelector('[data-act="del"]').addEventListener('click', ()=>{
+          if(!confirm('Delete campaign?')) return;
+          state.emailCampaigns = state.emailCampaigns.filter(x=>x.id!==c.id); persist(); draw(); totals();
+        });
+        tb.appendChild(tr);
       });
-      tr.querySelector('[data-act="del"]').addEventListener('click', ()=>{
-        if(!confirm('Delete campaign?')) return;
-        state.emailCampaigns = state.emailCampaigns.filter(x=>x.id!==c.id); persist(); draw(); totals();
-      });
-      tb.appendChild(tr);
+    }
+
+    function totals(){
+      const total = (state.emailCampaigns||[]).reduce((sum,c)=> sum + rowPrice(c.steps), 0);
+      $('#ecTotal', el).textContent = money(total);
+    }
+
+    $('#addEC', el).addEventListener('click', ()=>{
+      state.emailCampaigns.unshift({ id:uid(), name:'', steps:0, notes:'' }); persist(); draw(); totals();
     });
+
+    draw(); totals();
   }
-
-  function totals(){
-    const total = (state.emailCampaigns||[]).reduce((sum,c)=> sum + rowPrice(c.steps), 0);
-    $('#ecTotal', el).textContent = money(total);
-  }
-
-  $('#addEC', el).addEventListener('click', ()=>{
-    state.emailCampaigns.unshift({ id:uid(), name:'', steps:0, notes:'' }); persist(); draw(); totals();
-  });
-
-  draw(); totals();
-}
-
 
   // ======================================================================
   //  SETTINGS
@@ -1532,6 +1801,5 @@
   }
 
   // kick things off
-  // (load is already implied via store.get at top; just navigate)
   navigate();
 })();
