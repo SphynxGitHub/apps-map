@@ -429,25 +429,6 @@
   }
 
   // ---------- Routing ----------
-  const routes = {
-    '/apps': renderAppsPage,              // combined: Apps + Functions + Integrations Matrix
-    '/apps/functions': renderAppsPage,    // back-compat
-    '/apps/tech': renderTechComparison,
-
-    '/resources': renderZaps,
-    '/resources/zaps': renderZaps,
-    '/resources/forms': renderForms,
-    '/resources/workflows': renderWorkflows,
-    '/resources/scheduling': renderScheduling,
-    '/resources/email-campaigns': renderEmailCampaigns,
-
-    '/settings': renderSettingsHome,
-    '/settings/team': renderTeam,
-    '/settings/segments': renderSegments,
-    '/settings/datapoints': renderDatapoints,
-    '/settings/folder-hierarchy': renderFolderHierarchy,
-    '/settings/naming-conventions': renderNaming,
-  };
 
   function currentPath(){
     const h = (location.hash || '#/apps').slice(1);
