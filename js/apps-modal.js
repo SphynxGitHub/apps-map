@@ -132,6 +132,291 @@
 
   //
   // expose public API
+  function renderModalAppData(app) {
+  const { state, persist } = window.OL;
+
+  //
+  // ELEMENT REFS
+  //
+  const iconBox   = document.getElementById('modalAppIcon');
+  const nameInput = document.getElementById('modalAppName');
+  const notesInput = document.getElementById('modalAppNotes');
+  const fnWrap    = document.getElementById('modalAppFunctions');
+  const intWrap   = document.getElementById('modalAppIntegrations');
+  const dataWrap  = document.getElementById('modalAppDatapoints');
+
+  //
+  // RENDER ICON
+  //
+  iconBox.innerHTML = window.OL.renderIconForApp(app);
+
+  iconBox.onclick = () => {
+    window.OL.openIconPicker(iconBox, app);
+  };
+
+  //
+  // NAME — with debounced save
+  //
+  nameInput.value = app.name || "";
+  let nameDebounce = null;
+  nameInput.oninput = () => {
+    clearTimeout(nameDebounce);
+    nameDebounce = setTimeout(() => {
+      app.name = nameInput.value.trim();
+      persist();
+      window.OL.renderApps();  // update grid after save
+    }, 400);
+  };
+
+  //
+  // NOTES — with debounced save
+  //
+  notesInput.value = app.notes || "";
+  let notesDebounce = null;
+  notesInput.oninput = () => {
+    clearTimeout(notesDebounce);
+    notesDebounce = setTimeout(() => {
+      app.notes = notesInput.value;
+      persist();
+    }, 400);
+  };
+
+  //
+  // FUNCTIONS SECTION
+  //
+  renderFunctions();
+
+  function renderFunctions() {
+    fnWrap.innerHTML = "";
+
+    // Render existing function pills
+    app.functions?.forEach(fn => {
+      const pill = document.createElement('span');
+      pill.className = "pill";
+      pill.style.cursor = "pointer";
+      pill.style.marginRight = "6px";
+      pill.style.userSelect = "none";
+
+      pill.textContent = window.OL.findFunctionName(fn.id);
+
+      // state-based coloring
+      switch(fn.status) {
+        case "primary":     pill.style.background = "#18c38a"; pill.style.color="#041810"; break;
+        case "evaluating":  pill.style.background = "#3d4c6b"; pill.style.color="#eaf1ff"; break;
+        case "available":   pill.style.background = "#2b3141"; pill.style.color="#cdd6e6"; break;
+      }
+
+      // left click cycles state
+      pill.onclick = (e) => {
+        e.stopPropagation();
+        cycleFunctionState(fn);
+        persist();
+        renderModalAppData(app);
+        window.OL.renderApps();
+      };
+
+      // right click removes fn
+      pill.oncontextmenu = (e) => {
+        e.preventDefault();
+        app.functions = app.functions.filter(f => f.id !== fn.id);
+        persist();
+        renderModalAppData(app);
+        window.OL.renderApps();
+      };
+
+      fnWrap.appendChild(pill);
+    });
+
+    //
+    // ADD FUNCTION BUTTON
+    //
+    document.getElementById('modalAddFunction').onclick = () => {
+      openFunctionSelector(app);
+    };
+  }
+
+  function cycleFunctionState(fn) {
+    switch(fn.status) {
+      case "available": fn.status = "primary"; break;
+      case "primary": fn.status = "evaluating"; break;
+      case "evaluating": fn.status = "available"; break;
+    }
+  }
+
+  function openFunctionSelector(app) {
+    const allFunctions = state.functions || [];
+    const existing = app.functions.map(f => f.id);
+
+    const options = allFunctions
+      .filter(fn => !existing.includes(fn.id))
+      .map(fn => `<option value="${fn.id}">${fn.name}</option>`)
+      .join("");
+
+    const sel = document.createElement('select');
+    sel.innerHTML = `<option value="">Select a function…</option>` + options;
+
+    sel.onchange = () => {
+      if (!sel.value) return;
+      app.functions.push({ id: sel.value, status: "available" });
+      persist();
+      renderModalAppData(app);
+      window.OL.renderApps();
+    };
+
+    fnWrap.appendChild(sel);
+  }
+
+  //
+  // INTEGRATIONS
+  //
+  renderIntegrations();
+
+  function renderIntegrations() {
+    intWrap.innerHTML = "";
+
+    (app.integrations || []).forEach(int => {
+      const pill = document.createElement('span');
+      pill.className = "pill";
+      pill.style.cursor = "pointer";
+      pill.style.marginRight = "6px";
+
+      const otherApp = state.apps.find(a => a.id === int.appId);
+      pill.textContent = otherApp ? otherApp.name : "(missing)";
+
+      // color code based on type
+      pill.style.border = `1px solid ${
+        int.type === "direct" ? "#18c38a" : 
+        int.type === "zapier" ? "#d5a73b" :
+        "#888"
+      }`;
+
+      // left click = toggle type
+      pill.onclick = (e) => {
+        e.stopPropagation();
+        int.type = nextIntegrationType(int.type);
+        persist();
+        renderModalAppData(app);
+      };
+
+      // right click = remove
+      pill.oncontextmenu = (e) => {
+        e.preventDefault();
+        app.integrations = app.integrations.filter(i => i !== int);
+        persist();
+        renderModalAppData(app);
+      };
+
+      intWrap.appendChild(pill);
+    });
+
+    document.getElementById('modalAddIntegration').onclick = () => {
+      openIntegrationSelector(app);
+    };
+  }
+
+  function nextIntegrationType(t) {
+    if (t === "direct") return "zapier";
+    if (t === "zapier") return "both";
+    return "direct";
+  }
+
+  function openIntegrationSelector(app) {
+    const sel = document.createElement('select');
+    sel.innerHTML = `<option value="">Select app…</option>` + 
+      state.apps
+      .filter(a => a.id !== app.id)
+      .map(a => `<option value="${a.id}">${a.name}</option>`)
+      .join("");
+
+    sel.onchange = () => {
+      if (!sel.value) return;
+      app.integrations = app.integrations || [];
+      app.integrations.push({
+        appId: sel.value,
+        type: "direct"
+      });
+      persist();
+      renderModalAppData(app);
+    };
+
+    intWrap.appendChild(sel);
+  }
+
+  //
+  // DATAPOINTS
+  //
+  renderDatapoints();
+
+  function renderDatapoints() {
+    dataWrap.innerHTML = "";
+
+    const dp = app.datapointMappings || [];
+    dp.forEach(entry => {
+      const row = document.createElement('div');
+      row.className = "row";
+      row.style.marginBottom = "4px";
+
+      const sel = document.createElement('select');
+      window.OL.state.datapoints.forEach(d => {
+        const o = document.createElement('option');
+        o.value = d.id;
+        o.textContent = d.name;
+        if (d.id === entry.master) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.onchange = () => {
+        entry.master = sel.value;
+        persist();
+      };
+
+      const inbound = document.createElement('input');
+      inbound.type = "text";
+      inbound.placeholder = "Inbound";
+      inbound.value = entry.inbound || "";
+      inbound.oninput = debounce(() => {
+        entry.inbound = inbound.value;
+        persist();
+      }, 400);
+
+      const outbound = document.createElement('input');
+      outbound.type = "text";
+      outbound.placeholder = "Outbound";
+      outbound.value = entry.outbound || "";
+      outbound.oninput = debounce(() => {
+        entry.outbound = outbound.value;
+        persist();
+      }, 400);
+
+      row.appendChild(sel);
+      row.appendChild(inbound);
+      row.appendChild(outbound);
+      dataWrap.appendChild(row);
+    });
+
+    document.getElementById('modalAddDatapoint').onclick = () => {
+      app.datapointMappings = app.datapointMappings || [];
+      app.datapointMappings.push({
+        master: "",
+        inbound: "",
+        outbound: ""
+      });
+      persist();
+      renderModalAppData(app);
+    };
+  }
+}
+
+//
+// simple debounce
+//
+function debounce(fn, delay) {
+  let t = null;
+  return () => {
+    clearTimeout(t);
+    t = setTimeout(fn, delay);
+  };
+}
+
   //
   window.OL.openAppModal = openAppModal;
   window.OL.hideModal = hideModal;
