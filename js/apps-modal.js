@@ -290,75 +290,101 @@
   // INTEGRATIONS
   //
   renderIntegrations();
-
+  
   function renderIntegrations() {
     intWrap.innerHTML = "";
-
+  
     (app.integrations || []).forEach(int => {
       const pill = document.createElement('span');
       pill.className = "pill";
       pill.style.cursor = "pointer";
       pill.style.marginRight = "6px";
-
+      pill.style.userSelect = "none";
+      pill.style.padding = "4px 8px";
+  
       const otherApp = state.apps.find(a => a.id === int.appId);
       pill.textContent = otherApp ? otherApp.name : "(missing)";
-
-      // color code based on type
-      pill.style.border = `1px solid ${
-        int.type === "direct" ? "#18c38a" : 
-        int.type === "zapier" ? "#d5a73b" :
-        "#888"
-      }`;
-
-      // left click = toggle type
+  
+      //
+      // COLOR & TEXT BASED ON STATE
+      //
+      function updateColor() {
+        if (int.type === "zapier") {
+          pill.style.background = "#d5a73b";  // gold
+          pill.style.color = "#0c0c0c";
+          pill.style.border = "1px solid #f0cc73";
+        }
+        else if (int.type === "direct") {
+          pill.style.background = "#1fd3bd"; // your new brand color
+          pill.style.color = "#032a25";
+          pill.style.border = "1px solid #25eed0";
+        }
+        else if (int.type === "both") {
+          pill.style.background = "linear-gradient(90deg, #1fd3bd 0%, #d5a73b 100%)";
+          pill.style.color = "#081512";
+          pill.style.border = "1px solid #ffffff30";
+        }
+      }
+      updateColor();
+  
+      //
+      // LEFT CLICK = CYCLE STATE
+      //
       pill.onclick = (e) => {
         e.stopPropagation();
         int.type = nextIntegrationType(int.type);
+        updateColor();
         persist();
         renderModalAppData(app);
       };
-
-      // right click = remove
+  
+      //
+      // RIGHT CLICK = REMOVE
+      //
       pill.oncontextmenu = (e) => {
         e.preventDefault();
         app.integrations = app.integrations.filter(i => i !== int);
         persist();
         renderModalAppData(app);
       };
-
+  
       intWrap.appendChild(pill);
     });
-
+  
+    //
+    // ADD INTEGRATION (dropdown)
+    //
     document.getElementById('modalAddIntegration').onclick = () => {
       openIntegrationSelector(app);
     };
   }
-
+  
   function nextIntegrationType(t) {
-    if (t === "direct") return "zapier";
-    if (t === "zapier") return "both";
-    return "direct";
+    if (t === "zapier") return "direct";
+    if (t === "direct") return "both";
+    return "zapier";  // returns to default
   }
-
+  
   function openIntegrationSelector(app) {
     const sel = document.createElement('select');
+    sel.style.marginTop = "6px";
     sel.innerHTML = `<option value="">Select app…</option>` + 
       state.apps
       .filter(a => a.id !== app.id)
       .map(a => `<option value="${a.id}">${a.name}</option>`)
       .join("");
-
+  
     sel.onchange = () => {
       if (!sel.value) return;
       app.integrations = app.integrations || [];
       app.integrations.push({
         appId: sel.value,
-        type: "direct"
+        type: "zapier"  // <<< DEFAULT
       });
       persist();
       renderModalAppData(app);
     };
-
+  
     intWrap.appendChild(sel);
   }
 
