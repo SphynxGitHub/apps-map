@@ -148,10 +148,30 @@
   //
   // RENDER ICON
   //
-  iconBox.innerHTML = window.OL.renderIconForApp(app);
+  const { appIconHTML, openPicker } = window.OL.icons;
 
-  iconBox.onclick = () => {
-    window.OL.openIconPicker(iconBox, app);
+  // Render current icon
+  iconBox.innerHTML = appIconHTML(app);
+  
+  // Click to open picker
+  iconBox.onclick = (e) => {
+    e.stopPropagation();
+    openPicker(iconBox, {
+      currentIcon: app.icon,
+      onSelect(newIcon) {
+        app.icon = newIcon;
+        window.OL.persist && window.OL.persist();
+        // re-render modal and grid to show updated icon
+        renderModalAppData(app);
+        window.OL.renderApps && window.OL.renderApps();
+      },
+      onClear() {
+        app.icon = null;
+        window.OL.persist && window.OL.persist();
+        renderModalAppData(app);
+        window.OL.renderApps && window.OL.renderApps();
+      }
+    });
   };
 
   //
