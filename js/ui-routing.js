@@ -14,7 +14,7 @@
     switch (route) {
 
       // ========================
-      // APPS
+      // APPS PAGE
       // ========================
       case "#/apps":
         view.innerHTML = `
@@ -31,27 +31,25 @@
         break;
 
       // ========================
-      // FUNCTIONS
+      // TECH COMPARISON
       // ========================
-      case "#/apps/functions":
-      case "#/functions":
+      case "#/apps/tech":
         view.innerHTML = `
-          <div class="functionsView">
+          <div class="techView">
             <div class="appsViewHeader">
-              <h2>Functions</h2>
+              <h2>Tech Comparison</h2>
               <div id="appFilter"></div>
             </div>
-            <div id="functionsContainer"></div>
+            <div id="techContainer"></div>
           </div>
         `;
         core.appFilterUI.renderAppFilterDropdown();
-        core.renderFunctions();
+        core.renderTechComparison();
         break;
 
       // ========================
       // INTEGRATIONS MATRIX
       // ========================
-      case "#/apps/tech":
       case "#/integrations":
         view.innerHTML = `
           <div class="integrationsView">
@@ -66,9 +64,6 @@
         core.renderIntegrations();
         break;
 
-      // ========================
-      // FALLBACK
-      // ========================
       default:
         view.innerHTML = `
           <div class="contentFallback">
@@ -82,7 +77,6 @@
     core.updateBreadcrumb(route);
   }
 
-  // Expose API
   core.handleRoute = handleRoute;
 
 })();
