@@ -213,6 +213,42 @@ a:hover {
   border-color: var(--text-muted);
   color: var(--text-muted);
 }
+.int-pill-wrap {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+
+.int-pill {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid #4b5563; /* default; overridden inline */
+  background:transparent;
+  font-size:12px;
+  cursor:pointer;
+}
+
+.int-pill-name {
+  max-width:150px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.int-pill-remove {
+  font-size:11px;
+  opacity:0;
+  transition:opacity .15s ease;
+  cursor:pointer;
+}
+
+.int-pill:hover .int-pill-remove {
+  opacity:1;
+}
+
 
 /* =========================================
    FORMS
