@@ -1,30 +1,24 @@
 /* Operations Library SPA — consolidated file
  
 Features kept/added:
-- Apps + Functions combined into one tab:
-  - Apps on top (Details / Icons toggle)
-  - Functions section below, each function as a card
-- Apps:
-  - Details mode: list of functions as text chips
-  - Icons mode: app icons; functions still visible as pills
-- Functions:
-  - Details mode: for each function, show list of apps with status selector:
-      - Primary (purple square)
-      - Available (black square)
-      - Evaluating (grey square)
-  - Icon mode: show apps as icons with status-colored borders:
-      - Primary: purple border
-      - Available: black border
-      - Evaluating: grey border
-- App modal:
-  - Sections stacked vertically instead of side-by-side
-  - Functions slideout unchanged (editing still via chips)
-  - Datapoints slideout: Master Datapoint / Inbound Merge Tag / Outbound Merge Tag
-  - Used In Resources slideout: grouped by resource type, each listing linked resources
-  - Integrations slideout: per-row App, Direct (checkbox), Zapier (checkbox)
-- Functions data model:
-  - state.functions: { id, name, type?, appLinks: [{id, appId, status}] }
-  - Status values: 'primary' | 'available' | 'evaluating'
+- Apps + Functions + Integrations Matrix combined on /apps
+- Apps with function chips and autosuggest (card layout with global Icons / Details toggle)
+- App modal: inline name edit, icon box (emoji/library/upload)
+- Modal sections: Functions, Datapoints (Master / Inbound / Outbound), Used In Resources (grouped), Integrations (App + Direct/Zapier matrix)
+  -> Each section opens right-side slideout for editing; autosaves on change
+- Functions section (below apps): details and icons views with app lists and icon borders
+- Integrations Matrix section: details and icons views, bi-directional jump between apps
+- Functions catalog retained (no type column on main page; types still stored for guessType)
+- Tech Comparison (apps weighted criteria)
+- Resources: Zaps, Forms, Workflows (card editor), Scheduling, Email Campaigns
+- Settings: Team, Segments, Datapoints, Folder Hierarchy, Naming Conventions
+- Workflow editor: card layout, step templates modal, drag-reorder, resources, outcomes, tokens
+- Cross-references: resources/datapoints backlinks
+
+Routes:
+  /apps, /apps/tech
+  /resources/zaps, /resources/forms, /resources/workflows, /resources/scheduling, /resources/email-campaigns
+  /settings/team, /settings/segments, /settings/datapoints, /settings/folder-hierarchy, /settings/naming-conventions
 */
 
 (function () {
@@ -45,25 +39,24 @@ Features kept/added:
     "Video Recording","Website","Other"
   ];
 
-  const FUNCTION_APP_STATUSES = ['primary','available','evaluating'];
-
   // ---------- State ----------
   let state = {
     apps: store.get('apps', [
       {
         id: uid(),
         name:'Calendly',
-        category:'Scheduler',
+        category:'Scheduler', // kept for backward compatibility; not used in UI anymore
         notes:'Client scheduling links for prospect + review meetings.',
         needsFilter:true,
         functions:["Scheduler"],
         icon:{ type:'emoji', value:'📅' },
         datapointMappings:[
-          { id: uid(), datapoint:'First Name', inAppName:'Invitee First', outboundTag:'' },
-          { id: uid(), datapoint:'Last Name', inAppName:'Invitee Last', outboundTag:'' },
-          { id: uid(), datapoint:'Email', inAppName:'Invitee Email', outboundTag:'' }
+          { id: uid(), datapoint:'First Name', inbound:'invitee_first', outbound:'{invitee_first}' },
+          { id: uid(), datapoint:'Last Name', inbound:'invitee_last', outbound:'{invitee_last}' },
+          { id: uid(), datapoint:'Email', inbound:'invitee_email', outbound:'{invitee_email}' }
         ],
-        integrations:[] // [{id, appId, direct, zapier}]
+        // app.integrations: [{id, appId, direct:boolean, zapier:boolean}]
+        integrations: []
       },
       {
         id: uid(),
@@ -90,10 +83,7 @@ Features kept/added:
     ]),
 
     // Functions catalog used by autosuggests
-    // NOTE: appLinks added for per-app Primary/Available/Evaluating status
-    functions: store.get('functions', FUNCTION_TYPES.map(t => ({
-      id: uid(), type: t, name: t, appLinks:[]
-    }))),
+    functions: store.get('functions', FUNCTION_TYPES.map(t => ({ id: uid(), type: t, name: t }))),
 
     zaps: store.get('zaps', []),
     forms: store.get('forms', []),
@@ -152,13 +142,13 @@ Features kept/added:
 
     pricing: { zapStep:80, emailStep:80, schedulerPage:125, otherHourly:300 },
 
+    // Global view mode for Apps / Functions / Integrations Matrix
     appsViewMode: store.get('appsViewMode', 'details'),
 
     // volatile cross-ref cache (not persisted)
     _refs: { resources:{}, datapoints:{} }
   };
 
-  // ---------- Migrations ----------
   // Migrate legacy workflows shape if needed
   if (Array.isArray(state.workflows) && state.workflows.length && !state.workflows[0]?.steps) {
     state.workflows = [{
@@ -181,25 +171,18 @@ Features kept/added:
     }];
   }
 
-  // Ensure functions have appLinks for per-app status
-  state.functions = (state.functions || []).map(f => (
-    f.appLinks ? f : { ...f, appLinks: [] }
-  ));
-
-  // Ensure apps.integrations use new structured shape
+  // Migrate datapointMappings to new inbound/outbound shape
   (state.apps || []).forEach(app => {
-    if (!Array.isArray(app.integrations)) {
-      app.integrations = [];
-    } else if (app.integrations.length && typeof app.integrations[0] === 'string') {
-      // Old style ['Zapier','Direct'] — drop and start fresh
-      app.integrations = [];
-    }
-    // Ensure datapointMappings have outboundTag
-    app.datapointMappings = (app.datapointMappings || []).map(m => (
-      m && typeof m === 'object'
-        ? (m.outboundTag !== undefined ? m : { ...m, outboundTag: '' })
-        : m
-    ));
+    if (!Array.isArray(app.datapointMappings)) app.datapointMappings = [];
+    app.datapointMappings.forEach(row => {
+      if (row.inbound === undefined && row.inAppName !== undefined) {
+        row.inbound = row.inAppName;
+      }
+      if (row.outbound === undefined) {
+        row.outbound = '';
+      }
+    });
+    if (!Array.isArray(app.integrations)) app.integrations = [];
   });
 
   persist();
@@ -360,10 +343,8 @@ Features kept/added:
   // ---------- Routing ----------
   const routes = {
     '/apps': renderApps,
-    '/apps/functions': renderApps,      // Functions combined into Apps tab
     '/apps/tech': renderTechComparison,
 
-    '/resources': renderZaps,           // default “Resources” goes to Zaps
     '/resources/zaps': renderZaps,
     '/resources/forms': renderForms,
     '/resources/workflows': renderWorkflows,
@@ -414,6 +395,15 @@ Features kept/added:
         try{
           const obj = JSON.parse(fr.result);
           Object.assign(state, obj);
+          // ensure migrations on import
+          (state.apps||[]).forEach(app=>{
+            if (!Array.isArray(app.datapointMappings)) app.datapointMappings = [];
+            app.datapointMappings.forEach(row=>{
+              if (row.inbound === undefined && row.inAppName !== undefined) row.inbound = row.inAppName;
+              if (row.outbound === undefined) row.outbound = '';
+            });
+            if (!Array.isArray(app.integrations)) app.integrations = [];
+          });
           persist(); navigate();
         }catch(_){ alert('Invalid JSON'); }
       };
@@ -445,9 +435,7 @@ Features kept/added:
       <div class="card">
         <div class="row" style="margin-bottom:8px">
           <label style="min-width:120px">Compare Apps</label>
-          <select id="tcApps" multiple size="6" style="min-width:280px">
-            ${ (state.apps||[]).map(a=>`<option value="${esc(a.id)}">${esc(a.name)} (${esc(a.category||'Other')})</option>`).join('') }
-          </select>
+          <select id="tcApps" multiple size="6" style="min-width:280px"></select>
         </div>
 
         <div class="row" style="margin:10px 0">
@@ -471,6 +459,14 @@ Features kept/added:
 
     const page = { criteria: [] };
     const tbody = el.querySelector('#tcTable tbody');
+    const tcApps = el.querySelector('#tcApps');
+
+    (state.apps||[]).forEach(a=>{
+      const opt = document.createElement('option');
+      opt.value = a.id;
+      opt.textContent = `${a.name} (${a.category || 'Other'})`;
+      tcApps.appendChild(opt);
+    });
 
     function drawCriteria(){
       tbody.innerHTML = '';
@@ -499,14 +495,14 @@ Features kept/added:
     });
 
     el.querySelector('#calcScores').addEventListener('click', ()=>{
-      const selApps = Array.from(el.querySelector('#tcApps').selectedOptions).map(o=>o.value);
+      const selApps = Array.from(tcApps.selectedOptions).map(o=>o.value);
       if (!selApps.length) { alert('Pick at least one app.'); return; }
       if (!page.criteria.length) { alert('Add at least one criterion.'); return; }
 
       const totalWeight = page.criteria.reduce((s,c)=> s + Number(c.weight||0), 0) || 1;
       const result = selApps.map(id=>{
         const app = (state.apps||[]).find(a=>a.id===id);
-        const score = totalWeight; // placeholder; you can add per-app ratings later
+        const score = totalWeight; // placeholder; per-app ratings can be added later
         return { id, name: app?.name || id, score };
       }).sort((a,b)=> b.score - a.score);
 
@@ -516,28 +512,27 @@ Features kept/added:
     drawCriteria();
   }
 
-  // Apps + Functions combined page
+  // Apps page — Applications + Functions + Integrations Matrix
   function renderApps(el){
     const wrap = document.createElement('div');
     wrap.innerHTML = `
       <div class="card sticky">
-        <h2 style="padding-bottom:0">Apps</h2>
+        <h2 style="padding-bottom:0">Applications</h2>
         <div class="row" style="padding-top:2px">
           <div class="muted">Catalog your tools, functions, datapoints, resources, and integrations.</div>
           <div class="spacer"></div>
           <div class="row" style="gap:6px">
             <div class="seg-group" id="appsViewToggle">
               <button class="seg-btn" data-mode="details">Details</button>
-              <button class="seg-btn" data-mode="icons">Small Icons</button>
+              <button class="seg-btn" data-mode="icons">Icons</button>
             </div>
             <button class="btn small" id="addApp">Add App</button>
           </div>
         </div>
         <div class="row" style="padding-top:0">
-          <input type="text" id="appSearch" placeholder="Search by name, category, functions…" />
-          <select id="appCategory">
-            <option value="">All Categories</option>
-            ${['Scheduler','CRM','Automation','Forms','Email','Other'].map(c=>`<option>${c}</option>`).join('')}
+          <input type="text" id="appSearch" placeholder="Search by name, function, notes…" />
+          <select id="appFunctionFilter">
+            <option value="">All Functions</option>
           </select>
         </div>
       </div>
@@ -547,63 +542,70 @@ Features kept/added:
         <div class="notice" style="margin-top:8px">Click any app card to view its details; sections open in a slideout for editing.</div>
       </div>
 
-      <div class="card" id="fnHeaderCard">
-        <h2 style="margin-bottom:4px">Functions</h2>
-        <div class="row" style="margin-bottom:8px">
-          <div class="muted">High-level capabilities and which apps cover them.</div>
+      <div class="card">
+        <div class="row" style="align-items:center; margin-bottom:6px">
+          <h3 style="margin:0">Functions</h3>
           <div class="spacer"></div>
-          <button class="btn small" id="addFn">Add Function</button>
+          <button class="btn small" id="addFunction">Add Function</button>
         </div>
-        <div class="row" style="margin-bottom:4px">
-          <input type="text" id="fnSearch" placeholder="Search functions…">
-        </div>
+        <div id="functionsGrid" class="grid cols-3"></div>
       </div>
 
       <div class="card">
-        <div id="fnGrid" class="grid"></div>
+        <div class="row" style="align-items:center; margin-bottom:6px">
+          <h3 style="margin:0">Integrations Matrix</h3>
+        </div>
+        <div id="integrationsGrid" class="grid cols-3"></div>
       </div>
     `;
     el.appendChild(wrap);
 
-    const searchEl = $('#appSearch', wrap);
-    const catEl = $('#appCategory', wrap);
-    const gridEl = $('#appsGrid', wrap);
-    const toggleEl = $('#appsViewToggle', wrap);
+    const searchEl   = $('#appSearch', wrap);
+    const fnFilterEl = $('#appFunctionFilter', wrap);
+    const gridEl     = $('#appsGrid', wrap);
+    const toggleEl   = $('#appsViewToggle', wrap);
+    const fnGridEl   = $('#functionsGrid', wrap);
+    const imGridEl   = $('#integrationsGrid', wrap);
 
-    const fnSearchEl = $('#fnSearch', wrap);
-    const fnGridEl = $('#fnGrid', wrap);
+    populateFunctionFilter();
+    applyToggleUI();
+    drawAllSections();
 
+    // --- helpers for this page ---
     function applyToggleUI(){
       $all('.seg-btn', toggleEl).forEach(btn=>{
         btn.classList.toggle('active', btn.dataset.mode === state.appsViewMode);
       });
     }
 
-    function filteredApps(){
-      const q = (searchEl.value||'').toLowerCase().trim();
-      const cat = catEl.value || '';
-      return (state.apps||[]).filter(app=>{
-        const okCat = !cat || app.category === cat;
-        const haystack = [
-          app.name, app.category, app.notes || '',
-          (app.functions||[]).join(' '),
-          (app.datapointMappings||[]).map(m=>`${m.datapoint} ${m.inAppName||''}`).join(' ')
-        ].join(' ').toLowerCase();
-        const okQ = !q || haystack.includes(q);
-        return okCat && okQ;
-      });
+    function populateFunctionFilter(){
+      const keepFirst = fnFilterEl.querySelector('option');
+      fnFilterEl.innerHTML = '';
+      fnFilterEl.appendChild(keepFirst);
+      (state.functions||[])
+        .map(f=>f.name)
+        .filter(Boolean)
+        .sort((a,b)=>a.localeCompare(b))
+        .forEach(name=>{
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          fnFilterEl.appendChild(opt);
+        });
     }
 
-    function filteredFunctions(){
-      const q = (fnSearchEl.value||'').toLowerCase().trim();
-      return (state.functions || []).filter(fn=>{
-        if (!q) return true;
-        const appNames = (state.apps||[])
-          .filter(app => (app.functions||[]).includes(fn.name))
-          .map(app=>app.name)
-          .join(' ')
-          .toLowerCase();
-        return (fn.name||'').toLowerCase().includes(q) || appNames.includes(q);
+    function filteredApps(){
+      const q    = (searchEl.value||'').toLowerCase().trim();
+      const func = fnFilterEl.value || '';
+      return state.apps.filter(app=>{
+        const okFunc = !func || (app.functions||[]).includes(func);
+        const haystack = [
+          app.name, app.notes || '',
+          (app.functions||[]).join(' '),
+          (app.datapointMappings||[]).map(m=>`${m.datapoint} ${m.inbound||''} ${m.outbound||''}`).join(' ')
+        ].join(' ').toLowerCase();
+        const okQ = !q || haystack.includes(q);
+        return okFunc && okQ;
       });
     }
 
@@ -617,40 +619,6 @@ Features kept/added:
       }
       const initials = (app.name||'?').trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
       return `<span class="app-icon-emoji">${esc(initials || '?')}</span>`;
-    }
-
-    function borderColorForStatus(status){
-      if (status === 'primary') return '#9C6BFF';
-      if (status === 'available') return '#000000';
-      if (status === 'evaluating') return '#666666';
-      return '#333333';
-    }
-
-    function getFunctionAppStatus(fn, appId){
-      const links = fn.appLinks || [];
-      const hit = links.find(l=>l.appId === appId);
-      return hit ? hit.status : null;
-    }
-
-    function setFunctionAppStatus(fn, appId, status){
-      fn.appLinks = fn.appLinks || [];
-      const idx = fn.appLinks.findIndex(l=>l.appId === appId);
-      if (!status){
-        if (idx >= 0) fn.appLinks.splice(idx,1);
-      } else if (idx >= 0){
-        fn.appLinks[idx].status = status;
-      } else {
-        fn.appLinks.push({ id:uid(), appId, status });
-      }
-    }
-
-    function linkedAppsForFunction(fn){
-      const ids = new Set();
-      (state.apps||[]).forEach(app=>{
-        if ((app.functions||[]).includes(fn.name)) ids.add(app.id);
-      });
-      (fn.appLinks||[]).forEach(l=>{ if (l.appId) ids.add(l.appId); });
-      return (state.apps||[]).filter(app=>ids.has(app.id));
     }
 
     function drawAppsGrid(){
@@ -668,7 +636,7 @@ Features kept/added:
             </div>
             <div class="app-icon-name">${esc(app.name || 'Untitled app')}</div>
           `;
-          card.addEventListener('click', ()=> openAppModal(app, ()=>{ drawAppsGrid(); drawFunctionsGrid(); }));
+          card.addEventListener('click', ()=> openAppModal(app, drawAllSections));
           gridEl.appendChild(card);
         } else {
           const card = document.createElement('div');
@@ -681,7 +649,6 @@ Features kept/added:
               <div style="flex:1; min-width:0">
                 <div class="row" style="align-items:center; gap:6px">
                   <div class="app-title">${esc(app.name || 'Untitled app')}</div>
-                  ${app.category ? `<span class="pill">${esc(app.category)}</span>` : ''}
                 </div>
                 <div class="muted" style="margin-top:2px; font-size:12px; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                   ${esc(app.notes || '')}
@@ -697,47 +664,61 @@ Features kept/added:
           `;
           card.addEventListener('click', e=>{
             if (e.target && e.target.getAttribute('data-act') === 'deleteApp') return;
-            openAppModal(app, ()=>{ drawAppsGrid(); drawFunctionsGrid(); });
+            openAppModal(app, drawAllSections);
           });
           card.querySelector('[data-act="deleteApp"]').addEventListener('click', e=>{
             e.stopPropagation();
             if (!confirm('Delete this app?')) return;
             state.apps = state.apps.filter(a=>a.id!==app.id);
             persist();
-            drawAppsGrid();
-            drawFunctionsGrid();
+            drawAllSections();
           });
           gridEl.appendChild(card);
         }
       });
     }
 
-    function drawFunctionsGrid(){
-      const fns = filteredFunctions();
+    function drawFunctionsSection(){
       fnGridEl.innerHTML = '';
+      const funcs = (state.functions||[]).slice().sort((a,b)=> (a.name||'').localeCompare(b.name||''));
+      if (!funcs.length){
+        fnGridEl.innerHTML = '<div class="muted">No functions yet.</div>';
+        return;
+      }
 
-      fns.forEach(fn=>{
+      funcs.forEach(fn=>{
+        const fnName = fn.name || '(Unnamed)';
+        const appsForFn = (state.apps||[]).filter(app => (app.functions||[]).includes(fnName));
+        const primary = appsForFn[0];
+
         if (state.appsViewMode === 'icons'){
           const card = document.createElement('div');
-          card.className = 'card fn-icon-card';
+          card.className = 'card fn-card';
           card.innerHTML = `
-            <div style="font-weight:600; margin-bottom:6px">${esc(fn.name || 'Unnamed function')}</div>
+            <div class="row" style="margin-bottom:6px">
+              <div style="font-weight:600">${esc(fnName)}</div>
+            </div>
             <div class="row" style="flex-wrap:wrap; gap:6px"></div>
           `;
-          const rowEl = card.querySelector('.row');
-          const apps = linkedAppsForFunction(fn);
-          if (!apps.length){
-            rowEl.innerHTML = `<span class="muted">No apps mapped yet.</span>`;
+          const row = card.querySelector('.row:last-child');
+          if (!appsForFn.length){
+            row.innerHTML = '<span class="muted" style="font-size:12px">No apps assigned</span>';
           } else {
-            apps.forEach(app=>{
-              const status = getFunctionAppStatus(fn, app.id) ||
-                             ((app.functions||[]).includes(fn.name) ? 'available' : null);
-              const iconWrap = document.createElement('div');
-              iconWrap.className = 'app-icon-box small';
-              iconWrap.style.borderColor = borderColorForStatus(status);
-              iconWrap.style.borderWidth = '2px';
-              iconWrap.innerHTML = `<div class="app-icon-inner">${renderIcon(app)}</div>`;
-              rowEl.appendChild(iconWrap);
+            appsForFn.forEach(app=>{
+              const box = document.createElement('div');
+              box.className = 'app-icon-box small';
+              const inner = document.createElement('div');
+              inner.className = 'app-icon-inner';
+              inner.innerHTML = renderIcon(app);
+              // border colors: primary purple, others dark
+              if (primary && app.id === primary.id){
+                inner.style.border = '2px solid #a855f7';
+              } else {
+                inner.style.border = '2px solid #1f2937';
+              }
+              box.appendChild(inner);
+              box.title = app.name || '';
+              row.appendChild(box);
             });
           }
           fnGridEl.appendChild(card);
@@ -745,93 +726,153 @@ Features kept/added:
           const card = document.createElement('div');
           card.className = 'card fn-card';
           card.innerHTML = `
-            <div class="row" style="align-items:center; margin-bottom:6px">
-              <input type="text" class="fnNameInput" value="${esc(fn.name||'')}"
-                     style="flex:1; background:#0f131b; border-radius:8px; padding:6px 8px; border:1px solid var(--line);" />
-              <button class="btn small ghost" data-act="delFn">✕</button>
-            </div>
-            <div>
-              <label style="font-size:11px; color:var(--muted);">Apps & Status</label>
-              <div class="fnAppList" style="margin-top:4px"></div>
-            </div>
+            <div style="font-weight:600; margin-bottom:6px">${esc(fnName)}</div>
+            <div class="fn-app-list"></div>
           `;
-          const nameInput = card.querySelector('.fnNameInput');
-          nameInput.addEventListener('input', e=>{
-            fn.name = e.target.value;
-            persist();
-          });
-
-          card.querySelector('[data-act="delFn"]').addEventListener('click', ()=>{
-            if (!confirm('Delete this function from catalog?')) return;
-            state.functions = (state.functions||[]).filter(f=>f.id !== fn.id);
-            persist();
-            drawFunctionsGrid();
-            drawAppsGrid(); // app function suggestions may change
-          });
-
-          const appList = card.querySelector('.fnAppList');
-          const apps = linkedAppsForFunction(fn);
-          if (!apps.length){
-            appList.innerHTML = `<span class="muted">No apps mapped to this function yet. Add functions from the App modal.</span>`;
+          const list = card.querySelector('.fn-app-list');
+          if (!appsForFn.length){
+            list.innerHTML = '<span class="muted" style="font-size:12px">No apps assigned</span>';
           } else {
-            apps.forEach(app=>{
+            appsForFn.forEach((app, idx)=>{
               const row = document.createElement('div');
-              row.className = 'row';
+              row.style.display = 'flex';
               row.style.alignItems = 'center';
               row.style.gap = '6px';
-              row.style.marginBottom = '4px';
-
-              const status = getFunctionAppStatus(fn, app.id) ||
-                             ((app.functions||[]).includes(fn.name) ? 'available' : null);
-              const square = document.createElement('span');
-              Object.assign(square.style, {
+              row.style.fontSize = '13px';
+              const dot = document.createElement('span');
+              dot.className = 'status-dot';
+              Object.assign(dot.style, {
                 display:'inline-block',
-                width:'10px',
-                height:'10px',
-                borderRadius:'2px',
-                background:borderColorForStatus(status),
+                width:'8px',
+                height:'8px',
+                borderRadius:'999px',
+                marginRight:'2px',
+                background: idx===0 ? '#a855f7' : '#111827'
               });
-
+              row.appendChild(dot);
               const label = document.createElement('span');
-              label.textContent = app.name || '(Unnamed app)';
-              label.style.fontSize = '12px';
-
-              const sel = document.createElement('select');
-              sel.style.fontSize = '12px';
-              sel.innerHTML = `
-                <option value="">—</option>
-                <option value="primary">Primary</option>
-                <option value="available">Available</option>
-                <option value="evaluating">Evaluating</option>
-              `;
-              sel.value = status || '';
-              sel.addEventListener('change', e=>{
-                const v = e.target.value || null;
-                setFunctionAppStatus(fn, app.id, v);
-                square.style.background = borderColorForStatus(v);
-                persist();
-              });
-
-              row.appendChild(square);
+              label.textContent = app.name || '';
               row.appendChild(label);
-              row.appendChild(sel);
-              appList.appendChild(row);
+              list.appendChild(row);
             });
           }
-
           fnGridEl.appendChild(card);
         }
       });
     }
 
+    function drawIntegrationsMatrix(){
+      imGridEl.innerHTML = '';
+      const apps = (state.apps||[]);
+
+      if (!apps.length){
+        imGridEl.innerHTML = '<div class="muted">No apps yet.</div>';
+        return;
+      }
+
+      apps.forEach(app=>{
+        const directList = [];
+        const zapList = [];
+        (app.integrations||[]).forEach(row=>{
+          const other = findById(state.apps, row.appId);
+          if (!other) return;
+          if (row.direct) directList.push(other);
+          if (row.zapier) zapList.push(other);
+        });
+
+        if (state.appsViewMode === 'icons'){
+          const card = document.createElement('div');
+          card.className = 'card im-card';
+          const borderColor = (() => {
+            const hasDirect = directList.length > 0;
+            const hasZap    = zapList.length > 0;
+            if (hasDirect && hasZap) return '#16a34a';  // both
+            if (hasDirect) return '#3b82f6';           // direct
+            if (hasZap) return '#facc15';              // zapier
+            return '#374151';
+          })();
+          card.innerHTML = `
+            <div class="row" style="align-items:center; gap:6px">
+              <div class="app-icon-box small">
+                <div class="app-icon-inner" style="border:2px solid ${borderColor}">${renderIcon(app)}</div>
+              </div>
+              <div>${esc(app.name || '')}</div>
+            </div>
+          `;
+          imGridEl.appendChild(card);
+        } else {
+          const card = document.createElement('div');
+          card.className = 'card im-card';
+          card.id = `imCard_${app.id}`;
+          card.innerHTML = `
+            <div style="font-weight:600; margin-bottom:6px">${esc(app.name || '')}</div>
+            <div class="row" style="align-items:flex-start; gap:20px">
+              <div style="flex:1">
+                <div style="font-size:12px; font-weight:600; margin-bottom:4px">Direct</div>
+                <div class="im-direct"></div>
+              </div>
+              <div style="flex:1">
+                <div style="font-size:12px; font-weight:600; margin-bottom:4px">Zapier</div>
+                <div class="im-zap"></div>
+              </div>
+            </div>
+          `;
+          const directBox = card.querySelector('.im-direct');
+          const zapBox    = card.querySelector('.im-zap');
+
+          function addRow(box, other, label){
+            const row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.alignItems = 'center';
+            row.style.gap = '6px';
+            row.style.fontSize = '13px';
+            row.innerHTML = `
+              <span>${esc(label)}</span>
+              <button class="btn small ghost" data-act="jump" data-target="${other.id}">↔</button>
+            `;
+            box.appendChild(row);
+          }
+
+          if (!directList.length){
+            directBox.innerHTML = '<span class="muted" style="font-size:12px">None</span>';
+          } else {
+            directList.forEach(o=> addRow(directBox, o, o.name || 'Other'));
+          }
+
+          if (!zapList.length){
+            zapBox.innerHTML = '<span class="muted" style="font-size:12px">None</span>';
+          } else {
+            zapList.forEach(o=> addRow(zapBox, o, o.name || 'Other'));
+          }
+
+          card.addEventListener('click', e=>{
+            const btn = e.target.closest('[data-act="jump"]');
+            if (!btn) return;
+            e.preventDefault();
+            const targetId = btn.getAttribute('data-target');
+            const targetCard = document.getElementById(`imCard_${targetId}`);
+            if (targetCard) targetCard.scrollIntoView({ behavior:'smooth', block:'center' });
+          });
+
+          imGridEl.appendChild(card);
+        }
+      });
+    }
+
+    function drawAllSections(){
+      drawAppsGrid();
+      drawFunctionsSection();
+      drawIntegrationsMatrix();
+    }
+
+    // events
     toggleEl.addEventListener('click', e=>{
       const btn = e.target.closest('.seg-btn');
       if (!btn) return;
       state.appsViewMode = btn.dataset.mode;
       persist();
       applyToggleUI();
-      drawAppsGrid();
-      drawFunctionsGrid();
+      drawAllSections();
     });
 
     $('#addApp', wrap).addEventListener('click', ()=>{
@@ -847,25 +888,21 @@ Features kept/added:
         integrations:[]
       });
       persist();
-      drawAppsGrid();
+      drawAllSections();
     });
 
-    $('#addFn', wrap).addEventListener('click', ()=>{
-      state.functions.unshift({ id:uid(), name:'New Function', type:'Other', appLinks:[] });
+    $('#addFunction', wrap).addEventListener('click', ()=>{
+      state.functions.unshift({ id:uid(), type: FUNCTION_TYPES[0], name:'' });
       persist();
-      drawFunctionsGrid();
+      populateFunctionFilter();
+      drawAllSections();
     });
 
-    searchEl.addEventListener('input', drawAppsGrid);
-    catEl.addEventListener('change', drawAppsGrid);
-    fnSearchEl.addEventListener('input', drawFunctionsGrid);
+    searchEl.addEventListener('input', drawAllSections);
+    fnFilterEl.addEventListener('change', drawAllSections);
 
-    applyToggleUI();
-    drawAppsGrid();
-    drawFunctionsGrid();
-
-    // App modal + slideouts
-    function openAppModal(app, refreshCards){
+    // --- App modal (unchanged structure, updated sections) ---
+    function openAppModal(app, refreshAll){
       const overlay = document.createElement('div');
       overlay.className = 'overlay';
       overlay.innerHTML = `
@@ -885,10 +922,9 @@ Features kept/added:
             <button class="btn small ghost" data-act="closeModal">✕</button>
           </div>
           <div class="row" style="margin-top:6px; margin-bottom:10px">
-            ${app.category ? `<span class="pill">${esc(app.category)}</span>` : ''}
             ${app.notes ? `<span class="muted" style="font-size:12px">${esc(app.notes)}</span>` : ''}
           </div>
-          <div class="app-sections-grid">
+          <div class="grid app-sections-grid">
             <div class="section-tile" data-section="functions">
               <div class="section-title">Functions</div>
               <div class="section-sub"></div>
@@ -928,7 +964,7 @@ Features kept/added:
         nameDisplay.style.display = 'inline';
         nameInput.style.display = 'none';
         persist();
-        if (typeof refreshCards === 'function') refreshCards();
+        if (typeof refreshAll === 'function') refreshAll();
       }
 
       nameDisplay.addEventListener('click', ()=>{
@@ -983,7 +1019,7 @@ Features kept/added:
             picker.remove();
             updateIcon();
             persist();
-            if (typeof refreshCards === 'function') refreshCards();
+            if (typeof refreshAll === 'function') refreshAll();
           });
         });
         const iconInput = picker.querySelector('.iconInput');
@@ -995,7 +1031,7 @@ Features kept/added:
             picker.remove();
             updateIcon();
             persist();
-            if (typeof refreshCards === 'function') refreshCards();
+            if (typeof refreshAll === 'function') refreshAll();
           }
         });
         picker.querySelector('.iconFile').addEventListener('change', e=>{
@@ -1007,7 +1043,7 @@ Features kept/added:
             picker.remove();
             updateIcon();
             persist();
-            if (typeof refreshCards === 'function') refreshCards();
+            if (typeof refreshAll === 'function') refreshAll();
           };
           reader.readAsDataURL(file);
         });
@@ -1054,17 +1090,17 @@ Features kept/added:
 
         const fnList = app.functions || [];
         if (fnSub){
-          fnSub.textContent = fnList.length ? fnList.join(', ') : 'No functions assigned';
+          if (!fnList.length){
+            fnSub.textContent = 'No functions assigned';
+          } else {
+            fnSub.innerHTML = fnList.map(n=>`<span class="pill">${esc(n)}</span>`).join(' ');
+          }
         }
 
         const dpList = app.datapointMappings || [];
         if (dpSub){
           dpSub.textContent = dpList.length
-            ? dpList.map(m=>{
-                const inbound  = m.inAppName || '';
-                const outbound = m.outboundTag || '';
-                return `${m.datapoint || '—'}: ${inbound || '—'} / ${outbound || '—'}`;
-              }).join('; ')
+            ? `${dpList.length} mapping${dpList.length!==1?'s':''}`
             : 'No datapoints mapped';
         }
 
@@ -1075,11 +1111,37 @@ Features kept/added:
             : 'Not referenced in resources yet';
         }
 
-        const ints = Array.isArray(app.integrations) ? app.integrations : [];
+        const ints = app.integrations || [];
         if (intSub){
-          intSub.textContent = ints.length
-            ? `${ints.length} linked app${ints.length!==1?'s':''}`
-            : 'No integrations configured';
+          if (!ints.length){
+            intSub.textContent = 'No integrations defined';
+          } else {
+            // show icons with border colors
+            const frag = document.createElement('div');
+            frag.className = 'row';
+            frag.style.flexWrap = 'wrap';
+            frag.style.gap = '4px';
+            ints.forEach(row=>{
+              const other = findById(state.apps, row.appId);
+              if (!other) return;
+              const box = document.createElement('div');
+              box.className = 'app-icon-box small';
+              const inner = document.createElement('div');
+              inner.className = 'app-icon-inner';
+              inner.innerHTML = renderIcon(other);
+              const hasDirect = !!row.direct;
+              const hasZap    = !!row.zapier;
+              if (hasDirect && hasZap) inner.style.border = '2px solid #16a34a';
+              else if (hasDirect)      inner.style.border = '2px solid #3b82f6';
+              else if (hasZap)         inner.style.border = '2px solid #facc15';
+              else                     inner.style.border = '2px solid #374151';
+              box.title = other.name || '';
+              box.appendChild(inner);
+              frag.appendChild(box);
+            });
+            intSub.innerHTML = '';
+            intSub.appendChild(frag);
+          }
         }
       }
       refreshSectionCounts();
@@ -1110,7 +1172,6 @@ Features kept/added:
         tile.addEventListener('click', ()=>{
           const sec = tile.dataset.section;
           if (sec === 'functions'){
-            // App functions editing slideout — unchanged
             showSlideout('Functions', body=>{
               body.innerHTML = `
                 <p class="muted">Assign high-level functions this app covers. These are shared with the Functions catalog.</p>
@@ -1141,7 +1202,7 @@ Features kept/added:
                     persist();
                     drawFnChips();
                     refreshSectionCounts();
-                    if (typeof refreshCards === 'function') refreshCards();
+                    if (typeof refreshAll === 'function') refreshAll();
                   });
                   chipEl.appendChild(x);
                   chipsBox.appendChild(chipEl);
@@ -1161,23 +1222,24 @@ Features kept/added:
                 if (!v) return;
                 app.functions = dedupe([...(app.functions||[]), v]);
                 if (!state.functions.some(f=>f.name===v)){
-                  state.functions.push({ id:uid(), type:guessType(v), name:v, appLinks:[] });
+                  state.functions.push({ id:uid(), type:guessType(v), name:v });
                 }
                 persist();
                 input.value = '';
+                populateFunctionFilter();
                 sug.updateSuggestions(currentFunctionNames());
                 drawFnChips();
                 refreshSectionCounts();
-                if (typeof refreshCards === 'function') refreshCards();
+                if (typeof refreshAll === 'function') refreshAll();
               }
               btn.addEventListener('click', ()=> addFn());
             });
           } else if (sec === 'datapoints'){
             showSlideout('Datapoints', body=>{
               body.innerHTML = `
-                <p class="muted">Map global datapoints to this app’s internal field names and merge tags.</p>
+                <p class="muted">Map global datapoints to this app’s internal field names.</p>
                 <table>
-                  <thead><tr><th>Master Datapoint</th><th>Inbound Merge Tag</th><th>Outbound Merge Tag</th><th></th></tr></thead>
+                  <thead><tr><th>Master</th><th>Inbound Merge Tag</th><th>Outbound Merge Tag</th><th></th></tr></thead>
                   <tbody id="dpTbody"></tbody>
                 </table>
                 <div class="row" style="margin-top:8px">
@@ -1199,14 +1261,14 @@ Features kept/added:
                   const tr = document.createElement('tr');
                   tr.innerHTML = `
                     <td><input type="text" class="dpName" value="${esc(row.datapoint || '')}" placeholder="Choose datapoint"></td>
-                    <td><input type="text" class="dpInApp" value="${esc(row.inAppName || '')}" placeholder="Inbound merge tag"></td>
-                    <td><input type="text" class="dpOut" value="${esc(row.outboundTag || '')}" placeholder="Outbound merge tag"></td>
+                    <td><input type="text" class="dpInbound" value="${esc(row.inbound || '')}" placeholder="Inbound merge tag"></td>
+                    <td><input type="text" class="dpOutbound" value="${esc(row.outbound || '')}" placeholder="Outbound merge tag"></td>
                     <td><button class="btn small" data-act="del">Delete</button></td>
                   `;
                   const nameInput = tr.querySelector('.dpName');
-                  const inAppInput = tr.querySelector('.dpInApp');
-                  const outInput = tr.querySelector('.dpOut');
-                  const sug = attachAutosuggest(nameInput, {
+                  const inboundInput = tr.querySelector('.dpInbound');
+                  const outboundInput = tr.querySelector('.dpOutbound');
+                  attachAutosuggest(nameInput, {
                     suggestions: state.datapoints || [],
                     onPick: val => {
                       row.datapoint = val;
@@ -1219,13 +1281,13 @@ Features kept/added:
                     persist();
                     refreshSectionCounts();
                   });
-                  inAppInput.addEventListener('input', e=>{
-                    row.inAppName = e.target.value;
+                  inboundInput.addEventListener('input', e=>{
+                    row.inbound = e.target.value;
                     persist();
                     refreshSectionCounts();
                   });
-                  outInput.addEventListener('input', e=>{
-                    row.outboundTag = e.target.value;
+                  outboundInput.addEventListener('input', e=>{
+                    row.outbound = e.target.value;
                     persist();
                     refreshSectionCounts();
                   });
@@ -1234,16 +1296,18 @@ Features kept/added:
                     persist();
                     drawRows();
                     refreshSectionCounts();
+                    if (typeof refreshAll === 'function') refreshAll();
                   });
                   tb.appendChild(tr);
                 });
               }
 
               body.querySelector('#dpAddRow').addEventListener('click', ()=>{
-                app.datapointMappings.push({ id:uid(), datapoint:'', inAppName:'', outboundTag:'' });
+                app.datapointMappings.push({ id:uid(), datapoint:'', inbound:'', outbound:'' });
                 persist();
                 drawRows();
                 refreshSectionCounts();
+                if (typeof refreshAll === 'function') refreshAll();
               });
 
               drawRows();
@@ -1259,27 +1323,27 @@ Features kept/added:
               list.forEach(item=>{
                 (groups[item.kind] ||= []).push(item);
               });
-
               Object.keys(groups).forEach(kind=>{
-                const section = document.createElement('div');
-                section.style.marginBottom = '10px';
-                section.innerHTML = `<div style="font-weight:600; font-size:13px; margin-bottom:4px">${esc(kindLabel(kind))}</div>`;
+                const h = document.createElement('h4');
+                h.style.fontSize = '13px';
+                h.style.margin = '8px 0 4px';
+                h.textContent = kindLabel(kind);
+                body.appendChild(h);
                 const ul = document.createElement('ul');
                 ul.style.listStyle='none';
                 ul.style.padding='0';
-                ul.style.margin='0';
+                ul.style.margin='0 0 6px';
                 groups[kind].forEach(item=>{
                   const li = document.createElement('li');
                   li.style.margin='4px 0';
                   li.innerHTML = `
-                    <a href="#" class="used-link" data-kind="${item.kind}" data-id="${item.id}">
+                    <a href="#" class="used-link" data-kind="${item.kind}" data-id="${item.id}" style="color:#72a0ff">
                       ${esc(item.label)}
                     </a>
                   `;
                   ul.appendChild(li);
                 });
-                section.appendChild(ul);
-                body.appendChild(section);
+                body.appendChild(ul);
               });
 
               body.addEventListener('click', e=>{
@@ -1290,29 +1354,25 @@ Features kept/added:
                 if (kind === 'zap') location.hash = '#/resources/zaps';
                 else if (kind === 'form') location.hash = '#/resources/forms';
                 else if (kind === 'scheduler') location.hash = '#/resources/scheduling';
-                else if (kind === 'emailCampaign' || kind === 'emailTemplate') location.hash = '#/resources/email-campaigns';
+                else if (kind === 'emailCampaign') location.hash = '#/resources/email-campaigns';
+                else if (kind === 'emailTemplate') location.hash = '#/resources/email-campaigns';
                 overlay.remove();
               }, { once:true });
             });
           } else if (sec === 'integrations'){
-            // New powerful integrations editor
             showSlideout('Integrations', body=>{
               body.innerHTML = `
-                <p class="muted">Track how this app connects with other tools via Direct integrations or Zapier.</p>
+                <p class="muted">Track how this app connects to others. Blue = Direct, Yellow = Zapier, Green = Both.</p>
                 <table>
                   <thead><tr><th>App</th><th>Direct</th><th>Zapier</th><th></th></tr></thead>
                   <tbody id="intTbody"></tbody>
                 </table>
                 <div class="row" style="margin-top:8px">
-                  <button class="btn small" id="intAddRow">Add Integration</button>
+                  <button class="btn small" id="intAdd">Add Integration</button>
                 </div>
               `;
-              app.integrations = Array.isArray(app.integrations) ? app.integrations : [];
+              app.integrations = app.integrations || [];
               const tb = body.querySelector('#intTbody');
-
-              function otherApps(){
-                return (state.apps||[]).filter(a=>a.id !== app.id);
-              }
 
               function drawRows(){
                 tb.innerHTML = '';
@@ -1324,47 +1384,53 @@ Features kept/added:
                 }
                 app.integrations.forEach(row=>{
                   const tr = document.createElement('tr');
+                  const allApps = (state.apps||[]).filter(a=>a.id !== app.id);
                   tr.innerHTML = `
                     <td>
                       <select class="intApp">
                         <option value="">— Select app —</option>
-                        ${otherApps().map(a=>`<option value="${esc(a.id)}" ${row.appId===a.id?'selected':''}>${esc(a.name)}</option>`).join('')}
+                        ${allApps.map(a=>`<option value="${esc(a.id)}" ${row.appId===a.id?'selected':''}>${esc(a.name||'')}</option>`).join('')}
                       </select>
                     </td>
                     <td style="text-align:center"><input type="checkbox" class="intDirect" ${row.direct?'checked':''}></td>
-                    <td style="text-align:center"><input type="checkbox" class="intZapier" ${row.zapier?'checked':''}></td>
+                    <td style="text-align:center"><input type="checkbox" class="intZap" ${row.zapier?'checked':''}></td>
                     <td><button class="btn small" data-act="del">Delete</button></td>
                   `;
                   tr.querySelector('.intApp').addEventListener('change', e=>{
-                    row.appId = e.target.value;
+                    row.appId = e.target.value || '';
                     persist();
                     refreshSectionCounts();
+                    if (typeof refreshAll === 'function') refreshAll();
                   });
                   tr.querySelector('.intDirect').addEventListener('change', e=>{
                     row.direct = e.target.checked;
                     persist();
                     refreshSectionCounts();
+                    if (typeof refreshAll === 'function') refreshAll();
                   });
-                  tr.querySelector('.intZapier').addEventListener('change', e=>{
+                  tr.querySelector('.intZap').addEventListener('change', e=>{
                     row.zapier = e.target.checked;
                     persist();
                     refreshSectionCounts();
+                    if (typeof refreshAll === 'function') refreshAll();
                   });
                   tr.querySelector('[data-act="del"]').addEventListener('click', ()=>{
-                    app.integrations = app.integrations.filter(r=>r!==row);
+                    app.integrations = (app.integrations||[]).filter(r=>r!==row);
                     persist();
                     drawRows();
                     refreshSectionCounts();
+                    if (typeof refreshAll === 'function') refreshAll();
                   });
                   tb.appendChild(tr);
                 });
               }
 
-              body.querySelector('#intAddRow').addEventListener('click', ()=>{
-                app.integrations.push({ id:uid(), appId:'', direct:false, zapier:false });
+              body.querySelector('#intAdd').addEventListener('click', ()=>{
+                app.integrations.push({ id:uid(), appId:'', direct:true, zapier:false });
                 persist();
                 drawRows();
                 refreshSectionCounts();
+                if (typeof refreshAll === 'function') refreshAll();
               });
 
               drawRows();
@@ -1374,8 +1440,6 @@ Features kept/added:
       });
     }
   }
-
-  // (Old standalone Functions page is no longer used; functions are handled in renderApps)
 
   // Zaps
   function renderZaps(el){
@@ -2063,13 +2127,13 @@ Features kept/added:
         function drawChips(){
           box.innerHTML='';
           (m.roles||[]).forEach(r=>{
-            const chipEl = pill(r);
+            const chip = pill(r);
             const x = miniX();
             x.addEventListener('click', ()=>{
               m.roles = (m.roles||[]).filter(x=>x!==r); persist(); drawChips(); drawRoles();
             });
-            chipEl.appendChild(x);
-            box.appendChild(chipEl);
+            chip.appendChild(x);
+            box.appendChild(chip);
           });
         }
         drawChips();
