@@ -1,5 +1,5 @@
 /* Operations Library SPA — consolidated file
-
+ 
 Features kept/added:
 - Apps with function chips and autosuggest (now card layout with Details / Small Icons toggle)
 - App modal: inline name edit, icon box (emoji/library/upload)
