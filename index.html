@@ -30,48 +30,15 @@
     .crumbs{font-size:12px; color:var(--muted)}
     .content{padding:16px; overflow:auto}
 
-    /* Cards */
-    .af-grid{display:grid; gap:12px; grid-template-columns: repeat(4, minmax(220px,1fr))}
-    .af-card{position:relative; border:1px solid var(--line); background:var(--panel); border-radius:16px; padding:10px 12px; cursor:pointer}
-    .af-card:hover{outline:1px solid #2a3550}
-    .af-head{display:flex; align-items:center; gap:8px; font-weight:600; margin-bottom:8px}
-    .af-icon{width:28px; height:28px; border-radius:8px; display:grid; place-items:center; font-size:12px; font-weight:700; background:#0f131b; border:1px solid #243047; overflow:hidden}
-    .af-icon img{width:100%; height:100%; object-fit:cover; border-radius:7px}
-    .af-list{font-size:12px; color:#d8e2ff; max-height:90px; overflow:auto}
-    .af-meta{margin-top:8px; font-size:11px; color:var(--muted)}
-    .af-small .af-card{display:flex; align-items:center; gap:8px; padding:8px 10px; min-height:42px}
-    .af-small .af-list, .af-small .af-meta{display:none}
-    .af-small .af-grid{grid-template-columns: repeat(6, minmax(170px, 1fr))}
-
-    /* Modal (view) */
-    .modal{position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:50}
-    .modal.open{display:flex}
-    .modal-card{width:min(980px, 92vw); max-height:92vh; overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:18px; box-shadow:0 30px 80px rgba(0,0,0,.45)}
-    .modal-head{display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--line)}
-    .modal-title[contenteditable="true"]{outline:1px dashed transparent; border-radius:6px; padding:0 4px}
-    .modal-title[contenteditable="true"]:focus{outline:1px dashed var(--accent); background:#0d1220}
-    .modal-title{font-size:18px; font-weight:700}
-    .modal-body{padding:16px}
-    .modal-actions{display:flex; gap:8px; align-items:center; padding:12px 16px; border-top:1px solid var(--line)}
-    .icon-btn{border:none; background:transparent; color:var(--muted); cursor:pointer; padding:6px; border-radius:8px}
-    .icon-btn:hover{background:#0d1220; color:#dfe7ff}
-    .section{margin-bottom:18px}
-    .section h4{margin:0 0 6px 0; font-size:14px; color:#d7def0}
-    .chip{display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; background:#0e1523; border:1px solid #253352; margin:3px 6px 3px 0; font-size:12px}
-    .pill{display:inline-block; padding:2px 8px; border-radius:999px; background:#0e1523; color:#9CB6FF; border:1px solid #253352; font-size:12px}
-
-    /* Slideout editor */
-    .slideout{position:fixed; top:0; right:0; height:100vh; width:min(560px, 92vw); transform:translateX(100%); transition:transform .25s ease; background:var(--panel); border-left:1px solid var(--line); z-index:60; display:flex; flex-direction:column}
-    .slideout.open{transform:translateX(0)}
-    .slide-head{display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--line)}
-    .slide-body{padding:14px; overflow:auto}
-    .close-x{border:none; background:transparent; color:var(--muted); cursor:pointer; padding:6px; border-radius:8px}
-    .close-x:hover{background:#0d1220; color:#dfe7ff}
-
-    /* Tables / inputs */
-    table{width:100%; border-collapse:collapse}
-    th,td{padding:10px; border-bottom:1px solid var(--line); text-align:left}
-    th{color:#c8d3eb; font-weight:600; background:#111623}
+    /* Cards, inputs, buttons */
+    .grid{display:grid; gap:12px}
+    .grid.cols-2{grid-template-columns: repeat(2, minmax(0,1fr))}
+    .grid.cols-3{grid-template-columns: repeat(3, minmax(0,1fr))}
+    .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:14px}
+    h2{margin:0 0 10px 0; font-size:18px}
+    h3{margin:0 0 8px 0; font-size:15px; color:#d7def0}
+    .muted{color:var(--muted)}
+    label{font-size:12px; color:var(--muted); display:block; margin:0 0 6px}
     input[type=text], input[type=number], textarea, select{
       width:100%; background:#0f131b; color:var(--text); border:1px solid var(--line);
       border-radius:10px; padding:8px 10px; outline:none;
@@ -79,9 +46,116 @@
     textarea{min-height:90px}
     .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
     .spacer{flex:1}
-    .btn{background:#1b2332; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:8px 12px; cursor:pointer}
+    .btn{
+      background:#1b2332; color:var(--text); border:1px solid var(--line); border-radius:10px;
+      padding:8px 12px; cursor:pointer
+    }
+    .btn.primary{background:var(--accent); color:#0b1021; border-color:transparent; font-weight:600}
+    .btn.ghost{background:transparent}
     .btn.small{padding:6px 10px; font-size:12px}
-    .muted{color:var(--muted)}
+    .pill{display:inline-block; padding:2px 8px; border-radius:999px; background:#0e1523; color:#9CB6FF; border:1px solid #253352; font-size:12px}
+    .ok{color:var(--ok)} .err{color:var(--err)}
+
+    table{width:100%; border-collapse:collapse}
+    th,td{padding:10px; border-bottom:1px solid var(--line); text-align:left}
+    th{color:#c8d3eb; font-weight:600; background:#111623}
+
+    /* Collapsible section */
+    .collapse{border:1px solid var(--line); border-radius:12px; overflow:hidden}
+    .collapse > .c-head{background:#131a27; padding:10px 12px; cursor:pointer; user-select:none; display:flex; align-items:center; gap:8px}
+    .collapse > .c-body{max-height:0; overflow:hidden; transition:max-height .24s ease}
+    .collapse.open > .c-body{max-height:1000px}
+    .caret{transition: transform .24s ease}
+    .collapse.open .caret{transform: rotate(90deg)}
+
+    /* Sticky page header */
+    .sticky{ position:sticky; top:0; z-index:2; background:var(--panel); padding-bottom:8px; margin:-14px -14px 14px -14px; border-bottom:1px solid var(--line); border-top-left-radius:var(--radius); border-top-right-radius:var(--radius) }
+    .sticky h2{padding:10px 14px}
+    .sticky .row{padding:0 14px 10px}
+    .notice{font-size:12px; color:var(--muted)}
+
+    /* Apps: cards, icons, modal, slideouts */
+    .app-card{
+      cursor:pointer;
+      transition:transform .08s ease, box-shadow .08s ease, border-color .08s ease;
+      padding:10px 12px;
+    }
+    .app-card:hover{
+      transform:translateY(-1px);
+      box-shadow:0 8px 22px rgba(0,0,0,.45);
+      border-color:var(--accent);
+    }
+    .app-card .app-title{font-weight:600;font-size:14px}
+    .app-icon-box{
+      width:42px;height:42px;border-radius:12px;background:#0f131b;
+      border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+      flex-shrink:0;position:relative;
+    }
+    .app-icon-box.small{width:40px;height:40px;border-radius:10px}
+    .app-icon-emoji{font-size:20px}
+    .app-icon-box img{max-width:100%;max-height:100%;border-radius:10px;display:block}
+    .app-icon-card{
+      background:var(--panel);border:1px solid var(--line);border-radius:12px;
+      padding:10px;display:flex;flex-direction:column;align-items:center;gap:6px;
+      cursor:pointer;min-width:100px;max-width:130px;
+    }
+    .app-icon-card:hover{background:var(--soft);border-color:var(--accent)}
+    .app-icon-name{
+      font-size:12px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;
+    }
+    .small-icon-grid{grid-template-columns:repeat(auto-fill, minmax(110px, 1fr))}
+    .seg-group{
+      display:inline-flex;border-radius:999px;overflow:hidden;border:1px solid var(--line);background:#0f131b;
+    }
+    .seg-btn{
+      border:none;background:transparent;color:var(--muted);padding:4px 10px;font-size:11px;cursor:pointer;
+    }
+    .seg-btn.active{background:var(--soft);color:var(--accent)}
+    .seg-btn:first-child{border-right:1px solid var(--line)}
+
+    .overlay{
+      position:fixed;inset:0;background:rgba(0,0,0,.55);
+      display:flex;align-items:center;justify-content:center;z-index:40;
+    }
+    .app-modal{
+      max-width:760px;width:100%;max-height:80vh;overflow:hidden;
+      display:flex;flex-direction:column;position:relative;
+    }
+    .app-modal-header{margin-bottom:4px}
+    .app-modal-title-wrap{display:flex;flex-direction:column;gap:2px;min-width:0}
+    .editable-title{font-size:16px;font-weight:600;cursor:text;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:360px}
+    .app-modal-name-input{font-size:16px;font-weight:600}
+
+    .app-modal .grid.app-sections-grid{margin-top:8px}
+    .section-tile{
+      border-radius:12px;border:1px solid var(--line);padding:10px;
+      cursor:pointer;background:#111623;
+      transition:background .1s ease,border-color .1s ease,transform .08s ease;
+    }
+    .section-tile:hover{
+      background:#161c2b;border-color:var(--accent);transform:translateY(-1px);
+    }
+    .section-title{font-size:13px;font-weight:600;margin-bottom:2px}
+    .section-sub{font-size:12px;color:var(--muted)}
+
+    .slideout{
+      position:fixed;top:0;right:0;bottom:0;width:420px;
+      background:var(--panel);border-left:1px solid var(--line);
+      box-shadow:-8px 0 22px rgba(0,0,0,.6);
+      display:flex;flex-direction:column;z-index:60;
+    }
+    .slideout-header{
+      padding:10px 14px;border-bottom:1px solid var(--line);
+      display:flex;align-items:center;gap:8px;
+    }
+    .slideout-body{padding:12px 14px;overflow:auto;flex:1}
+
+    .icon-picker{
+      position:absolute;top:50px;left:0;background:#0f131b;
+      border:1px solid var(--line);border-radius:12px;padding:8px;z-index:70;
+      width:230px;box-shadow:0 10px 26px rgba(0,0,0,.6);
+    }
+    .icon-picker .btn.small{font-size:12px}
   </style>
 </head>
 <body>
@@ -119,59 +193,13 @@
         <div class="crumbs" id="crumbs">/</div>
         <div class="row">
           <button class="btn small" id="exportAll">Export</button>
-          <button class="btn small" id="importAll">Import</button>
+          <button class="btn small ghost" id="importAll">Import</button>
           <button class="btn small" id="resetAll">Reset</button>
         </div>
       </div>
       <div class="content" id="view"><!-- routed content --></div>
     </main>
   </div>
-
-  <!-- View Modal -->
-  <div class="modal" id="modalRoot">
-    <div class="modal-card">
-      <div class="modal-head">
-        <button class="icon-btn" id="modalClose" title="Close">&#10005;</button>
-        <div class="af-icon" id="modalIcon"></div>
-        <div class="modal-title" id="modalTitle" contenteditable="true"></div>
-        <div class="spacer"></div>
-      </div>
-      <div class="modal-body" id="modalBody"></div>
-      <div class="modal-actions">
-        <div class="muted">Click a section to edit. Name is inline-editable.</div>
-        <div class="spacer"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Slideout Editor -->
-  <aside class="slideout" id="editorSlideout">
-    <div class="slide-head">
-      <div id="slideTitle" style="font-weight:700">Edit</div>
-      <div class="spacer"></div>
-      <button class="close-x" id="slideClose" title="Close">×</button>
-    </div>
-    <div class="slide-body" id="slideBody"></div>
-  </aside>
-
-  <!-- Icon chooser slideout -->
-  <aside class="slideout" id="iconSlideout">
-    <div class="slide-head">
-      <div style="font-weight:700">Choose Icon</div>
-      <div class="spacer"></div>
-      <button class="close-x" id="iconClose">×</button>
-    </div>
-    <div class="slide-body" id="iconBody">
-      <div class="card" style="margin-bottom:12px; padding:12px">
-        <h4 style="margin:0 0 8px 0">Upload</h4>
-        <input type="file" id="iconFile" accept="image/*">
-      </div>
-      <div class="card" style="padding:12px">
-        <h4 style="margin:0 0 8px 0">Library</h4>
-        <div class="row" id="iconLib"></div>
-      </div>
-    </div>
-  </aside>
 
   <script src="app.js"></script>
 </body>
