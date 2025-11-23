@@ -1325,6 +1325,65 @@
     c.innerHTML = `<div style="font-size:16px;">${esc(text)}</div>`;
     el.appendChild(c);
   }
+  function renderEmailCampaigns(el){
+  el.innerHTML = `
+    <div class="card sticky">
+      <h2>Email Campaigns</h2>
+      <div class="row"><div class="pill">Pricing: $${state.pricing.emailStep}/step</div></div>
+    </div>
+    <div class="card">
+      <table id="ecTable">
+        <thead><tr><th>Campaign</th><th>Steps</th><th>Assets/Notes</th><th>Price</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="row" style="margin-top:10px">
+        <button class="btn small" id="addEC">Add Campaign</button>
+        <div class="spacer"></div>
+        <div>Total: <b id="ecTotal">$0.00</b></div>
+      </div>
+    </div>
+  `;
+
+  function rowPrice(steps){ return (Number(steps||0) * state.pricing.emailStep); }
+
+  function draw(){
+    const tb = $('#ecTable tbody', el); tb.innerHTML='';
+    (state.emailCampaigns||[]).forEach(c=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" value="${esc(c.name||'')}" data-f="name"></td>
+        <td><input type="number" value="${Number(c.steps||0)}" data-f="steps"></td>
+        <td><input type="text" value="${esc(c.notes||'')}" data-f="notes"></td>
+        <td>${money(rowPrice(c.steps))}</td>
+        <td><button class="btn small" data-act="del">Delete</button></td>
+      `;
+      tr.querySelectorAll('[data-f]').forEach(inp=>{
+        inp.addEventListener('input', ()=>{
+          const f = inp.getAttribute('data-f');
+          c[f] = inp.type==='number' ? Number(inp.value||0) : inp.value;
+          persist(); totals();
+        });
+      });
+      tr.querySelector('[data-act="del"]').addEventListener('click', ()=>{
+        if(!confirm('Delete campaign?')) return;
+        state.emailCampaigns = state.emailCampaigns.filter(x=>x.id!==c.id); persist(); draw(); totals();
+      });
+      tb.appendChild(tr);
+    });
+  }
+
+  function totals(){
+    const total = (state.emailCampaigns||[]).reduce((sum,c)=> sum + rowPrice(c.steps), 0);
+    $('#ecTotal', el).textContent = money(total);
+  }
+
+  $('#addEC', el).addEventListener('click', ()=>{
+    state.emailCampaigns.unshift({ id:uid(), name:'', steps:0, notes:'' }); persist(); draw(); totals();
+  });
+
+  draw(); totals();
+}
+
 
   // ======================================================================
   //  SETTINGS
