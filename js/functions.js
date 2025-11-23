@@ -1,201 +1,233 @@
-// ===================================================
-// FUNCTIONS UI MODULE
-// ===================================================
+;(() => {
 
-const FunctionsUI = (() => {
-  const { state, persist, $, $all, uid, esc, findById, FN_LEVEL_COLORS } = AppCore;
+  const core = window.OL;
+  const { state, persist } = core;
+  const { appIconHTML } = core.icons;
+  const esc = core.utils.esc;
 
-  // ==========================================
-  // MAIN RENDER
-  // ==========================================
-  function renderFunctions() {
-    const container = $("#functionsContainer");
-    if (!container) return;
-
-    const appFilterVal = $("#functionsFilterApp")?.value || "";
-
-    container.innerHTML = "";
-
-    state.functions.forEach(fn => {
-      if (appFilterVal && !isFunctionAssignedToApp(fn.id, appFilterVal)) {
-        return;
-      }
-
-      container.appendChild(renderFunctionCard(fn));
-    });
-  }
-
-  // helper
-  function isFunctionAssignedToApp(fnId, appId) {
-    return state.functionAssignments.some(
-      a => a.functionId === fnId && a.appId === appId
-    );
-  }
-
-  // ==========================================
-  // FUNCTION CARD
-  // ==========================================
-  function renderFunctionCard(fn) {
-    const card = document.createElement("div");
-    card.className = "functionCard";
-
-    const apps = state.functionAssignments
-      .filter(a => a.functionId === fn.id)
-      .map(a => ({
-        app: findById(state.apps, a.appId),
-        assign: a
-      }));
-
-    card.innerHTML = `
-      <div class="fnHeader">
-        <input class="fnTitleInput" value="${esc(fn.name)}" data-id="${fn.id}">
-        <button class="fnDeleteBtn" data-id="${fn.id}">✕</button>
-      </div>
-
-      <div class="fnAppsWrap" id="fnApps_${fn.id}">
-        ${apps.map(a => renderAppAssignmentPill(a)).join("")}
-        <div class="fnAssignBtn" data-id="${fn.id}">+ Assign App</div>
-      </div>
-    `;
-
-    // events
-    card.querySelector(`.fnTitleInput`).oninput = (e) => {
-      fn.name = e.target.value;
-      persist();
-    };
-
-    card.querySelector(`.fnDeleteBtn`).onclick = () => {
-      deleteFunction(fn.id);
-    };
-
-    card.querySelector(`.fnAssignBtn`).onclick = () => {
-      openAssignAppDropdown(fn.id);
-    };
-
-    return card;
-  }
-
-  // ==========================================
-  // FUNCTION → APP PILL
-  // ==========================================
-  function renderAppAssignmentPill({ app, assign }) {
-    const iconHTML = AppsUI.renderAppIcon(app.iconId, app.name);
-    const border = FN_LEVEL_COLORS[assign.level] || "#999";
-
+  // full app label
+  function appLabelHTML(app) {
     return `
-      <span class="fnAppPill" data-assign-id="${assign.id}" style="border-color:${border}">
-        ${iconHTML} ${esc(app.name)}
-        <span class="fnAppLevel">${assign.level}</span>
-        <span class="fnAppRemove">×</span>
+      <span class="appLabel">
+        ${appIconHTML(app)}
+        <span class="appLabelName">${esc(app.name || '')}</span>
       </span>
     `;
   }
 
-  // ==========================================
-  // DELETE FUNCTION
-  // ==========================================
-  function deleteFunction(id) {
-    if (!confirm("Delete function?")) return;
-
-    state.functions = state.functions.filter(f => f.id !== id);
-    state.functionAssignments = state.functionAssignments.filter(a => a.functionId !== id);
-
-    persist();
-    renderFunctions();
+  // full function label
+  function fnLabelHTML(fn) {
+    return `<span class="fnLabel">${esc(fn.name)}</span>`;
   }
 
-  // ==========================================
-  // REMOVE APP FROM FUNCTION
-  // ==========================================
-  document.addEventListener("click", (event) => {
-    if (!event.target.classList.contains("fnAppRemove")) return;
+  // =========================================================
+  // RENDER FUNCTIONS VIEW
+  // =========================================================
 
-    const pill = event.target.closest(".fnAppPill");
-    const assignId = pill.dataset.assignId;
+  function renderFunctions() {
+    const container = document.getElementById("functionsContainer");
+    if (!container) return;
 
-    state.functionAssignments = state.functionAssignments.filter(a => a.id !== assignId);
-    persist();
+    container.innerHTML = "";
+    const list = document.createElement("div");
+    list.className = "functionsGrid";
 
-    renderFunctions();
-  });
+    state.functions.forEach(fn => {
+      const card = document.createElement("div");
+      card.className = "fnCard";
+      card.dataset.id = fn.id;
 
-  // ==========================================
-  // OPEN DROP-DOWN TO ASSIGN APP
-  // ==========================================
-  function openAssignAppDropdown(fnId) {
-    const parent = $(`#fnApps_${fnId}`);
-    if (!parent) return;
+      card.innerHTML = `
+        <div class="fnTitle">${esc(fn.name)}</div>
+        <div class="fnAppsList">
+          ${renderFnApps(fn)}
+        </div>
+      `;
 
-    const dropdown = document.createElement("div");
-    dropdown.className = "assignDropdown";
+      card.onclick = () => core.openFunctionModal(fn.id);
+      list.appendChild(card);
+    });
 
-    dropdown.innerHTML = `
-      <input type="text" class="assignSearch" placeholder="Search apps...">
+    // + Add Function
+    const addBtn = document.createElement("button");
+    addBtn.className = "btn small";
+    addBtn.textContent = "+ Add Function";
+    addBtn.onclick = () => core.openFunctionModalNew();
 
-      <div class="assignList">
-        ${state.apps.map(app => {
-          const iconHTML = AppsUI.renderAppIcon(app.iconId, app.name);
-          return `<div class="assignOption" data-id="${app.id}">${iconHTML} ${esc(app.name)}</div>`;
-        }).join("")}
+    const wrap = document.createElement("div");
+    wrap.className = "fnAddNew";
+    wrap.appendChild(addBtn);
+
+    container.appendChild(list);
+    container.appendChild(wrap);
+  }
+
+  // =========================================================
+  // RENDER APP PILLS INSIDE FUNCTION CARD
+  // =========================================================
+
+  function renderFnApps(fn) {
+    if (!fn.apps || !fn.apps.length) return `<span class="muted">No apps linked</span>`;
+
+    return fn.apps.map(a => {
+      const app = state.apps.find(x => x.id === a.id);
+      if (!app) return "";
+
+      const color = (a.status === "primary")
+        ? "var(--ok)"
+        : (a.status === "evaluating")
+        ? "var(--accent)"
+        : "var(--text)";
+
+      return `
+        <span class="fnAppPill" style="color:${color}">
+          ${appIconHTML(app)} ${esc(app.name)}
+        </span>
+      `;
+    }).join("");
+  }
+
+  // =========================================================
+  // FUNCTION MODAL OPEN
+  // =========================================================
+
+  function openFunctionModal(fnId) {
+    const fn = state.functions.find(f => f.id === fnId);
+    if (!fn) return;
+    showFunctionModal(fn);
+  }
+
+  function openFunctionModalNew() {
+    const newFn = {
+      id: core.utils.uid("fn"),
+      name: "",
+      notes: "",
+      apps: []
+    };
+    showFunctionModal(newFn);
+  }
+
+  // =========================================================
+  // FUNCTION MODAL UI
+  // =========================================================
+
+  function showFunctionModal(fn) {
+    core.ensureModalLayer();
+    const modalEl = core.getModalRoot();
+
+    modalEl.innerHTML = `
+      <div class="functionModal">
+        <div class="fnModalHeader">
+          <input id="fnNameInput" type="text" placeholder="Function Name"
+            value="${esc(fn.name)}"/>
+        </div>
+
+        <label>Notes</label>
+        <textarea id="fnNotesInput">${esc(fn.notes || "")}</textarea>
+
+        <br>
+
+        <label>Apps associated with this function</label>
+        <div id="fnModalApps">
+          ${renderFnAppsInline(fn)}
+        </div>
+        <button id="fnAddApp" class="btn small" style="margin-top:6px;">+ Add App</button>
       </div>
     `;
 
-    parent.appendChild(dropdown);
+    modalEl.style.display = 'flex';
+    attachFunctionModalHandlers(fn);
+  }
 
-    const input = dropdown.querySelector(".assignSearch");
-    input.focus();
+  function attachFunctionModalHandlers(fn) {
+    const nameInput = document.getElementById('fnNameInput');
+    const notesInput = document.getElementById('fnNotesInput');
+    const appListWrap = document.getElementById('fnModalApps');
 
-    input.oninput = () => {
-      const term = input.value.toLowerCase();
-      dropdown.querySelectorAll(".assignOption").forEach(opt => {
-        const txt = opt.textContent.toLowerCase();
-        opt.style.display = txt.includes(term) ? "" : "none";
+    // debounced save
+    let nameTimer = null;
+    nameInput.oninput = () => {
+      clearTimeout(nameTimer);
+      nameTimer = setTimeout(() => {
+        fn.name = nameInput.value;
+        persist();
+        renderFunctions();
+      }, 400);
+    };
+
+    let notesTimer = null;
+    notesInput.oninput = () => {
+      clearTimeout(notesTimer);
+      notesTimer = setTimeout(() => {
+        fn.notes = notesInput.value;
+        persist();
+      }, 400);
+    };
+
+    document.getElementById('fnAddApp').onclick = () => {
+      openAppSelector(fn);
+    };
+
+    // click outside to close
+    core.bindModalClose();
+  }
+
+  // =========================================================
+  // RENDER APP PILLS INSIDE MODAL
+  // =========================================================
+
+  function renderFnAppsInline(fn) {
+    if (!fn.apps || !fn.apps.length) return `<span class="muted">None</span>`;
+
+    return fn.apps.map(rel => {
+      const app = state.apps.find(a => a.id === rel.id);
+      if (!app) return "";
+
+      const color = (rel.status === "primary")
+        ? "var(--ok)"
+        : (rel.status === "evaluating")
+        ? "var(--accent)"
+        : "var(--text)";
+
+      return `
+        <span class="fnAppPill" style="cursor:pointer;color:${color};"
+          data-id="${app.id}">
+          ${appIconHTML(app)} ${esc(app.name)}
+        </span>
+      `;
+    }).join("");
+  }
+
+  // =========================================================
+  // ADD APP TO FUNCTION
+  // =========================================================
+
+  function openAppSelector(fn) {
+    const sel = document.createElement("select");
+    sel.innerHTML = `<option value="">Select app…</option>` +
+      state.apps.map(app => {
+        return `<option value="${app.id}">${esc(app.name)}</option>`;
+      }).join("");
+
+    sel.onchange = () => {
+      if (!sel.value) return;
+      fn.apps.push({
+        id: sel.value,
+        status: "available"
       });
+      persist();
+      showFunctionModal(fn);
     };
 
-    dropdown.onclick = (e) => {
-      const appId = e.target.closest(".assignOption")?.dataset.id;
-      if (!appId) return;
-      chooseAppForFunction(fnId, appId);
-      dropdown.remove();
-    };
-
-    document.addEventListener("click", (evt) => {
-      if (!dropdown.contains(evt.target)) dropdown.remove();
-    }, { once: true });
+    document.getElementById('fnModalApps').appendChild(sel);
   }
 
-  function chooseAppForFunction(fnId, appId) {
-    state.functionAssignments.push({
-      id: uid("fnApp"),
-      functionId: fnId,
-      appId: appId,
-      level: "available"
-    });
-    persist();
-    renderFunctions();
-  }
+  // =========================================================
+  // PUBLIC API
+  // =========================================================
 
-  // ==========================================
-  // FILTERING BY APP
-  // ==========================================
-  function buildFunctionFilter() {
-    const select = $("#functionsFilterApp");
-    if (!select) return;
+  core.renderFunctions = renderFunctions;
+  core.openFunctionModal = openFunctionModal;
+  core.openFunctionModalNew = openFunctionModalNew;
 
-    select.innerHTML = `
-      <option value="">All apps</option>
-      ${state.apps.map(app => `<option value="${app.id}">${esc(app.name)}</option>`).join("")}
-    `;
-
-    select.onchange = renderFunctions;
-  }
-
-  // ==========================================
-  // EXPOSE API
-  // ==========================================
-  return {
-    renderFunctions,
-    buildFunctionFilter
-  };
 })();
