@@ -23,6 +23,8 @@
   // =========================================================
 
   function renderApps() {
+    core.appFilterUI.renderAppFilterDropdown();
+
     const container = document.getElementById("appsContainer");
     if (!container) return;
 
@@ -45,22 +47,26 @@
     grid.className = "appsGrid";
 
     state.apps.forEach(app => {
-      const card = document.createElement("div");
-      card.className = "appCard";
-      card.dataset.id = app.id;
+      if (state.uiFilters.selectedApps.length === 0 ||
+          core.appFilterUI.isAppSelected(app.id)) {
 
-      card.innerHTML = `
-        <div class="app-icon-box">
-          ${appIconHTML(app)}
-        </div>
-        <div class="app-title">${esc(app.name)}</div>
-      `;
+        const card = document.createElement("div");
+        card.className = "appCard";
+        card.dataset.id = app.id;
 
-      card.onclick = () => {
-        core.openAppModal(app.id);
-      };
+        card.innerHTML = `
+          <div class="app-icon-box">
+            ${appIconHTML(app)}
+          </div>
+          <div class="app-title">${esc(app.name)}</div>
+        `;
 
-      grid.appendChild(card);
+        card.onclick = () => {
+          core.openAppModal(app.id);
+        };
+
+        grid.appendChild(card);
+      }
     });
 
     // + Add Application button
@@ -86,19 +92,22 @@
     table.className = "appsTable";
 
     state.apps.forEach(app => {
-      const row = document.createElement("div");
-      row.className = "appRow";
-      row.dataset.id = app.id;
+      if (state.uiFilters.selectedApps.length === 0 ||
+          core.appFilterUI.isAppSelected(app.id)) {
 
-      row.innerHTML = `
-        <div class="appRowIcon">${appIconHTML(app)}</div>
-        <div class="appRowTitle">${esc(app.name)}</div>
-        <div class="appRowNotes">${esc(app.notes || "")}</div>
-      `;
+        const row = document.createElement("div");
+        row.className = "appRow";
+        row.dataset.id = app.id;
 
-      row.onclick = () => core.openAppModal(app.id);
+        row.innerHTML = `
+          <div class="appRowIcon">${appIconHTML(app)}</div>
+          <div class="appRowTitle">${esc(app.name)}</div>
+          <div class="appRowNotes">${esc(app.notes || "")}</div>
+        `;
 
-      table.appendChild(row);
+        row.onclick = () => core.openAppModal(app.id);
+        table.appendChild(row);
+      }
     });
 
     // + Add Application button
