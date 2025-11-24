@@ -1,66 +1,107 @@
 ;(() => {
 
   if (!window.OL) {
-    console.error("ui-modal.js: OL core not loaded");
+    console.error("ui-modal.js: OL core not present");
     return;
   }
 
   const OL = window.OL;
 
-  // ============================================================
-  // CREATE modal-layer if missing
-  // ============================================================
-  function ensureLayer() {
-    let layer = document.getElementById("modal-layer");
-    if (!layer) {
-      layer = document.createElement("div");
-      layer.id = "modal-layer";
-      document.body.appendChild(layer);
+  let modalLayer = null;
+  let modalContent = null;
+
+  // =========================================================================
+  // INIT (once)
+  // =========================================================================
+  function ensureModalLayer(){
+    if (!modalLayer){
+      modalLayer = document.createElement("div");
+      modalLayer.id = "modal-layer";
+      modalLayer.style.position = "fixed";
+      modalLayer.style.inset = "0";
+      modalLayer.style.background = "rgba(0,0,0,.5)";
+      modalLayer.style.display = "none";
+      modalLayer.style.zIndex = "999";
+      modalLayer.style.backdropFilter = "blur(4px)";
+
+      modalLayer.addEventListener("click", (e)=>{
+        if (e.target === modalLayer){
+          hideModal();
+        }
+      });
+
+      document.body.appendChild(modalLayer);
     }
-    return layer;
   }
 
-  // ============================================================
-  // PUBLIC — OPEN MODAL
-  // ============================================================
-  OL.openModal = function(html, options = {}) {
-    const layer = ensureLayer();
-    layer.innerHTML = "";
+  // =========================================================================
+  // OPEN (with HTML string or HTMLElement)
+  // =========================================================================
+  function showModal(content){
 
-    const modal = document.createElement("div");
-    modal.className = "modal";
+    ensureModalLayer();
+    modalLayer.innerHTML = "";
+    modalLayer.style.display = "block";
 
-    modal.innerHTML = `
-      <div class="modal-body">${html}</div>
-    `;
+    modalContent = document.createElement("div");
+    modalContent.className = "modalPanel";
+    modalContent.style.position = "absolute";
+    modalContent.style.top = "50%";
+    modalContent.style.left = "50%";
+    modalContent.style.transform = "translate(-50%, -50%)";
+    modalContent.style.background = "var(--panel)";
+    modalContent.style.border = "1px solid var(--line)";
+    modalContent.style.borderRadius = "12px";
+    modalContent.style.padding = "16px";
+    modalContent.style.maxHeight = "80vh";
+    modalContent.style.overflowY = "auto";
+    modalContent.style.minWidth = "400px";
+    modalContent.style.maxWidth = "680px";
 
-    layer.appendChild(modal);
-    layer.style.display = "flex";
+    if (typeof content === "string"){
+      modalContent.innerHTML = content;
+    } else {
+      modalContent.appendChild(content);
+    }
 
-    // Close on background click
-    layer.onclick = (e) => {
-      if (e.target === layer) OL.closeModal();
-    };
+    modalLayer.appendChild(modalContent);
 
-    // ESC to close
     window.addEventListener("keydown", escListener);
-  };
+  }
 
-  // ============================================================
-  // PUBLIC — CLOSE MODAL
-  // ============================================================
-  OL.closeModal = function() {
-    const layer = document.getElementById("modal-layer");
-    if (!layer) return;
-    layer.style.display = "none";
-    layer.innerHTML = "";
+  // =========================================================================
+  // CLOSE
+  // =========================================================================
+  function hideModal(){
+    if (!modalLayer) return;
+
+    modalLayer.style.display = "none";
+    modalLayer.innerHTML = "";
+    modalContent = null;
+
     window.removeEventListener("keydown", escListener);
-  };
+  }
 
   function escListener(e){
-    if (e.key === "Escape") {
-      OL.closeModal();
+    if (e.key === "Escape"){
+      hideModal();
     }
   }
+
+  // =========================================================================
+  // UPDATE EXISTING MODAL CONTENT
+  // =========================================================================
+  function replaceModalContent(html){
+    if (!modalContent) return;
+
+    modalContent.innerHTML = html;
+  }
+
+  // =========================================================================
+  // PUBLIC API
+  // =========================================================================
+  OL.showModal         = showModal;
+  OL.hideModal         = hideModal;
+  OL.replaceModalContent = replaceModalContent;
 
 })();
