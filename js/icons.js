@@ -55,10 +55,10 @@
     picker.className = "icon-picker";
 
     const iconRect = targetEl.getBoundingClientRect();
-    const modalRect = document.querySelector(".modal-window").getBoundingClientRect();
-    
-    picker.style.left = (iconRect.left - modalRect.left) + "px";
-    picker.style.top  = (iconRect.bottom - modalRect.top + 4) + "px";
+
+    picker.style.position = "fixed";
+    picker.style.left = iconRect.left + "px";
+    picker.style.top  = iconRect.bottom + 4 + "px";
 
     window._activeIconPicker = picker;
     document.getElementById("appModalBody").appendChild(picker);
