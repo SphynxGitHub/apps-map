@@ -252,6 +252,12 @@
     _refs: { resources: {}, datapoints: {} }
   };
 
+  core.updateBreadcrumb = function (label) {
+    const el = document.getElementById("crumbs");
+    if (!el) return;
+    el.textContent = label;
+  };
+
   // ============================================================
   //  EVENT BUS (simple pub/sub for modules)
   // ============================================================
