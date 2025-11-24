@@ -161,91 +161,91 @@
     }
   }
 
-  // ============================================================
-  // FUNCTIONS CARDS
+ // ============================================================
+  // FUNCTIONS CARDS  (fixed: drive off app assignments)
   // ============================================================
   function renderFunctionCards() {
-    const box = document.getElementById("view-functions");
+    const box = document.getElementById("functionsCards");
     if (!box) return;
     box.innerHTML = "";
-
-    const functions = state.functions || [];
-
-    functions.forEach(fn => {
+  
+    const apps = state.apps || [];
+    const fnMeta = new Map();      // functionId -> fn object (from state.functions)
+    const byFnId = new Map();      // functionId -> [{ app, assignment }, ...]
+  
+    // index whatever metadata we have
+    (state.functions || []).forEach(fn => {
+      if (fn && fn.id) fnMeta.set(fn.id, fn);
+    });
+  
+    // walk all apps and collect assignments by function id
+    apps.forEach(app => {
+      (app.functions || []).forEach(assign => {
+        const fnId = assign.id;
+        if (!fnId) return;
+        if (!byFnId.has(fnId)) byFnId.set(fnId, []);
+        byFnId.get(fnId).push({ app, assignment: assign });
+      });
+    });
+  
+    // nothing mapped at all
+    if (!byFnId.size) {
+      box.innerHTML = `<div class="empty-hint">No functions mapped to any apps yet.</div>`;
+      return;
+    }
+  
+    for (const [fnId, appAssignments] of byFnId.entries()) {
+      const fn = fnMeta.get(fnId) || { id: fnId, name: "(Unlabeled function)" };
+  
       const card = document.createElement("div");
       card.className = "function-card";
-
-      const appsForFn = state.apps
-        .map(app => ({
-          app,
-          assignment: (app.functions || []).find(f => f.id === fn.id)
-        }))
-        .filter(x => !!x.assignment);
-
-      if (!appsForFn.length) {
-        const card = document.createElement("div");
-        card.className = "function-card empty";
-      
-        card.innerHTML = `
-          <div class="function-card-header">
-            <div class="function-icon">${(fn.name || "?").slice(0, 2)}</div>
-            <div class="function-title">${esc(fn.name)}</div>
-          </div>
-          <div class="function-card-empty-msg">
-            <em>No apps currently mapped to this function</em>
-          </div>
-        `;
-      
-        box.appendChild(card);
-        return;
-      }
-
+  
       card.innerHTML = `
         <div class="function-card-header">
           <div class="function-icon">${(fn.name || "?").slice(0, 2)}</div>
-          <div class="function-title">${esc(fn.name)}</div>
+          <div class="function-title">${esc(fn.name || fnId)}</div>
         </div>
         <div class="function-card-body">
           <div class="function-apps-label">Apps</div>
           <div class="function-apps-list"></div>
         </div>
       `;
-
+  
       const list = card.querySelector(".function-apps-list");
-
-      appsForFn.forEach(({ app, assignment }) => {
+  
+      appAssignments.forEach(({ app, assignment }) => {
         const pill = document.createElement("button");
         pill.type = "button";
         pill.className = "app-pill";
         pill.dataset.status = assignment.status || "available";
         pill.innerHTML = `
           <span class="pill-icon">${OL.appIconHTML(app)}</span>
-          <span class="pill-label">${esc(app.name)}</span>
+          <span class="pill-label">${esc(app.name || "")}</span>
         `;
-
-        // cycle status
-        pill.onclick = (e) => {
+  
+        // cycle status: primary → evaluating → available → primary
+        pill.onclick = e => {
           e.stopPropagation();
           assignment.status = nextFnState(assignment.status);
           OL.persist();
           renderFunctionCards();
         };
-
-        // right-click to remove
-        pill.oncontextmenu = (e) => {
+  
+        // right-click to unassign this app from the function
+        pill.oncontextmenu = e => {
           e.preventDefault();
           app.functions = (app.functions || []).filter(f => f !== assignment);
           OL.persist();
           renderFunctionCards();
         };
-
+  
         list.appendChild(pill);
       });
-
+  
       box.appendChild(card);
-    });
+    }
   }
-
+  
   function nextFnState(s) {
     if (s === "primary") return "evaluating";
     if (s === "evaluating") return "available";
