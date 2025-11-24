@@ -20,10 +20,35 @@
     </div>`;
   };
 
+  OL.buildIconNode = function(app){
+    const div = document.createElement("div");
+    div.className = "app-icon-box small";
 
+    if (app.icon && app.icon.type === "emoji") {
+      div.textContent = app.icon.value;
+      return div;
+    }
+
+    if (app.icon && app.icon.type === "img") {
+      const img = document.createElement("img");
+      img.src = app.icon.url;
+      div.appendChild(img);
+      return div;
+    }
+
+    const meta = OL.utils.buildLetterIconMeta(app.name);
+    div.style.background = meta.bg;
+    div.style.color = meta.fg;
+    div.textContent = meta.initials.toUpperCase();
+    return div;
+  };
+
+
+  // =============================================================
+  // OPEN PICKER
+  // =============================================================
   OL.openIconPicker = function(targetEl, app) {
 
-    // close any existing picker first
     OL.closeIconPicker();
 
     const picker = document.createElement("div");
@@ -62,20 +87,23 @@
       </div>
     `;
 
+    // =============================================================
+    // OPTION HANDLERS
+    // =============================================================
     picker.querySelectorAll(".picker-option.emoji").forEach(el=>{
       el.onclick = ()=>{
         app.icon = {type:"emoji",value:el.textContent};
         OL.persist();
-        OL.refreshModals?.();
-        OL.renderApps?.();
+        OL.refreshModal(app);
+        OL.renderApps();
       };
     });
 
     picker.querySelector("#autoIconReset").onclick = ()=>{
       app.icon = null;
       OL.persist();
-      OL.refreshModals?.();
-      OL.renderApps?.();
+      OL.refreshModal(app);
+      OL.renderApps();
     };
 
     picker.querySelector("#uploadIconInput").onchange = async (ev)=>{
@@ -84,15 +112,15 @@
       const url = await fileToBase64(file);
       app.icon = {type:"img",url};
       OL.persist();
-      OL.refreshModals?.();
-      OL.renderApps?.();
+      OL.refreshModal(app);
+      OL.renderApps();
     };
 
     picker.querySelector("#removeIconBtn").onclick = ()=>{
       app.icon = null;
       OL.persist();
-      OL.refreshModals?.();
-      OL.renderApps?.();
+      OL.refreshModal(app);
+      OL.renderApps();
     };
 
     setTimeout(()=>{
@@ -100,17 +128,20 @@
     },50);
 
     function closeIfOutside(e){
-      if (window._iconPicker && !window._iconPicker.contains(e.target) && e.target !== targetEl){
+      if (window._activeIconPicker && !window._activeIconPicker.contains(e.target) && e.target !== targetEl){
         OL.closeIconPicker();
       }
     }
   };
 
 
+  // =============================================================
+  // CLOSE PICKER
+  // =============================================================
   OL.closeIconPicker = function(){
-    if (window._iconPicker){
-      window._iconPicker.remove();
-      window._iconPicker = null;
+    if (window._activeIconPicker){
+      window._activeIconPicker.remove();
+      window._activeIconPicker = null;
     }
   };
 
