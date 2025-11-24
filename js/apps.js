@@ -117,49 +117,78 @@
   function renderAppsList(appsSorted) {
     const container = document.getElementById("appsListContainer");
     if (!container) return;
-
+  
     const mode = state.appsViewMode || "details";
     container.innerHTML = "";
-
+  
+    //
+    // =============================
+    // GRID (ICON) MODE
+    // =============================
+    //
     if (mode === "grid") {
       const grid = document.createElement("div");
-      grid.className = "appsGrid";
+      grid.className = "apps-grid";
+  
       appsSorted.forEach(app => {
         const card = document.createElement("div");
-        card.className = "appCard";
+        card.className = "app-card";
         card.dataset.id = app.id;
-
+  
         card.innerHTML = `
-          ${OL.appIconHTML(app)}
-          <div class="appCardTitle">${esc(app.name)}</div>
+          <div class="app-card-header">
+            <div class="app-icon-box small">${OL.appIconHTML(app)}</div>
+            <div class="app-card-title">${esc(app.name)}</div>
+          </div>
         `;
-
+  
         card.onclick = () => OL.openAppModal(app.id);
         grid.appendChild(card);
       });
+  
       container.appendChild(grid);
-    } else {
-      const table = document.createElement("div");
-      table.className = "appsTable";
-
-      appsSorted.forEach(app => {
-        const row = document.createElement("div");
-        row.className = "appRow";
-        row.dataset.id = app.id;
-
-        row.innerHTML = `
-          <div class="appRowIcon">${OL.appIconHTML(app)}</div>
-          <div class="appRowTitle">${esc(app.name)}</div>
-          <div class="appRowNotes">${esc(app.notes || "")}</div>
-        `;
-
-        row.onclick = () => OL.openAppModal(app.id);
-        table.appendChild(row);
-      });
-
-      container.appendChild(table);
+      return;
     }
-  }
+
+  //
+  // =============================
+  // DETAILS (CARD) MODE
+  // =============================
+  //
+  const list = document.createElement("div");
+  list.className = "apps-list";
+
+  appsSorted.forEach(app => {
+    const card = document.createElement("div");
+    card.className = "app-card";
+    card.dataset.id = app.id;
+
+    const fnCount = countFunctionsUsingApp(app.id);
+    const intCounts = countIntegrationsForApp(app.id);
+
+    card.innerHTML = `
+      <div class="app-card-header">
+        <div class="app-icon-box small">${OL.appIconHTML(app)}</div>
+        <div class="app-card-title-block">
+          <div class="app-card-title">${esc(app.name)}</div>
+          <div class="app-card-meta">
+            <span>${fnCount} functions</span>
+            <span>${intCounts.direct}/${intCounts.zapier}/${intCounts.both} integrations</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="app-card-body">
+        <div class="app-card-notes">${esc(app.notes || "")}</div>
+      </div>
+    `;
+
+    card.onclick = () => OL.openAppModal(app.id);
+    list.appendChild(card);
+  });
+
+  container.appendChild(list);
+}
 
  // ============================================================
   // FUNCTIONS CARDS  (fixed: drive off app assignments)
