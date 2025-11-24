@@ -1,185 +1,145 @@
 ;(() => {
 
-  const core = window.OL;
-  const { state, persist } = core;
-
-  const esc = core.utils.esc;
-  const { appIconHTML } = core.icons;
-
-  // =========================================================
-  // FUNCTIONS DATA STRUCTURE
-  // =========================================================
-  state.functions = state.functions || [];  // [{id, name, notes, appsUsed: []}]
-
-
-  // =========================================================
-  // GET FUNCTIONS THAT BELONG TO A SPECIFIC APP
-  // =========================================================
-  function getFunctionsForApp(appId) {
-    return state.functions.filter(fn => fn.appsUsed?.includes(appId));
+  if (!window.OL) {
+    console.error("functions.js: OL core missing");
+    return;
   }
 
+  const OL = window.OL;
 
-  // =========================================================
-  // RENDER FUNCTIONS INSIDE APP MODAL
-  // =========================================================
-  function renderAppFunctionsInsideModal(app) {
-    const fnList = getFunctionsForApp(app.id);
-    let html = "";
+  // ============================================================
+  // RENDER FUNCTIONS PANEL (not modal)
+  // ============================================================
+  OL.renderFunctions = function(){
+    const root = document.getElementById("view");
+    if (!root) return;
 
-    // pills
-    fnList.forEach(fn => {
-      html += `
-        <span class="fn-pill" data-fn="${fn.id}">
-          ${esc(fn.name)}
-          <span class="fn-pill-remove" data-remove="${fn.id}">✕</span>
-        </span>
-      `;
-    });
+    const appList = OL.state.apps;
+    const fnList = OL.state.functions;
 
-    // add new chip
-    html += `
-      <button class="btn small fn-add-btn" id="addFunctionBtn">+ Add Function</button>
-    `;
+    const filterAppId = OL.state.functionsFilterAppId;
 
-    return html;
-  }
-
-
-  // =========================================================
-  // ATTACH EVENT HANDLERS FOR FUNCTIONS INSIDE APP MODAL
-  // =========================================================
-  function attachFunctionModalHandlers(app) {
-
-    // REMOVE function from app
-    document.querySelectorAll(".fn-pill-remove").forEach(el => {
-      el.onclick = (e) => {
-        e.stopPropagation();
-        const fnId = el.dataset.remove;
-
-        // remove app from function list
-        let fn = state.functions.find(x => x.id === fnId);
-        if (fn) {
-          fn.appsUsed = fn.appsUsed.filter(x => x !== app.id);
-        }
-
-        persist();
-        core.replaceAppModalContent(app);
-      };
-    });
-
-
-    // ADD new function
-    document.getElementById("addFunctionBtn").onclick = () => {
-      core.showFunctionPicker(app);
-    };
-  }
-
-
-  // =========================================================
-  // FUNCTION PICKER UI
-  // A dropdown modal specifically for selecting / creating functions
-  // =========================================================
-  core.showFunctionPicker = function(app) {
-
-    core.showModal(`
-      <div class="fn-picker">
-        <h3>Add Function</h3>
-
-        <input type="text" id="fnSearchInput" placeholder="Search or Create Function..."/>
-
-        <div id="fnPickerResults" class="fn-picker-list"></div>
-
-        <div class="row" style="margin-top:12px;">
-          <button class="btn small ghost" id="cancelFnPick">Cancel</button>
+    root.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:20px;font-weight:600;">Functions</div>
+        <div>
+          <button id="toggleFunctionsView" class="btn small">${OL.state.functionsViewMode==="details" ? "Icons" : "Details"}</button>
         </div>
       </div>
-    `);
+      <br>
 
-    function renderFnMatches() {
-      const listEl = document.getElementById("fnPickerResults");
-      const query = document.getElementById("fnSearchInput").value.toLowerCase();
+      <div>
+        <label style="font-weight:600;">Filter by App:</label>
+        <select id="filterFunctionsApp">
+          <option value="">— All Apps —</option>
+          ${appList.map(a=>`
+            <option value="${a.id}" ${a.id===filterAppId?"selected":""}>${OL.utils.esc(a.name)}</option>
+          `).join("")}
+        </select>
+      </div>
 
-      let filtered = state.functions.filter(fn =>
-        fn.name.toLowerCase().includes(query)
-      );
+      <br>
+      <div id="functionsList"></div>
+    `;
 
-      let html = "";
+    document.getElementById("filterFunctionsApp").onchange = (e)=>{
+      OL.state.functionsFilterAppId = e.target.value;
+      OL.persist();
+      OL.renderFunctions();
+    };
 
-      filtered.forEach(fn => {
-        const alreadyUsed = fn.appsUsed?.includes(app.id);
+    document.getElementById("toggleFunctionsView").onclick = ()=>{
+      OL.state.functionsViewMode = OL.state.functionsViewMode==="details" ? "icons" : "details";
+      OL.persist();
+      OL.renderFunctions();
+    };
 
-        html += `
-          <div class="fn-option" data-id="${fn.id}">
-            ${esc(fn.name)}
-            ${alreadyUsed ? `<span class="fn-used">✔ already used</span>` : ""}
-          </div>
-        `;
-      });
+    renderList();
+  };
 
-      // Option to create new function
-      if (query.length) {
-        html += `
-          <div class="fn-create" id="createFnOption">+ Create “${esc(query)}”</div>
-        `;
-      }
+  // ============================================================
+  // RENDER LIST OF FUNCTIONS
+  // ============================================================
+  function renderList(){
 
-      listEl.innerHTML = html;
+    const wrap = document.getElementById("functionsList");
+    wrap.innerHTML = "";
 
+    const filterAppId = OL.state.functionsFilterAppId;
+    const mode = OL.state.functionsViewMode;
 
-      // CLICK TO ADD EXISTING
-      document.querySelectorAll(".fn-option").forEach(btn => {
-        btn.onclick = () => {
-          const fnId = btn.dataset.id;
-          const fn = state.functions.find(x => x.id === fnId);
-
-          if (!fn.appsUsed) fn.appsUsed = [];
-          if (!fn.appsUsed.includes(app.id))
-            fn.appsUsed.push(app.id);
-
-          persist();
-          core.hideModal();
-          core.replaceAppModalContent(app);
-        };
-      });
-
-      // CLICK TO CREATE NEW FUNCTION
-      const createOption = document.getElementById("createFnOption");
-      if (createOption) {
-        createOption.onclick = () => {
-          const name = document.getElementById("fnSearchInput").value.trim();
-          if (!name) return;
-
-          const newFn = {
-            id: core.uid("fn"),
-            name,
-            notes: "",
-            appsUsed: [app.id],
-          };
-          state.functions.push(newFn);
-
-          persist();
-          core.hideModal();
-          core.replaceAppModalContent(app);
-        };
+    // build assigned mapping
+    // appId → list of function IDs
+    const assigned = {};
+    for (const app of OL.state.apps){
+      for(const fn of (app.functions||[])){
+        if (!assigned[fn.id]) assigned[fn.id]=[];
+        assigned[fn.id].push(app.id);
       }
     }
 
-    // search input listeners
-    document.getElementById("fnSearchInput").oninput = renderFnMatches;
-    document.getElementById("fnSearchInput").focus();
+    OL.state.functions.forEach(fn=>{
+      // Skip functions not relevant to selected app filter
+      if (filterAppId){
+        const usedBy = assigned[fn.id]||[];
+        if (!usedBy.includes(filterAppId)) return;
+      }
 
-    // cancel btn
-    document.getElementById("cancelFnPick").onclick = () => core.hideModal();
+      if (mode==="icons"){
+        renderFunctionIcon(fn, assigned[fn.id]||[], wrap);
+      } else {
+        renderFunctionDetails(fn, assigned[fn.id]||[], wrap);
+      }
+    });
+  }
 
-    renderFnMatches();
-  };
+  // ============================================================
+  // RENDER: ICON MODE
+  // ============================================================
+  function renderFunctionIcon(fn, usedBy, wrap){
+    const div = document.createElement("div");
+    div.className="function-icon-card";
 
+    div.innerHTML = `
+      <div style="font-weight:600;">${OL.utils.esc(fn.name)}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;">
+        Used by: ${usedBy.length}
+      </div>
+    `;
 
-  // =========================================================
-  // PUBLIC API
-  // =========================================================
-  core.renderAppFunctionsInsideModal = renderAppFunctionsInsideModal;
-  core.attachFunctionModalHandlers = attachFunctionModalHandlers;
+    div.onclick = ()=>{
+      console.log("future: open function inspector");
+    };
+
+    wrap.appendChild(div);
+  }
+
+  // ============================================================
+  // RENDER: DETAILS MODE
+  // ============================================================
+  function renderFunctionDetails(fn, usedBy, wrap){
+    const div = document.createElement("div");
+    div.className="function-card";
+
+    div.innerHTML = `
+      <div style="font-weight:600;font-size:15px;margin-bottom:4px;">
+        ${OL.utils.esc(fn.name)}
+      </div>
+
+      <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">
+        Used by:
+        ${usedBy.map(id=>{
+          const a = OL.state.apps.find(x=>x.id===id);
+          return `<span class="pill small">${OL.utils.esc(a? a.name : "?")}</span>`;
+        }).join(" ")}
+      </div>
+    `;
+
+    div.onclick = ()=>{
+      console.log("future: open function inspector");
+    };
+
+    wrap.appendChild(div);
+  }
 
 })();
