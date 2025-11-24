@@ -29,12 +29,14 @@
     const picker = document.createElement("div");
     picker.className = "icon-picker";
 
-    const rect = targetEl.getBoundingClientRect();
-    picker.style.top = rect.bottom + "px";
-    picker.style.left = rect.left + "px";
+    const iconRect = targetEl.getBoundingClientRect();
+    const modalRect = document.querySelector(".modal-window").getBoundingClientRect();
+    
+    picker.style.left = (iconRect.left - modalRect.left) + "px";
+    picker.style.top  = (iconRect.bottom - modalRect.top + 4) + "px";
 
     window._iconPicker = picker;
-    document.getElementById("modal-layer").appendChild(picker);
+    document.getElementById("appModalBody").appendChild(picker);
 
     picker.innerHTML = `
       <div class="picker-section">
