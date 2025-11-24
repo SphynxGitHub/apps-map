@@ -402,6 +402,15 @@ PILLS
 .pill-empty {
   opacity: 0.7;
 }
+/*=========================
+APP CARDS
+==========================*/
+.app-card {
+  border-radius: 12px;
+  border: 1px solid #1f2937;
+  background: #020617;
+  padding: 10px 10px 8px;
+}
 
 /*=========================
 INTEGRATION CARDS
@@ -750,7 +759,9 @@ INTEGRATION CARDS
   font-style: italic;
 }
 
-/* Function cards */
+/*=======================================
+FUNCTION CARDS
+========================================/*
 .functions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
