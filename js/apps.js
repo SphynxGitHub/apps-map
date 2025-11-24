@@ -6,113 +6,464 @@
   }
 
   const OL = window.OL;
+  const { state } = OL;
   const { esc } = OL.utils;
 
-  // ============================================================
-  // REGISTER PUBLIC API
-  // ============================================================
-  OL.renderApps = function(){
-    OL.updateBreadcrumb("/Apps");
+  // Small helper
+  function byNameWithZapierFirst(a, b) {
+    const an = (a.name || "").toLowerCase();
+    const bn = (b.name || "").toLowerCase();
+    const az = an === "zapier";
+    const bz = bn === "zapier";
+    if (az && !bz) return -1;
+    if (bz && !az) return 1;
+    return an.localeCompare(bn);
+  }
 
-    const view = OL.state.appsViewMode || "details";
-
-    const container = document.getElementById("view");
-    if (!container) return;
-
-    container.innerHTML = `
-      <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
-        <div class="seg-group">
-          <button class="seg-btn ${view==="details"?"active":""}" data-mode="details">Details</button>
-          <button class="seg-btn ${view==="grid"?"active":""}" data-mode="grid">Grid</button>
-        </div>
-        <button class="btn small" id="newAppBtn">+ Add Application</button>
-      </div>
-      <div id="appsContainer"></div>
-    `;
-
-    container.querySelector("#newAppBtn").onclick = ()=> OL.openAppModalNew();
-
-    container.querySelectorAll(".seg-btn").forEach(btn=>{
-      btn.onclick = ()=>{
-        OL.state.appsViewMode = btn.dataset.mode;
-        OL.persist();
-        OL.renderApps();
-      };
-    });
-
-    renderAppsContent();
-  };
+  function getZapierApp() {
+    return state.apps.find(a => (a.name || "").toLowerCase() === "zapier") || null;
+  }
 
   // ============================================================
-  // RENDER MAIN CONTENT
+  // PUBLIC ENTRY
   // ============================================================
-  function renderAppsContent(){
+  OL.renderApps = function renderApps() {
     const container = document.getElementById("appsContainer");
     if (!container) return;
 
-    if (OL.state.appsViewMode === "grid") {
-      container.innerHTML = `<div class="grid cols-3" id="appGrid"></div>`;
-      renderGrid(document.getElementById("appGrid"));
+    const appsSorted = [...state.apps].sort(byNameWithZapierFirst);
+
+    // Root layout: Apps section + Functions + Integrations
+    container.innerHTML = `
+      <section class="apps-section">
+        <div class="section-header">
+          <h1>Applications</h1>
+          <div class="view-toggle" id="appsViewToggle">
+            <button data-view="details">Details</button>
+            <button data-view="grid">Icons</button>
+          </div>
+        </div>
+        <div class="apps-legend">
+          <span><strong>Status:</strong></span>
+          <span class="legend-pill status-primary">Primary</span>
+          <span class="legend-pill status-available">Available</span>
+          <span class="legend-pill status-evaluating">Evaluating</span>
+          <span class="legend-separator"></span>
+          <span><strong>Integration:</strong></span>
+          <span class="legend-pill int-direct">Direct</span>
+          <span class="legend-pill int-zapier">Zapier</span>
+          <span class="legend-pill int-both">Both</span>
+          <span class="legend-hint">Right-click pills to remove</span>
+        </div>
+        <div id="appsListContainer"></div>
+        <div class="appsAddNew">
+          <button class="btn small" id="addNewAppBtn">+ Add Application</button>
+        </div>
+      </section>
+
+      <section class="apps-section">
+        <div class="section-header">
+          <h2>Functions</h2>
+        </div>
+        <div id="functionsCards" class="functions-grid"></div>
+      </section>
+
+      <section class="apps-section">
+        <div class="section-header">
+          <h2>Integrations</h2>
+          <div class="view-toggle" id="integrationsViewToggle">
+            <button data-mode="flip">Flip</button>
+            <button data-mode="single">One-Direction</button>
+            <button data-mode="both">Bi-Directional</button>
+          </div>
+        </div>
+        <div id="integrationsCards" class="integrations-grid"></div>
+      </section>
+    `;
+
+    // Wire buttons
+    wireAppsViewToggle();
+    wireIntegrationsViewToggle();
+    document.getElementById("addNewAppBtn").onclick = () => OL.openAppModalNew();
+
+    // Render sub-sections
+    renderAppsList(appsSorted);
+    renderFunctionCards();
+    renderIntegrationCards();
+  };
+
+  // ============================================================
+  // APPS LIST (DETAILS / GRID)
+  // ============================================================
+  function wireAppsViewToggle() {
+    const viewMode = state.appsViewMode || "details";
+    state.appsViewMode = viewMode;
+
+    const toggle = document.getElementById("appsViewToggle");
+    if (!toggle) return;
+
+    toggle.querySelectorAll("button").forEach(btn => {
+      const v = btn.dataset.view;
+      if (v === viewMode) btn.classList.add("active");
+      btn.onclick = () => {
+        state.appsViewMode = v;
+        OL.persist();
+        wireAppsViewToggle();
+        renderAppsList([...state.apps].sort(byNameWithZapierFirst));
+      };
+    });
+  }
+
+  function renderAppsList(appsSorted) {
+    const container = document.getElementById("appsListContainer");
+    if (!container) return;
+
+    const mode = state.appsViewMode || "details";
+    container.innerHTML = "";
+
+    if (mode === "grid") {
+      const grid = document.createElement("div");
+      grid.className = "appsGrid";
+      appsSorted.forEach(app => {
+        const card = document.createElement("div");
+        card.className = "appCard";
+        card.dataset.id = app.id;
+
+        card.innerHTML = `
+          ${OL.appIconHTML(app)}
+          <div class="appCardTitle">${esc(app.name)}</div>
+        `;
+
+        card.onclick = () => OL.openAppModal(app.id);
+        grid.appendChild(card);
+      });
+      container.appendChild(grid);
     } else {
-      container.innerHTML = `<div class="appsTable" id="appsTable"></div>`;
-      renderTable(document.getElementById("appsTable"));
+      const table = document.createElement("div");
+      table.className = "appsTable";
+
+      appsSorted.forEach(app => {
+        const row = document.createElement("div");
+        row.className = "appRow";
+        row.dataset.id = app.id;
+
+        row.innerHTML = `
+          <div class="appRowIcon">${OL.appIconHTML(app)}</div>
+          <div class="appRowTitle">${esc(app.name)}</div>
+          <div class="appRowNotes">${esc(app.notes || "")}</div>
+        `;
+
+        row.onclick = () => OL.openAppModal(app.id);
+        table.appendChild(row);
+      });
+
+      container.appendChild(table);
     }
   }
 
   // ============================================================
-  // DETAILS TABLE VIEW
+  // FUNCTIONS CARDS
   // ============================================================
-  function renderTable(el){
-    el.innerHTML = "";
+  function renderFunctionCards() {
+    const box = document.getElementById("functionsCards");
+    if (!box) return;
+    box.innerHTML = "";
 
-    OL.state.apps.forEach(app=>{
-      const row = document.createElement("div");
-      row.className = "appRow";
-      row.style.display = "grid";
-      row.style.gridTemplateColumns = "60px 200px 1fr";
-      row.style.alignItems = "center";
-      row.style.padding = "6px";
-      row.style.cursor = "pointer";
-      row.style.borderBottom = "1px solid var(--line)";
+    const functions = state.functions || [];
 
-      row.innerHTML = `
-        <div>${OL.appIconHTML(app)}</div>
-        <div><strong>${esc(app.name)}</strong></div>
-        <div>${esc(app.notes || "")}</div>
+    functions.forEach(fn => {
+      const card = document.createElement("div");
+      card.className = "function-card";
+
+      const appsForFn = state.apps
+        .map(app => ({
+          app,
+          assignment: (app.functions || []).find(f => f.id === fn.id)
+        }))
+        .filter(x => !!x.assignment);
+
+      if (!appsForFn.length) {
+        // empty functions can be skipped or shown as empty – up to you
+        return;
+      }
+
+      card.innerHTML = `
+        <div class="function-card-header">
+          <div class="function-icon">${(fn.name || "?").slice(0, 2)}</div>
+          <div class="function-title">${esc(fn.name)}</div>
+        </div>
+        <div class="function-card-body">
+          <div class="function-apps-label">Apps</div>
+          <div class="function-apps-list"></div>
+        </div>
       `;
 
-      row.onclick = ()=> OL.openAppModal(app.id);
+      const list = card.querySelector(".function-apps-list");
 
-      el.appendChild(row);
+      appsForFn.forEach(({ app, assignment }) => {
+        const pill = document.createElement("button");
+        pill.type = "button";
+        pill.className = "app-pill";
+        pill.dataset.status = assignment.status || "available";
+        pill.innerHTML = `
+          <span class="pill-icon">${OL.appIconHTML(app)}</span>
+          <span class="pill-label">${esc(app.name)}</span>
+        `;
+
+        // cycle status
+        pill.onclick = (e) => {
+          e.stopPropagation();
+          assignment.status = nextFnState(assignment.status);
+          OL.persist();
+          renderFunctionCards();
+        };
+
+        // right-click to remove
+        pill.oncontextmenu = (e) => {
+          e.preventDefault();
+          app.functions = (app.functions || []).filter(f => f !== assignment);
+          OL.persist();
+          renderFunctionCards();
+        };
+
+        list.appendChild(pill);
+      });
+
+      box.appendChild(card);
     });
   }
 
+  function nextFnState(s) {
+    if (s === "primary") return "evaluating";
+    if (s === "evaluating") return "available";
+    return "primary";
+  }
+
   // ============================================================
-  // GRID VIEW
+  // INTEGRATIONS CARDS
   // ============================================================
-  function renderGrid(el){
-    el.innerHTML = "";
+  function wireIntegrationsViewToggle() {
+    const mode = state.integrationsViewMode || "flip";
+    state.integrationsViewMode = mode;
 
-    OL.state.apps.forEach(app=>{
-      const card = document.createElement("div");
-      card.className = "card app-card";
-      card.style.cursor = "pointer";
-      card.style.display = "flex";
-      card.style.flexDirection = "column";
-      card.style.alignItems = "flex-start";
-      card.style.gap = "6px";
-      card.style.padding = "10px";
+    const toggle = document.getElementById("integrationsViewToggle");
+    if (!toggle) return;
 
-      card.innerHTML = `
-        <div>${OL.appIconHTML(app)}</div>
-        <div class="app-title">${esc(app.name)}</div>
-        <div class="muted" style="font-size:12px;">${esc(app.notes||"")}</div>
-      `;
+    toggle.querySelectorAll("button").forEach(btn => {
+      const v = btn.dataset.mode;
+      if (v === mode) btn.classList.add("active");
+      else btn.classList.remove("active");
 
-      card.onclick = ()=> OL.openAppModal(app.id);
-
-      el.appendChild(card);
+      btn.onclick = () => {
+        state.integrationsViewMode = v;
+        OL.persist();
+        wireIntegrationsViewToggle();
+        renderIntegrationCards();
+      };
     });
+  }
+
+  function buildIntegrationPairs() {
+    const apps = state.apps;
+    const zap = getZapierApp();
+    const pairs = new Map(); // key: "aId|bId" (sorted), value: record
+
+    function pairKey(aId, bId) {
+      return aId < bId ? `${aId}|${bId}` : `${bId}|${aId}`;
+    }
+
+    function bumpPair(aId, bId, type) {
+      const key = pairKey(aId, bId);
+      let rec = pairs.get(key);
+      if (!rec) {
+        rec = {
+          appAId: aId < bId ? aId : bId,
+          appBId: aId < bId ? bId : aId,
+          direct: 0,
+          zapier: 0,
+          both: 0
+        };
+        pairs.set(key, rec);
+      }
+      if (type === "both") rec.both++;
+      else if (type === "direct") rec.direct++;
+      else rec.zapier++;
+    }
+
+    // Manual integrations defined on each app
+    apps.forEach(app => {
+      (app.integrations || []).forEach(int => {
+        const otherId = int.appId;
+        const type = int.type || "zapier";
+        if (!otherId) return;
+        bumpPair(app.id, otherId, type);
+      });
+    });
+
+    // Zapier-mediated auto connections
+    if (zap) {
+      const zapId = zap.id;
+      const zapClients = apps.filter(a =>
+        (a.integrations || []).some(int => int.appId === zapId && (int.type === "zapier" || int.type === "both"))
+      );
+
+      for (let i = 0; i < zapClients.length; i++) {
+        for (let j = i + 1; j < zapClients.length; j++) {
+          const a = zapClients[i];
+          const b = zapClients[j];
+          const key = pairKey(a.id, b.id);
+          const existing = pairs.get(key);
+          if (existing) {
+            // if direct already exists, mark as both
+            if (existing.direct > 0 && existing.zapier === 0 && existing.both === 0) {
+              existing.both++;
+              existing.zapier = 0;
+            } else if (existing.zapier > 0 && existing.direct === 0 && existing.both === 0) {
+              // already counted as zapier – leave as is
+            } else if (existing.both > 0) {
+              // nothing to do
+            } else {
+              existing.zapier++;
+            }
+          } else {
+            bumpPair(a.id, b.id, "zapier");
+          }
+        }
+      }
+    }
+
+    return Array.from(pairs.values());
+  }
+
+  function renderIntegrationCards() {
+    const box = document.getElementById("integrationsCards");
+    if (!box) return;
+    box.innerHTML = "";
+
+    const pairs = buildIntegrationPairs();
+    if (!pairs.length) {
+      box.innerHTML = `<div class="empty-hint">No integrations mapped yet.</div>`;
+      return;
+    }
+
+    const appsById = new Map(state.apps.map(a => [a.id, a]));
+    const mode = state.integrationsViewMode || "flip";
+
+    if (mode === "single") {
+      // two cards per relationship: A→B and B→A
+      pairs.forEach(rec => {
+        const appA = appsById.get(rec.appAId);
+        const appB = appsById.get(rec.appBId);
+        if (!appA || !appB) return;
+
+        box.appendChild(buildIntegrationCard(appA, appB, rec, "AtoB", "single"));
+        box.appendChild(buildIntegrationCard(appB, appA, rec, "BtoA", "single"));
+      });
+    } else if (mode === "both") {
+      // one card per pair; list both directions underneath
+      pairs.forEach(rec => {
+        const appA = appsById.get(rec.appAId);
+        const appB = appsById.get(rec.appBId);
+        if (!appA || !appB) return;
+        box.appendChild(buildIntegrationCard(appA, appB, rec, "both", "both"));
+      });
+    } else {
+      // flip mode: one card per pair, double arrow, click card to flip
+      pairs.forEach(rec => {
+        const appA = appsById.get(rec.appAId);
+        const appB = appsById.get(rec.appBId);
+        if (!appA || !appB) return;
+        box.appendChild(buildIntegrationCard(appA, appB, rec, "AtoB", "flip"));
+      });
+    }
+  }
+
+  function buildIntegrationCard(sourceApp, targetApp, rec, dirMode, viewMode) {
+    const card = document.createElement("div");
+    card.className = "integration-card";
+
+    const directCount = rec.direct;
+    const zapCount    = rec.zapier;
+    const bothCount   = rec.both;
+
+    const hasZapier = zapCount > 0 || bothCount > 0;
+
+    // determine integration style
+    let intClass = "";
+    if (bothCount > 0) intClass = "int-both";
+    else if (directCount > 0) intClass = "int-direct";
+    else if (zapCount > 0) intClass = "int-zapier";
+
+    // Arrow block
+    let arrowBlock = "";
+    if (viewMode === "flip") {
+      // double arrow: top is active direction, bottom is greyed
+      const activeRight = dirMode === "AtoB";
+      arrowBlock = `
+        <div class="integration-arrows flip-mode">
+          <div class="arrow-row active">
+            <span class="arrow-app">${esc(sourceApp.name)}</span>
+            <span class="arrow-symbol">&#8594;</span>
+            <span class="arrow-app">${esc(targetApp.name)}</span>
+          </div>
+          <div class="arrow-row inactive">
+            <span class="arrow-app">${esc(targetApp.name)}</span>
+            <span class="arrow-symbol">&#8594;</span>
+            <span class="arrow-app">${esc(sourceApp.name)}</span>
+          </div>
+        </div>
+      `;
+    } else if (viewMode === "single") {
+      arrowBlock = `
+        <div class="integration-arrows single-mode">
+          <span class="arrow-app">${esc(sourceApp.name)}</span>
+          <span class="arrow-symbol">&#8594;</span>
+          <span class="arrow-app">${esc(targetApp.name)}</span>
+        </div>
+      `;
+    } else {
+      // both directions
+      arrowBlock = `
+        <div class="integration-arrows both-mode">
+          <div class="arrow-row">
+            <span class="arrow-app">${esc(sourceApp.name)}</span>
+            <span class="arrow-symbol">&#8594;</span>
+            <span class="arrow-app">${esc(targetApp.name)}</span>
+          </div>
+          <div class="arrow-row">
+            <span class="arrow-app">${esc(targetApp.name)}</span>
+            <span class="arrow-symbol">&#8594;</span>
+            <span class="arrow-app">${esc(sourceApp.name)}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    card.innerHTML = `
+      <div class="integration-card-header ${intClass}">
+        ${arrowBlock}
+      </div>
+      <div class="integration-card-body">
+        <div class="integration-summary">
+          <span>Direct: ${directCount}</span>
+          <span>Zapier: ${zapCount}</span>
+          <span>Both: ${bothCount}</span>
+        </div>
+        ${hasZapier ? `<div class="integration-zap-hint">⚡ Zapier-mediated connection available</div>` : ""}
+      </div>
+    `;
+
+    if (viewMode === "flip") {
+      card.onclick = () => {
+        const newDir = dirMode === "AtoB" ? "BtoA" : "AtoB";
+        const parent = card.parentElement;
+        if (!parent) return;
+        const replacement = buildIntegrationCard(targetApp, sourceApp, rec, newDir, "flip");
+        parent.replaceChild(replacement, card);
+      };
+    }
+
+    return card;
   }
 
 })();
