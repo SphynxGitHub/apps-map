@@ -545,3 +545,31 @@ a{color:inherit;text-decoration:none}
   font-size: 11px;
   color: var(--muted);
 }
+/* ================================
+   FORCE ICON SIZE WITHIN APP CARDS
+=================================== */
+
+.appCard-iconWrap .app-icon-box.small {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  overflow: hidden; /* critical */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* If icon is initials (text), scale it down */
+.appCard-iconWrap .app-icon-box.small.app-icon.initials {
+  font-size: 12px;
+}
+
+/* If icon is an image, enforce strict scaling */
+.appCard-iconWrap .app-icon-box.small img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+  border-radius: 6px;
+}
