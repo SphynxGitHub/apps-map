@@ -997,3 +997,72 @@ INTEGRATION CARDS
 .apps-grid-compact .appRowNotes {
   display: none;
 }
+/* =========================================
+   APPS VIEW – LAYOUT + HOVER RING
+========================================= */
+
+/* Make the three sections stack with some spacing */
+#view-apps {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Sticky headers for each section inside the Apps view */
+#view-apps .apps-section > .section-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding-top: 6px;
+  margin-top: -6px;
+  background: linear-gradient(
+    180deg,
+    rgba(15,17,21,0.98),
+    rgba(15,17,21,0.92) 70%,
+    rgba(15,17,21,0)
+  );
+}
+
+/* Use unified radius + smooth transitions on all card-like blocks */
+.appRow,
+.function-card,
+.integration-card {
+  border-radius: var(--radius);
+  transition:
+    border-color 0.15s ease,
+    box-shadow   0.15s ease,
+    background   0.15s ease;
+}
+
+/* === Hover style: “ring glow”, no lift (option B) === */
+
+/* Apps + Functions: subtle blue ring & border tint */
+.appRow:hover,
+.function-card:hover {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 1px rgba(56,189,248,0.55);
+}
+
+/* Integrations: keep their own border color, just add ring */
+.integration-card:hover {
+  box-shadow: 0 0 0 1px rgba(56,189,248,0.55);
+}
+
+/* =========================================
+   APPS GRID – CARD LAYOUT
+   (Turns the old list into a responsive grid)
+========================================= */
+
+.appsTable {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+/* Make each app row look like a card */
+.appRow {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 10px 12px;
+}
+
