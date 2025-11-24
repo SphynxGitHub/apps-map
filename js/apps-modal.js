@@ -145,9 +145,38 @@
   // ============================================================
   // ICON
   // ============================================================
+  function buildIconNode(app){
+    const wrap = document.createElement("div");
+    wrap.className = "app-icon-box small";
+  
+    // ICON: emoji
+    if (app.icon?.type === "emoji"){
+      wrap.textContent = app.icon.value;
+      return wrap;
+    }
+  
+    // ICON: image
+    if (app.icon?.type === "img"){
+      const img = document.createElement("img");
+      img.src = app.icon.url;
+      img.style.maxWidth = "100%";
+      img.style.maxHeight = "100%";
+      wrap.appendChild(img);
+      return wrap;
+    }
+  
+    // ICON: auto letter
+    const meta = OL.utils.buildLetterIconMeta(app.name);
+    wrap.style.background = meta.bg;
+    wrap.style.color = meta.fg;
+    wrap.textContent = meta.initials;
+    return wrap;
+  }
+
   function bindIcon(app){
     const el = document.getElementById("modalAppIcon");
-    el.innerHTML = OL.appIconHTML(app);
+    el.innerHTML = "";
+    el.appendChild(buildIconNode(app));
     el.onclick = ()=> OL.openIconPicker(el, app);
   }
 
