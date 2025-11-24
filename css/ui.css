@@ -573,3 +573,37 @@ a{color:inherit;text-decoration:none}
   display: block;
   border-radius: 6px;
 }
+/* ================================
+   FORCE ICON SIZE INSIDE MODAL
+=================================== */
+
+.modal-header .app-icon-box.large {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  overflow: hidden;  /* critical */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* text initials inside modal */
+.modal-header .app-icon-box.large.app-icon.initials {
+  font-size: 20px;
+}
+
+/* images inside modal */
+.modal-header .app-icon-box.large img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 8px;
+  display: block;
+}
+.app-icon-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
