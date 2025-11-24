@@ -33,7 +33,7 @@
   // ============================================================
   //  UTILS
   // ============================================================
-    OL.utils = {
+  OL.utils = {
     uid() {
       return 'id_' + Math.random().toString(36).slice(2, 10);
     },
@@ -57,62 +57,32 @@
       if (p.length === 1) return p[0][0]?.toUpperCase() ?? '?';
       return (p[0][0] + p[1][0]).toUpperCase();
     },
-  
-    // ADD THIS LINE
     buildLetterIconMeta(name) {
       const initials = OL.utils.getInitials(name);
-  
+
       const palette = [
         "#1fd3bd", "#2563eb", "#4f46e5", "#7c3aed",
         "#db2777", "#f97316", "#84cc16", "#22c55e",
         "#06b6d4", "#0ea5e9", "#0284c7"
       ];
-  
+
       let h = 0;
       for (let i = 0; i < initials.length; i++) {
         h = (h << 5) - h + initials.charCodeAt(i);
         h |= 0;
       }
-  
+
       const bg = palette[Math.abs(h) % palette.length];
-  
+
       const r = parseInt(bg.slice(1,3),16);
       const g = parseInt(bg.slice(3,5),16);
       const b = parseInt(bg.slice(5,7),16);
       const lum = 0.2126*r + 0.7152*g + 0.0722*b;
       const fg = lum > 160 ? "#111" : "#fff";
-  
+
       return { initials, bg, fg };
     }
   };
-
-  buildLetterIconMeta(name) {
-    const initials = OL.utils.getInitials(name);
-  
-    const palette = [
-      "#1fd3bd", "#2563eb", "#4f46e5", "#7c3aed",
-      "#db2777", "#f97316", "#84cc16", "#22c55e",
-      "#06b6d4", "#0ea5e9", "#0284c7"
-    ];
-  
-    // create numeric hash
-    let h = 0;
-    for (let i = 0; i < initials.length; i++) {
-      h = (h << 5) - h + initials.charCodeAt(i);
-      h |= 0;
-    }
-  
-    const bg = palette[Math.abs(h) % palette.length];
-  
-    // contrast eval for white or black text
-    const r = parseInt(bg.slice(1,3),16);
-    const g = parseInt(bg.slice(3,5),16);
-    const b = parseInt(bg.slice(5,7),16);
-    const lum = 0.2126*r + 0.7152*g + 0.0722*b;
-    const fg = lum > 160 ? "#111" : "#fff";
-  
-    return { initials, bg, fg };
-  }
 
   const { uid } = OL.utils;
 
