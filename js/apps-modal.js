@@ -63,10 +63,10 @@
     icon.id = "modalAppIcon";
     icon.className = "app-icon-box large clickable";
 
-    const nameInput = document.createElement("input");
+    const nameInput = document.createElement("div");
     nameInput.id = "modalAppName";
-    nameInput.type = "text";
-    nameInput.className = "modal-title-input";
+    nameInput.className = "modal-title-text";
+    nameInput.contentEditable = false;
 
     header.appendChild(icon);
     header.appendChild(nameInput);
@@ -139,6 +139,11 @@
   // BIND DATA
   // ===============================
   function bindModalFields(app) {
+    // normalize data shape
+    app.functions = app.functions || [];
+    app.integrations = app.integrations || [];
+    app.datapointMappings = app.datapointMappings || [];
+    
     bindIcon(app);
     bindName(app);
     bindNotes(app);
@@ -155,13 +160,29 @@
   }
 
   function bindName(app){
-    const input = document.getElementById("modalAppName");
-    input.value = app.name || "";
-    input.oninput = debounce(()=>{
-      app.name = input.value;
+    const el = document.getElementById("modalAppName");
+    el.textContent = app.name || "(unnamed)";
+  
+    el.onclick = () => {
+      el.contentEditable = true;
+      el.classList.add("editing");
+      el.focus();
+    };
+  
+    el.onblur = () => {
+      el.contentEditable = false;
+      el.classList.remove("editing");
+      app.name = el.textContent.trim();
       OL.persist();
       OL.renderApps();
-    },200);
+    };
+  
+    el.onkeydown = (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        el.blur();
+      }
+    };
   }
 
   function bindNotes(app){
