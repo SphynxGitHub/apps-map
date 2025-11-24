@@ -1,259 +1,302 @@
 ;(() => {
-
   if (!window.OL) {
     console.error("integrations.js: OL not loaded");
     return;
   }
 
   const OL = window.OL;
-  const { state, persist, utils } = OL;
+  const { state, utils, persist } = OL;
   const { esc } = utils;
 
-  // =========================================================================
-  // PUBLIC — render into #view
-  // =========================================================================
-  OL.renderIntegrations = function(){
-
-    const wrapper = document.getElementById("view");
-    if (!wrapper) return;
-
-    OL.updateBreadcrumb("Integrations");
-
-    wrapper.innerHTML = `
-      <div class="viewHeader">
-        <h2>Integrations</h2>
-        <div style="flex:1"></div>
-        <div class="viewModeToggle" id="integrationsViewToggle">
-          <button data-mode="flip">Flip</button>
-          <button data-mode="one">One-Direction</button>
-          <button data-mode="both">Bi-Directional</button>
-        </div>
-      </div>
-
-      <div id="integrationsContainer"></div>
-    `;
-
-    initIntegrationsViewToggle();
-    rebuildIntegratedPairs();
-    renderIntegrationsView();
-  };
-
-
-  // =========================================================================
-  // VIEW MODE
-  // =========================================================================
-  function initIntegrationsViewToggle(){
-    const el = document.getElementById("integrationsViewToggle");
-    if (!el) return;
-
-    el.querySelectorAll("button").forEach(btn => {
-      const mode = btn.dataset.mode;
-      btn.onclick = () => {
-        state.integrationsViewMode = mode;
-        persist();
-        renderIntegrationsView();
-      };
-    });
+  // Ensure collection
+  if (!Array.isArray(state.integrationsMatrix)) {
+    state.integrationsMatrix = [];
   }
 
-
-  // =========================================================================
-  // BUILD APP-PAIR RELATIONSHIP INDEX
-  // =========================================================================
-
-  // internal cache example:
-  // state._integrationGraph = {
-  //   "Calendly::Wealthbox": {
-  //        a: calendlyId,
-  //        b: wealthboxId,
-  //        a2b: [{category,type,action}],
-  //        b2a: [{category,type,action}]
-  //   }
-  // }
-  //
-  // NOTE: a2b and b2a each have SEPARATE action lists
-
-  function rebuildIntegratedPairs(){
-
-    const map = {};
-
-    state.apps.forEach(app => {
-
-      (app.integrations || []).forEach(integ => {
-
-        const other = state.apps.find(a => a.id === integ.appId);
-        if (!other) return;
-
-        const idA = app.id;
-        const idB = other.id;
-
-        const pairKey = pair(idA, idB);
-
-        if (!map[pairKey]) {
-          map[pairKey] = {
-            a: idA,
-            b: idB,
-            a2b: [],
-            b2a: []
-          };
-        }
-
-        const type = integ.type || "zapier";
-        const category = integ.category || "general";
-        const actions = integ.actions || [];
-
-        // determine direction
-        if (shouldOrder(idA,idB,app.id)) {
-          map[pairKey].a2b.push({type,category,actions});
-        } else {
-          map[pairKey].b2a.push({type,category,actions});
+  // Seed one sample Calendly <-> Wealthbox relationship if empty
+  if (state.integrationsMatrix.length === 0 && state.apps && state.apps.length) {
+    const calendly = state.apps.find(a => /calendly/i.test(a.name));
+    const wb       = state.apps.find(a => /wealthbox/i.test(a.name));
+    if (calendly && wb) {
+      state.integrationsMatrix.push({
+        id: utils.uid(),
+        aId: calendly.id,
+        bId: wb.id,
+        category: "Scheduling",
+        aToB: {
+          type: "zapier",
+          actions: [
+            "Meeting booked → create contact in CRM",
+            "Meeting booked → create task / workflow"
+          ]
+        },
+        bToA: {
+          type: "direct",
+          actions: [
+            "Update scheduling link from CRM fields"
+          ]
         }
       });
+      persist();
+    }
+  }
+
+  // View modes: flip | one-way | bi
+  state.integrationsViewMode = state.integrationsViewMode || "flip";
+
+  // ============================================================
+  // PUBLIC ENTRY: RENDER TECH COMPARISON ROUTE
+  // ============================================================
+  OL.renderTechComparison = function () {
+    const view = document.getElementById("view");
+    if (!view) return;
+
+    OL.updateBreadcrumb && OL.updateBreadcrumb("/ Apps / Tech Comparison");
+
+    view.innerHTML = `
+      <div class="card">
+        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="row" style="gap:8px;align-items:center;">
+            <h2 style="margin:0;font-size:16px;">Integration Cards</h2>
+            <span class="muted" style="font-size:12px;">App-to-app flows with direction + actions</span>
+          </div>
+          <div class="seg-group">
+            <button class="seg-btn ${state.integrationsViewMode === "flip" ? "active" : ""}" data-int-view="flip">Flip</button>
+            <button class="seg-btn ${state.integrationsViewMode === "one-way" ? "active" : ""}" data-int-view="one-way">One Direction</button>
+            <button class="seg-btn ${state.integrationsViewMode === "bi" ? "active" : ""}" data-int-view="bi">Bi-Directional</button>
+          </div>
+        </div>
+        <div id="integrationsCards" class="grid cols-2"></div>
+      </div>
+    `;
+
+    // Wire toggle
+    view.querySelectorAll("[data-int-view]").forEach(btn => {
+      btn.onclick = () => {
+        state.integrationsViewMode = btn.dataset.intView;
+        persist();
+        OL.renderTechComparison();
+      };
     });
 
-    state._integrationGraph = map;
-  }
+    renderCards();
+  };
 
-  function pair(a,b){
-    return [a,b].sort().join("::");
-  }
+  // ============================================================
+  // CARD RENDERING
+  // ============================================================
+  function renderCards() {
+    const container = document.getElementById("integrationsCards");
+    if (!container) return;
+    container.innerHTML = "";
 
-  function shouldOrder(a,b,source){
-    return a < b ? source===a : source===b;
-  }
-
-
-  // =========================================================================
-  // RENDER VIEW
-  // =========================================================================
-  function renderIntegrationsView(){
-
-    const c = document.getElementById("integrationsContainer");
-    c.innerHTML = "";
-
-    const list = Object.values(state._integrationGraph || {});
-    if (!list.length){
-      c.innerHTML = `<div class="empty">No integrations recorded.</div>`;
+    const rels = state.integrationsMatrix || [];
+    if (!rels.length) {
+      container.innerHTML = `<div class="muted">No integrations mapped yet.</div>`;
       return;
     }
 
-    list.forEach(entry => {
-      c.appendChild(renderIntegrationCard(entry));
+    rels.forEach(rel => {
+      const a = state.apps.find(x => x.id === rel.aId);
+      const b = state.apps.find(x => x.id === rel.bId);
+      if (!a || !b) return;
+
+      const card = document.createElement("div");
+      card.className = "card integration-card";
+
+      if (state.integrationsViewMode === "flip") {
+        card.innerHTML = buildFlipCard(rel, a, b);
+      } else if (state.integrationsViewMode === "one-way") {
+        card.innerHTML = buildOneWayCard(rel, a, b);
+      } else {
+        card.innerHTML = buildBiCard(rel, a, b);
+      }
+
+      // Wire flip control (for flip mode)
+      if (state.integrationsViewMode === "flip") {
+        wireFlip(card, rel);
+      }
+
+      container.appendChild(card);
     });
   }
 
+  // ------------------------------------------------------------
+  // FLIP VIEW: single card, two arrows stacked, top arrow = active dir
+  // ------------------------------------------------------------
+  function buildFlipCard(rel, a, b) {
+    const dir = rel._activeDir || "aToB"; // aToB or bToA
+    const forward = dir === "aToB";
+    const from = forward ? a : b;
+    const to   = forward ? b : a;
+    const data = forward ? rel.aToB : rel.bToA;
 
-  // =========================================================================
-  // CARD RENDER
-  // =========================================================================
-  function renderIntegrationCard(entry){
+    const forwardArrowClass = forward ? "arrow active" : "arrow";
+    const backwardArrowClass = !forward ? "arrow active" : "arrow";
 
-    const a = findApp(entry.a);
-    const b = findApp(entry.b);
+    const typeClass = getTypeClass(data.type);
 
-    const card = document.createElement("div");
-    card.className = "integrationCard";
-
-    const viewMode = state.integrationsViewMode || "flip";
-
-    card.innerHTML = `
-      <div class="pairRow">
-        <div class="pairApp">${OL.appLabelHTML(a)}</div>
-        <div class="pairDir">${renderDirectionControl(entry)}</div>
-        <div class="pairApp">${OL.appLabelHTML(b)}</div>
-      </div>
-
-      <div class="actionsRow">
-        ${renderActions(entry)}
-      </div>
-    `;
-
-    return card;
-  }
-
-
-  function findApp(id){
-    return state.apps.find(a => a.id === id) || {name:"Unknown",id:"?"};
-  }
-
-
-  // =========================================================================
-  // DIRECTION UI
-  // =========================================================================
-  function renderDirectionControl(entry){
-
-    const viewMode = state.integrationsViewMode || "flip";
-
-    if (viewMode === "both"){
-      return `<div class="dirIcon">⇄</div>`;
-    }
-
-    if (viewMode === "one"){
-      // show a2b and b2a as separate sub-cards
-      return `<div class="dirIconGroup">
-        <div class="oneDir">→</div>
-        <div class="oneDir">←</div>
-      </div>`;
-    }
-
-    // otherwise flip view:
-    // top arrow = active
-    // bottom arrow = inactive
     return `
-      <div class="flipDir" data-pair="${entry.a}::${entry.b}">
-        <div class="flipArrow up ${isForward(entry)?"active":""}">→</div>
-        <div class="flipArrow down ${!isForward(entry)?"active":""}">←</div>
+      <div class="row integration-header">
+        <div class="row app-pair">
+          ${OL.appIconHTML(from)}
+          <span class="app-name">${esc(from.name)}</span>
+          <div class="flip-arrows">
+            <span class="${forwardArrowClass}">➜</span>
+            <span class="${backwardArrowClass}">➜</span>
+          </div>
+          <span class="app-name">${esc(to.name)}</span>
+          ${OL.appIconHTML(to)}
+        </div>
+        <span class="pill category-pill" style="background:${categoryColor(rel.category)}">
+          ${esc(rel.category || "Uncategorized")}
+        </span>
+      </div>
+      <div class="integration-body ${typeClass}">
+        <div class="muted" style="font-size:11px;margin-bottom:4px;">
+          ${labelType(data.type)} integration from <strong>${esc(from.name)}</strong> to <strong>${esc(to.name)}</strong>
+        </div>
+        <ul class="integration-actions">
+          ${(data.actions || []).map(a => `<li>${esc(a)}</li>`).join("") || "<li class='muted'>No actions defined yet.</li>"}
+        </ul>
+        <div class="row" style="justify-content:flex-end;">
+          <button class="btn small ghost flip-toggle" data-rel-id="${rel.id}">Flip Direction</button>
+        </div>
       </div>
     `;
   }
 
-  function isForward(entry){
-    // a2b or b2a is being displayed
-    return state._showForward?.[pair(entry.a,entry.b)] ?? true;
+  function wireFlip(card, rel) {
+    const btn = card.querySelector(".flip-toggle");
+    if (!btn) return;
+    btn.onclick = () => {
+      rel._activeDir = rel._activeDir === "bToA" ? "aToB" : "bToA";
+      persist();
+      OL.renderTechComparison();
+    };
   }
 
+  // ------------------------------------------------------------
+  // ONE DIRECTION VIEW: two cards (A→B and B→A separately)
+  // ------------------------------------------------------------
+  function buildOneWayCard(rel, a, b) {
+    // We render combined DOM for both directions, but visually as two “sub-cards”
+    return `
+      <div class="one-way-wrapper">
+        ${buildOneWaySub(rel, a, b, "aToB")}
+        ${buildOneWaySub(rel, b, a, "bToA")}
+      </div>
+    `;
+  }
 
-  // =========================================================================
-  // ACTION SECTION
-  // =========================================================================
-  function renderActions(entry){
+  function buildOneWaySub(rel, from, to, key) {
+    const data = rel[key];
+    if (!data) return "";
+    const typeClass = getTypeClass(data.type);
 
-    const p = pair(entry.a,entry.b);
-    const forward = isForward(entry);
-
-    const items = forward ? entry.a2b : entry.b2a;
-
-    if (!items.length){
-      return `<div class="emptyActions">No actions yet</div>`;
-    }
-
-    return items.map(obj => {
-      return `
-        <div class="actionBlock" style="border-color:${colorFor(obj.type)};">
-          <div class="actionHeader">
-            <span class="actionCat" style="background:${colorForCategory(obj.category)};">
-              ${esc(obj.category)}
-            </span>
-            <span class="actionType">${obj.type}</span>
-          </div>
-          <ul class="actionList">
-            ${obj.actions.map(a=>`<li>${esc(a)}</li>`).join("")}
-          </ul>
+    return `
+      <div class="one-way-card ${typeClass}">
+        <div class="row app-pair">
+          ${OL.appIconHTML(from)}
+          <span class="app-name">${esc(from.name)}</span>
+          <span class="arrow single">➜</span>
+          <span class="app-name">${esc(to.name)}</span>
+          ${OL.appIconHTML(to)}
         </div>
-      `;
-    }).join("");
+        <div class="row" style="justify-content:space-between;align-items:center;margin:6px 0 4px;">
+          <span class="pill category-pill" style="background:${categoryColor(rel.category)}">
+            ${esc(rel.category || "Uncategorized")}
+          </span>
+          <span class="muted" style="font-size:11px;">${labelType(data.type)} integration</span>
+        </div>
+        <ul class="integration-actions">
+          ${(data.actions || []).map(a => `<li>${esc(a)}</li>`).join("") || "<li class='muted'>No actions defined yet.</li>"}
+        </ul>
+      </div>
+    `;
   }
 
-  function colorFor(type){
-    if (type==="direct") return "#18c38a";
-    if (type==="zapier") return "#d5a73b";
-    if (type==="both")   return "#4f6cdf";
-    return "#888";
+  // ------------------------------------------------------------
+  // BI-DIRECTIONAL VIEW: single card, showing both directions with <-> label
+  // ------------------------------------------------------------
+  function buildBiCard(rel, a, b) {
+    const aType = labelType(rel.aToB?.type);
+    const bType = labelType(rel.bToA?.type);
+
+    const biType = combineTypes(rel.aToB?.type, rel.bToA?.type);
+    const typeClass = getTypeClass(biType);
+
+    return `
+      <div class="bi-card ${typeClass}">
+        <div class="row app-pair">
+          ${OL.appIconHTML(a)}
+          <span class="app-name">${esc(a.name)}</span>
+          <span class="arrow bi">⇄</span>
+          <span class="app-name">${esc(b.name)}</span>
+          ${OL.appIconHTML(b)}
+        </div>
+        <div class="row" style="justify-content:space-between;align-items:center;margin:6px 0 4px;">
+          <span class="pill category-pill" style="background:${categoryColor(rel.category)}">
+            ${esc(rel.category || "Uncategorized")}
+          </span>
+          <span class="muted" style="font-size:11px;">
+            ${aType || "—"} from ${esc(a.name)} · ${bType || "—"} from ${esc(b.name)}
+          </span>
+        </div>
+
+        <div class="grid cols-2">
+          <div>
+            <div class="muted" style="font-size:11px;margin-bottom:4px;">
+              ${esc(a.name)} ➜ ${esc(b.name)}
+            </div>
+            <ul class="integration-actions">
+              ${(rel.aToB?.actions || []).map(x => `<li>${esc(x)}</li>`).join("") || "<li class='muted'>No actions.</li>"}
+            </ul>
+          </div>
+          <div>
+            <div class="muted" style="font-size:11px;margin-bottom:4px;">
+              ${esc(b.name)} ➜ ${esc(a.name)}
+            </div>
+            <ul class="integration-actions">
+              ${(rel.bToA?.actions || []).map(x => `<li>${esc(x)}</li>`).join("") || "<li class='muted'>No actions.</li>"}
+            </ul>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
-  function colorForCategory(cat){
-    const c = state.categories?.find(c=>c.name===cat);
-    return c?.color || "#333";
+  // ============================================================
+  // HELPERS
+  // ============================================================
+  function labelType(t) {
+    if (t === "zapier") return "Zapier";
+    if (t === "direct") return "Direct";
+    if (t === "both") return "Direct + Zapier";
+    return "Unknown";
+  }
+
+  function getTypeClass(t) {
+    if (t === "zapier") return "int-zapier";
+    if (t === "direct") return "int-direct";
+    if (t === "both") return "int-both";
+    return "int-unknown";
+  }
+
+  function categoryColor(cat) {
+    if (!cat) return "rgba(148, 163, 184, 0.25)";
+    const key = cat.toLowerCase();
+    if (key.includes("sched")) return "rgba(31, 211, 189, 0.22)";
+    if (key.includes("email")) return "rgba(96, 165, 250, 0.22)";
+    if (key.includes("crm")) return "rgba(244, 114, 182, 0.22)";
+    return "rgba(148, 163, 184, 0.2)";
+  }
+
+  function combineTypes(aType, bType) {
+    const s = new Set([aType, bType].filter(Boolean));
+    if (s.size === 1) return [...s][0];
+    if (s.size === 0) return "unknown";
+    return "both";
   }
 
 })();
