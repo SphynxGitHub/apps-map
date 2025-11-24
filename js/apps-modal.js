@@ -53,6 +53,7 @@
 
     const body = document.createElement("div");
     body.className = "modal-body";
+    body.id = "appModalBody";
 
     // ===== HEADER =====
     const header = document.createElement("div");
