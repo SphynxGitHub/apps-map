@@ -10,23 +10,21 @@
 
   let modalLayer = null;
   function ensureModalLayer() {
-    if (!modalLayer) {
-      modalLayer = document.getElementById("modal-layer");
-    }
+    modalLayer = document.getElementById("modal-layer");
   }
 
-  // ===============================
+  // ============================================================
   // PUBLIC: OPEN EXISTING APP
-  // ===============================
+  // ============================================================
   OL.openAppModal = function(appId){
     const app = OL.state.apps.find(a=>a.id===appId);
     if (!app) return;
     showAppModal(app);
   };
 
-  // ===============================
-  // PUBLIC: CREATE NEW APP
-  // ===============================
+  // ============================================================
+  // PUBLIC: OPEN NEW APP
+  // ============================================================
   OL.openAppModalNew = function(){
     const app = {
       id: uid(),
@@ -42,12 +40,13 @@
     showAppModal(app);
   };
 
-  // ===============================
-  // BUILD MODAL STRUCTURE
-  // ===============================
+  // ============================================================
+  // RENDER MODAL
+  // ============================================================
   function showAppModal(app) {
     ensureModalLayer();
     modalLayer.innerHTML = "";
+    modalLayer.style.display = "flex";
 
     const modal = document.createElement("div");
     modal.className = "modal-window";
@@ -55,7 +54,7 @@
     const body = document.createElement("div");
     body.className = "modal-body";
 
-    // HEADER
+    // ===== HEADER =====
     const header = document.createElement("div");
     header.className = "modal-header";
 
@@ -72,52 +71,27 @@
     header.appendChild(nameInput);
     body.appendChild(header);
 
-    // NOTES
+    // ===== NOTES =====
     body.appendChild(makeLabel("Notes"));
-    const notesInput = document.createElement("textarea");
-    notesInput.id = "modalAppNotes";
-    notesInput.className = "modal-textarea";
-    body.appendChild(notesInput);
+    body.appendChild(makeTextarea("modalAppNotes"));
 
-    // FUNCTIONS
+    // ===== FUNCTIONS =====
     body.appendChild(makeLabel("Functions"));
-    const fnWrap = document.createElement("div");
-    fnWrap.id = "modalAppFunctions";
-    body.appendChild(fnWrap);
+    body.appendChild(makeWrap("modalAppFunctions"));
+    body.appendChild(makeSmallBtn("modalAddFunction", "+ Add Function"));
 
-    const btnFn = document.createElement("button");
-    btnFn.id = "modalAddFunction";
-    btnFn.className = "btn small";
-    btnFn.textContent = "+ Add Function";
-    body.appendChild(btnFn);
-
-    // INTEGRATIONS
+    // ===== INTEGRATIONS =====
     body.appendChild(makeLabel("Integrations"));
-    const intWrap = document.createElement("div");
-    intWrap.id = "modalAppIntegrations";
-    body.appendChild(intWrap);
+    body.appendChild(makeWrap("modalAppIntegrations"));
+    body.appendChild(makeSmallBtn("modalAddIntegration", "+ Add Integration"));
 
-    const btnInt = document.createElement("button");
-    btnInt.id = "modalAddIntegration";
-    btnInt.className = "btn small";
-    btnInt.textContent = "+ Add Integration";
-    body.appendChild(btnInt);
-
-    // DATAPOINTS
+    // ===== DATAPOINTS =====
     body.appendChild(makeLabel("Datapoints"));
-    const dpWrap = document.createElement("div");
-    dpWrap.id = "modalAppDatapoints";
-    body.appendChild(dpWrap);
-
-    const btnDp = document.createElement("button");
-    btnDp.id = "modalAddDatapoint";
-    btnDp.className = "btn small";
-    btnDp.textContent = "+ Add Datapoint";
-    body.appendChild(btnDp);
+    body.appendChild(makeWrap("modalAppDatapoints"));
+    body.appendChild(makeSmallBtn("modalAddDatapoint", "+ Add Datapoint"));
 
     modal.appendChild(body);
     modalLayer.appendChild(modal);
-    modalLayer.style.display = "flex";
 
     modalLayer.onclick = e => { if (e.target === modalLayer) hideModal(); };
 
@@ -131,19 +105,35 @@
     return lbl;
   }
 
+  function makeTextarea(id){
+    const e = document.createElement("textarea");
+    e.id = id;
+    e.className = "modal-textarea";
+    return e;
+  }
+
+  function makeWrap(id){
+    const el = document.createElement("div");
+    el.id = id;
+    return el;
+  }
+
+  function makeSmallBtn(id, text){
+    const btn = document.createElement("button");
+    btn.id = id;
+    btn.className = "btn small";
+    btn.textContent = text;
+    return btn;
+  }
+
   function hideModal(){
     modalLayer.style.display = "none";
   }
 
-  // ===============================
-  // BIND DATA
-  // ===============================
+  // ============================================================
+  // APPLY DATA INTO UI
+  // ============================================================
   function bindModalFields(app) {
-    // normalize data shape
-    app.functions = app.functions || [];
-    app.integrations = app.integrations || [];
-    app.datapointMappings = app.datapointMappings || [];
-    
     bindIcon(app);
     bindName(app);
     bindNotes(app);
@@ -152,23 +142,28 @@
     bindDatapoints(app);
   }
 
+  // ============================================================
   // ICON
+  // ============================================================
   function bindIcon(app){
     const el = document.getElementById("modalAppIcon");
     el.innerHTML = OL.appIconHTML(app);
     el.onclick = ()=> OL.openIconPicker(el, app);
   }
 
+  // ============================================================
+  // NAME
+  // ============================================================
   function bindName(app){
     const el = document.getElementById("modalAppName");
     el.textContent = app.name || "(unnamed)";
-  
+    
     el.onclick = () => {
       el.contentEditable = true;
       el.classList.add("editing");
       el.focus();
     };
-  
+    
     el.onblur = () => {
       el.contentEditable = false;
       el.classList.remove("editing");
@@ -176,7 +171,7 @@
       OL.persist();
       OL.renderApps();
     };
-  
+
     el.onkeydown = (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -185,6 +180,9 @@
     };
   }
 
+  // ============================================================
+  // NOTES
+  // ============================================================
   function bindNotes(app){
     const input = document.getElementById("modalAppNotes");
     input.value = app.notes || "";
@@ -194,7 +192,9 @@
     },200);
   }
 
+  // ============================================================
   // FUNCTIONS
+  // ============================================================
   function bindFunctions(app){
     const wrap = document.getElementById("modalAppFunctions");
     wrap.innerHTML = "";
@@ -248,7 +248,9 @@
     return f ? f.name : "(unknown)";
   }
 
+  // ============================================================
   // INTEGRATIONS
+  // ============================================================
   function bindIntegrations(app){
     const wrap = document.getElementById("modalAppIntegrations");
     wrap.innerHTML = "";
@@ -299,7 +301,9 @@
     return "zapier";
   }
 
+  // ============================================================
   // DATAPOINTS
+  // ============================================================
   function bindDatapoints(app){
     const wrap = document.getElementById("modalAppDatapoints");
     wrap.innerHTML = "";
@@ -308,36 +312,9 @@
       const row = document.createElement("div");
       row.className = "row";
 
-      const master = document.createElement("input");
-      master.type="text";
-      master.value = dp.master || "";
-      master.placeholder="Master";
-      master.oninput=debounce(()=>{
-        dp.master=master.value;
-        OL.persist();
-      },200);
-      
-      const inbound = document.createElement("input");
-      inbound.type="text";
-      inbound.value = dp.inbound || "";
-      inbound.placeholder="Inbound";
-      inbound.oninput=debounce(()=>{
-        dp.inbound=inbound.value;
-        OL.persist();
-      },200);
-
-      const outbound = document.createElement("input");
-      outbound.type="text";
-      outbound.value = dp.outbound || "";
-      outbound.placeholder="Outbound";
-      outbound.oninput=debounce(()=>{
-        dp.outbound=outbound.value;
-        OL.persist();
-      },200);
-
-      row.appendChild(master);
-      row.appendChild(inbound);
-      row.appendChild(outbound);
+      row.appendChild(makeDataField("Master", dp, "master"));
+      row.appendChild(makeDataField("Inbound", dp, "inbound"));
+      row.appendChild(makeDataField("Outbound", dp, "outbound"));
 
       wrap.appendChild(row);
     });
@@ -347,6 +324,18 @@
       OL.persist();
       bindDatapoints(app);
     };
+  }
+
+  function makeDataField(label, dp, field){
+    const inp = document.createElement("input");
+    inp.type="text";
+    inp.placeholder = label;
+    inp.value = dp[field] || "";
+    inp.oninput = debounce(()=>{
+      dp[field]=inp.value;
+      OL.persist();
+    },200);
+    return inp;
   }
 
 })();
