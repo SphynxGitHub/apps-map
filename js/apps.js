@@ -183,7 +183,20 @@
         .filter(x => !!x.assignment);
 
       if (!appsForFn.length) {
-        // empty functions can be skipped or shown as empty – up to you
+        const card = document.createElement("div");
+        card.className = "function-card empty";
+      
+        card.innerHTML = `
+          <div class="function-card-header">
+            <div class="function-icon">${(fn.name || "?").slice(0, 2)}</div>
+            <div class="function-title">${esc(fn.name)}</div>
+          </div>
+          <div class="function-card-empty-msg">
+            <em>No apps currently mapped to this function</em>
+          </div>
+        `;
+      
+        box.appendChild(card);
         return;
       }
 
