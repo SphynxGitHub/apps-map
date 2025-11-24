@@ -411,6 +411,39 @@ APP CARDS
   background: #020617;
   padding: 10px 10px 8px;
 }
+.app-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.app-icon-box {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.app-card-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.app-card-title-block  {
+  font-size: 13px;
+  font-weight: 600;
+}
+.app-card-body {
+  padding: 6px 10px 8px;
+}
+
+/*  app card notes */
 
 /*=========================
 INTEGRATION CARDS
@@ -761,7 +794,8 @@ INTEGRATION CARDS
 
 /*=======================================
 FUNCTION CARDS
-========================================/*
+========================================*/
+
 .functions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
