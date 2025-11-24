@@ -1,5 +1,4 @@
 ;(() => {
-
   if (!window.OL) {
     console.error("icons.js: OL core not loaded");
     return;
@@ -7,61 +6,86 @@
 
   const OL = window.OL;
 
-  OL.appIconHTML = function(app){
+  // ============================================================
+  // APP ICON HTML (for cards / tables)
+  // ============================================================
+  OL.appIconHTML = function(app) {
+    const meta = OL.utils.buildLetterIconMeta(app.name || "");
+
+    // Emoji override
     if (app.icon && app.icon.type === "emoji") {
-      return `<div class="app-icon-box small"><span>${app.icon.value}</span></div>`;
+      return `
+        <div class="app-icon-box small">
+          <span>${app.icon.value}</span>
+        </div>
+      `;
     }
+
+    // Uploaded image override
     if (app.icon && app.icon.type === "img") {
-      return `<div class="app-icon-box small"><img src="${app.icon.url}"></div>`;
+      return `
+        <div class="app-icon-box small">
+          <img src="${app.icon.url}" alt="${OL.utils.esc(app.name || "")}">
+        </div>
+      `;
     }
-    const meta = OL.utils.buildLetterIconMeta(app.name);
-    return `<div class="app-icon-box small" style="background:${meta.bg};color:${meta.fg}">
-      ${meta.initials}
-    </div>`;
+
+    // Default letter icon
+    return `
+      <div class="app-icon-box small" style="background:${meta.bg};color:${meta.fg}">
+        ${meta.initials}
+      </div>
+    `;
   };
 
-  OL.buildIconNode = function(app){
-    const div = document.createElement("div");
-    div.className = "app-icon-box small";
+  // Build a DOM node version (for inside modal)
+  OL.buildIconNode = function(app) {
+    const node = document.createElement("div");
+    node.className = "app-icon-box small";
 
+    // Emoji
     if (app.icon && app.icon.type === "emoji") {
-      div.textContent = app.icon.value;
-      return div;
+      node.textContent = app.icon.value;
+      return node;
     }
 
+    // Image
     if (app.icon && app.icon.type === "img") {
       const img = document.createElement("img");
       img.src = app.icon.url;
-      div.appendChild(img);
-      return div;
+      img.alt = app.name || "";
+      img.style.maxWidth = "100%";
+      img.style.maxHeight = "100%";
+      node.appendChild(img);
+      return node;
     }
 
-    const meta = OL.utils.buildLetterIconMeta(app.name);
-    div.style.background = meta.bg;
-    div.style.color = meta.fg;
-    div.textContent = meta.initials.toUpperCase();
-    return div;
+    // Auto letters
+    const meta = OL.utils.buildLetterIconMeta(app.name || "");
+    node.style.background = meta.bg;
+    node.style.color = meta.fg;
+    node.textContent = meta.initials;
+    return node;
   };
 
-
-  // =============================================================
-  // OPEN PICKER
-  // =============================================================
+  // ============================================================
+  // ICON PICKER UI
+  // ============================================================
   OL.openIconPicker = function(targetEl, app) {
-
     OL.closeIconPicker();
 
     const picker = document.createElement("div");
     picker.className = "icon-picker";
 
+    const modalBody = document.querySelector(".modal-body");
+    if (!modalBody) return;
+
     const iconRect = targetEl.getBoundingClientRect();
+    const bodyRect = modalBody.getBoundingClientRect();
 
-    picker.style.position = "fixed";
-    picker.style.left = iconRect.left + "px";
-    picker.style.top  = iconRect.bottom + 4 + "px";
-
-    window._activeIconPicker = picker;
-    document.getElementById("appModalBody").appendChild(picker);
+    picker.style.position = "absolute";
+    picker.style.left = (iconRect.left - bodyRect.left) + "px";
+    picker.style.top  = (iconRect.bottom - bodyRect.top + 8) + "px";
 
     picker.innerHTML = `
       <div class="picker-section">
@@ -78,8 +102,13 @@
       </div>
 
       <div class="picker-section">
-        <div class="picker-title">Upload</div>
+        <div class="picker-title">Upload Image</div>
         <input type="file" accept="image/*" id="uploadIconInput">
+      </div>
+
+      <div class="picker-section">
+        <div class="picker-title">From URL</div>
+        <button id="iconFromUrl" class="btn small">Set Icon URL</button>
       </div>
 
       <div class="picker-section">
@@ -87,69 +116,76 @@
       </div>
     `;
 
-    // =============================================================
-    // OPTION HANDLERS
-    // =============================================================
-    picker.querySelectorAll(".picker-option.emoji").forEach(el=>{
-      el.onclick = ()=>{
-        app.icon = {type:"emoji",value:el.textContent};
+    modalBody.appendChild(picker);
+    window._activeIconPicker = picker;
+
+    // ===== Handlers =====
+    picker.querySelectorAll(".picker-option.emoji").forEach(el => {
+      el.onclick = () => {
+        app.icon = { type: "emoji", value: el.textContent };
         OL.persist();
-        OL.refreshModal(app);
-        OL.renderApps();
+        OL.refreshModals && OL.refreshModals();
+        OL.renderApps && OL.renderApps();
       };
     });
 
-    picker.querySelector("#autoIconReset").onclick = ()=>{
+    picker.querySelector("#autoIconReset").onclick = () => {
       app.icon = null;
       OL.persist();
-      OL.refreshModal(app);
-      OL.renderApps();
+      OL.refreshModals && OL.refreshModals();
+      OL.renderApps && OL.renderApps();
     };
 
-    picker.querySelector("#uploadIconInput").onchange = async (ev)=>{
+    picker.querySelector("#uploadIconInput").onchange = async (ev) => {
       const file = ev.target.files[0];
       if (!file) return;
       const url = await fileToBase64(file);
-      app.icon = {type:"img",url};
+      app.icon = { type: "img", url };
       OL.persist();
-      OL.refreshModal(app);
-      OL.renderApps();
+      OL.refreshModals && OL.refreshModals();
+      OL.renderApps && OL.renderApps();
     };
 
-    picker.querySelector("#removeIconBtn").onclick = ()=>{
+    picker.querySelector("#iconFromUrl").onclick = () => {
+      const url = window.prompt("Paste image URL for this app icon:");
+      if (!url) return;
+      app.icon = { type: "img", url: url.trim() };
+      OL.persist();
+      OL.refreshModals && OL.refreshModals();
+      OL.renderApps && OL.renderApps();
+    };
+
+    picker.querySelector("#removeIconBtn").onclick = () => {
       app.icon = null;
       OL.persist();
-      OL.refreshModal(app);
-      OL.renderApps();
+      OL.refreshModals && OL.refreshModals();
+      OL.renderApps && OL.renderApps();
     };
 
-    setTimeout(()=>{
-      document.addEventListener("click", closeIfOutside);
-    },50);
+    // Close on outside click
+    setTimeout(() => {
+      document.addEventListener("click", closeIfOutside, { once: true });
+    }, 50);
 
-    function closeIfOutside(e){
-      if (window._activeIconPicker && !window._activeIconPicker.contains(e.target) && e.target !== targetEl){
+    function closeIfOutside(e) {
+      if (!window._activeIconPicker) return;
+      if (!window._activeIconPicker.contains(e.target) && e.target !== targetEl) {
         OL.closeIconPicker();
       }
     }
   };
 
-
-  // =============================================================
-  // CLOSE PICKER
-  // =============================================================
-  OL.closeIconPicker = function(){
-    if (window._activeIconPicker){
+  OL.closeIconPicker = function() {
+    if (window._activeIconPicker) {
       window._activeIconPicker.remove();
       window._activeIconPicker = null;
     }
   };
 
-
-  function fileToBase64(file){
-    return new Promise((resolve)=>{
+  function fileToBase64(file) {
+    return new Promise((resolve) => {
       const reader = new FileReader();
-      reader.onload = ()=> resolve(reader.result);
+      reader.onload = () => resolve(reader.result);
       reader.readAsDataURL(file);
     });
   }
