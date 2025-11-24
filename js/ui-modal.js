@@ -1,107 +1,120 @@
 ;(() => {
 
   if (!window.OL) {
-    console.error("ui-modal.js: OL core not present");
+    console.error("ui-modal.js: OL not detected");
     return;
   }
 
   const OL = window.OL;
 
+  // ============================================================
+  // SINGLETON modal container
+  // ============================================================
   let modalLayer = null;
-  let modalContent = null;
+  let activeCloseHandler = null;
 
-  // =========================================================================
-  // INIT (once)
-  // =========================================================================
-  function ensureModalLayer(){
-    if (!modalLayer){
+  function ensureModalLayer() {
+    if (modalLayer) return modalLayer;
+
+    modalLayer = document.getElementById("modal-layer");
+    if (!modalLayer) {
       modalLayer = document.createElement("div");
       modalLayer.id = "modal-layer";
-      modalLayer.style.position = "fixed";
-      modalLayer.style.inset = "0";
-      modalLayer.style.background = "rgba(0,0,0,.5)";
-      modalLayer.style.display = "none";
-      modalLayer.style.zIndex = "999";
-      modalLayer.style.backdropFilter = "blur(4px)";
-
-      modalLayer.addEventListener("click", (e)=>{
-        if (e.target === modalLayer){
-          hideModal();
-        }
-      });
-
       document.body.appendChild(modalLayer);
     }
+
+    modalLayer.style.position   = "fixed";
+    modalLayer.style.inset      = "0";
+    modalLayer.style.display    = "none";
+    modalLayer.style.zIndex     = "999";
+    modalLayer.style.background = "rgba(0,0,0,.5)";
+    modalLayer.style.backdropFilter = "blur(4px)";
+    modalLayer.classList.add("modalOverlay");
+
+    return modalLayer;
   }
 
-  // =========================================================================
-  // OPEN (with HTML string or HTMLElement)
-  // =========================================================================
-  function showModal(content){
-
+  // ============================================================
+  // PUBLIC — open modal with HTML content
+  // ============================================================
+  OL.openModal = function({ width="620px", contentHTML="", onClose=null }) {
     ensureModalLayer();
     modalLayer.innerHTML = "";
-    modalLayer.style.display = "block";
 
-    modalContent = document.createElement("div");
-    modalContent.className = "modalPanel";
-    modalContent.style.position = "absolute";
-    modalContent.style.top = "50%";
-    modalContent.style.left = "50%";
-    modalContent.style.transform = "translate(-50%, -50%)";
-    modalContent.style.background = "var(--panel)";
-    modalContent.style.border = "1px solid var(--line)";
-    modalContent.style.borderRadius = "12px";
-    modalContent.style.padding = "16px";
-    modalContent.style.maxHeight = "80vh";
-    modalContent.style.overflowY = "auto";
-    modalContent.style.minWidth = "400px";
-    modalContent.style.maxWidth = "680px";
+    activeCloseHandler = onClose;
 
-    if (typeof content === "string"){
-      modalContent.innerHTML = content;
-    } else {
-      modalContent.appendChild(content);
-    }
+    // build modal
+    const modal = document.createElement("div");
+    modal.className = "modalBox";
+    modal.style.position       = "absolute";
+    modal.style.top            = "50%";
+    modal.style.left           = "50%";
+    modal.style.transform      = "translate(-50%, -50%)";
+    modal.style.width          = width;
+    modal.style.maxHeight      = "80vh";
+    modal.style.background     = "var(--panel)";
+    modal.style.border         = "1px solid var(--line)";
+    modal.style.borderRadius   = "14px";
+    modal.style.display        = "flex";
+    modal.style.flexDirection  = "column";
+    modal.style.overflow       = "hidden";
 
-    modalLayer.appendChild(modalContent);
+    // close behavior: click outside
+    modalLayer.onclick = (e) => {
+      if (e.target === modalLayer) closeModal();
+    };
 
-    window.addEventListener("keydown", escListener);
-  }
+    // close behavior: ESC key
+    window.addEventListener("keydown", escClose);
 
-  // =========================================================================
-  // CLOSE
-  // =========================================================================
-  function hideModal(){
+    // build scroll container
+    const body = document.createElement("div");
+    body.className = "modalContent";
+    body.style.padding = "16px";
+    body.style.overflowY = "auto";
+    body.style.flex = "1";
+    body.innerHTML = contentHTML;
+
+    modal.appendChild(body);
+    modalLayer.appendChild(modal);
+    modalLayer.style.display = "flex";
+
+    return modal;
+  };
+
+  // ============================================================
+  // PUBLIC — programmatic content replacement
+  // ============================================================
+  OL.replaceModalContent = function(contentHTML){
     if (!modalLayer) return;
+    const body = modalLayer.querySelector(".modalContent");
+    if (!body) return;
+    body.innerHTML = contentHTML;
+  };
+
+  // ============================================================
+  // PUBLIC — close modal
+  // ============================================================
+  OL.closeModal = function(){
+    closeModal();
+  };
+
+  function closeModal(){
+    if (!modalLayer) return;
+
+    if (typeof activeCloseHandler === "function") {
+      try { activeCloseHandler(); } catch(e) {}
+    }
 
     modalLayer.style.display = "none";
     modalLayer.innerHTML = "";
-    modalContent = null;
+    activeCloseHandler = null;
 
-    window.removeEventListener("keydown", escListener);
+    window.removeEventListener("keydown", escClose);
   }
 
-  function escListener(e){
-    if (e.key === "Escape"){
-      hideModal();
-    }
+  function escClose(e){
+    if (e.key === "Escape") closeModal();
   }
-
-  // =========================================================================
-  // UPDATE EXISTING MODAL CONTENT
-  // =========================================================================
-  function replaceModalContent(html){
-    if (!modalContent) return;
-
-    modalContent.innerHTML = html;
-  }
-
-  // =========================================================================
-  // PUBLIC API
-  // =========================================================================
-  OL.showModal         = showModal;
-  OL.hideModal         = hideModal;
-  OL.replaceModalContent = replaceModalContent;
 
 })();
