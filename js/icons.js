@@ -35,7 +35,7 @@
     picker.style.left = (iconRect.left - modalRect.left) + "px";
     picker.style.top  = (iconRect.bottom - modalRect.top + 4) + "px";
 
-    window._iconPicker = picker;
+    window._activeIconPicker = picker;
     document.getElementById("appModalBody").appendChild(picker);
 
     picker.innerHTML = `
