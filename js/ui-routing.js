@@ -11,12 +11,7 @@
     "#/apps": {
       label: "/Apps",
       id: "view-apps",
-      render: () => {
-        setHTML("view-apps", `
-          <div id="appsContainer"></div>
-        `);
-        OL.renderApps();
-      }
+      render: () => OL.renderApps()
     },
 
     "#/resources/zaps": {
