@@ -1,145 +1,183 @@
 ;(() => {
 
   if (!window.OL) {
-    console.error("functions.js: OL core missing");
+    console.error("functions.js: OL not loaded");
     return;
   }
 
   const OL = window.OL;
+  const { state, persist, utils } = OL;
+  const { esc } = utils;
 
-  // ============================================================
-  // RENDER FUNCTIONS PANEL (not modal)
-  // ============================================================
-  OL.renderFunctions = function(){
-    const root = document.getElementById("view");
-    if (!root) return;
+  // =====================================================================
+  // PUBLIC — render functions into #view
+  // =====================================================================
+  OL.renderFunctions = function() {
 
-    const appList = OL.state.apps;
-    const fnList = OL.state.functions;
+    const wrapper = document.getElementById("view");
+    if (!wrapper) return;
 
-    const filterAppId = OL.state.functionsFilterAppId;
+    OL.updateBreadcrumb("Functions");
 
-    root.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-size:20px;font-weight:600;">Functions</div>
-        <div>
-          <button id="toggleFunctionsView" class="btn small">${OL.state.functionsViewMode==="details" ? "Icons" : "Details"}</button>
+    wrapper.innerHTML = `
+      <div class="viewHeader">
+        <h2>Functions</h2>
+        <div style="flex:1"></div>
+        <div class="viewModeToggle" id="functionsViewToggle">
+          <button data-mode="details">Details</button>
+          <button data-mode="icons">Icons</button>
         </div>
       </div>
-      <br>
 
-      <div>
-        <label style="font-weight:600;">Filter by App:</label>
-        <select id="filterFunctionsApp">
-          <option value="">— All Apps —</option>
-          ${appList.map(a=>`
-            <option value="${a.id}" ${a.id===filterAppId?"selected":""}>${OL.utils.esc(a.name)}</option>
-          `).join("")}
+      <div class="functionFilterRow">
+        <label>Filter by App:</label>
+        <select id="functionsFilterSelect">
+          <option value="">All apps…</option>
+          ${state.apps.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join("")}
         </select>
       </div>
 
-      <br>
-      <div id="functionsList"></div>
+      <div id="functionsContainer"></div>
     `;
 
-    document.getElementById("filterFunctionsApp").onchange = (e)=>{
-      OL.state.functionsFilterAppId = e.target.value;
-      OL.persist();
-      OL.renderFunctions();
-    };
-
-    document.getElementById("toggleFunctionsView").onclick = ()=>{
-      OL.state.functionsViewMode = OL.state.functionsViewMode==="details" ? "icons" : "details";
-      OL.persist();
-      OL.renderFunctions();
-    };
-
-    renderList();
+    initFunctionViewToggle();
+    initFunctionFilter();
+    renderFunctionsList();
   };
 
-  // ============================================================
-  // RENDER LIST OF FUNCTIONS
-  // ============================================================
-  function renderList(){
 
-    const wrap = document.getElementById("functionsList");
-    wrap.innerHTML = "";
+  // =====================================================================
+  // VIEW MODE TOGGLE
+  // =====================================================================
+  function initFunctionViewToggle(){
+    const el = document.getElementById("functionsViewToggle");
+    if (!el) return;
 
-    const filterAppId = OL.state.functionsFilterAppId;
-    const mode = OL.state.functionsViewMode;
-
-    // build assigned mapping
-    // appId → list of function IDs
-    const assigned = {};
-    for (const app of OL.state.apps){
-      for(const fn of (app.functions||[])){
-        if (!assigned[fn.id]) assigned[fn.id]=[];
-        assigned[fn.id].push(app.id);
-      }
-    }
-
-    OL.state.functions.forEach(fn=>{
-      // Skip functions not relevant to selected app filter
-      if (filterAppId){
-        const usedBy = assigned[fn.id]||[];
-        if (!usedBy.includes(filterAppId)) return;
-      }
-
-      if (mode==="icons"){
-        renderFunctionIcon(fn, assigned[fn.id]||[], wrap);
-      } else {
-        renderFunctionDetails(fn, assigned[fn.id]||[], wrap);
-      }
+    el.querySelectorAll("button").forEach(btn => {
+      const mode = btn.dataset.mode;
+      btn.onclick = () => {
+        state.functionsViewMode = mode;
+        persist();
+        renderFunctionsList();
+      };
     });
   }
 
-  // ============================================================
-  // RENDER: ICON MODE
-  // ============================================================
-  function renderFunctionIcon(fn, usedBy, wrap){
-    const div = document.createElement("div");
-    div.className="function-icon-card";
+  // =====================================================================
+  // APP FILTER
+  // =====================================================================
+  function initFunctionFilter(){
+    const sel = document.getElementById("functionsFilterSelect");
+    if (!sel) return;
 
-    div.innerHTML = `
-      <div style="font-weight:600;">${OL.utils.esc(fn.name)}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px;">
-        Used by: ${usedBy.length}
-      </div>
-    `;
+    sel.value = state.functionsFilterAppId || "";
 
-    div.onclick = ()=>{
-      console.log("future: open function inspector");
+    sel.onchange = () => {
+      state.functionsFilterAppId = sel.value;
+      persist();
+      renderFunctionsList();
     };
-
-    wrap.appendChild(div);
   }
 
-  // ============================================================
-  // RENDER: DETAILS MODE
-  // ============================================================
-  function renderFunctionDetails(fn, usedBy, wrap){
-    const div = document.createElement("div");
-    div.className="function-card";
+  // =====================================================================
+  // RENDER LIST OF FUNCTIONS
+  // =====================================================================
+  function renderFunctionsList(){
+    const container = document.getElementById("functionsContainer");
+    if (!container) return;
 
-    div.innerHTML = `
-      <div style="font-weight:600;font-size:15px;margin-bottom:4px;">
-        ${OL.utils.esc(fn.name)}
-      </div>
+    container.innerHTML = "";
 
-      <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">
-        Used by:
-        ${usedBy.map(id=>{
-          const a = OL.state.apps.find(x=>x.id===id);
-          return `<span class="pill small">${OL.utils.esc(a? a.name : "?")}</span>`;
-        }).join(" ")}
-      </div>
-    `;
+    const list = getFilteredFunctions();
 
-    div.onclick = ()=>{
-      console.log("future: open function inspector");
-    };
+    if (!list.length) {
+      container.innerHTML = `<div class="empty">No matching functions.</div>`;
+      return;
+    }
 
-    wrap.appendChild(div);
+    if (state.functionsViewMode === "icons"){
+      container.className = "functionsGrid";
+      renderFunctionsIconView(list, container);
+    } else {
+      container.className = "";
+      renderFunctionsDetailView(list, container);
+    }
+  }
+
+  function getFilteredFunctions(){
+
+    const filtered = [...state.functions];
+
+    if (!state.functionsFilterAppId){
+      return filtered;
+    }
+
+    // Filter by apps referencing this function
+    return filtered.filter(fn => {
+      return state.apps.some(app =>
+        (app.functions || []).some(f => f.id === fn.id)
+        && app.id === state.functionsFilterAppId
+      );
+    });
+  }
+
+  // =====================================================================
+  // DETAILS LIST
+  // =====================================================================
+  function renderFunctionsDetailView(list, container){
+    list.forEach(fn => {
+
+      const row = document.createElement("div");
+      row.className = "fnRow";
+
+      row.innerHTML = `
+        <div class="fnName">${esc(fn.name)}</div>
+        <div class="fnLinked">${renderLinkedApps(fn.id)}</div>
+      `;
+
+      container.appendChild(row);
+    });
+  }
+
+  // =====================================================================
+  // ICON GRID
+  // =====================================================================
+  function renderFunctionsIconView(list, container){
+    list.forEach(fn => {
+
+      const cell = document.createElement("div");
+      cell.className = "fnIconCard";
+
+      cell.innerHTML = `
+        <div class="fnIcon">${fn.name.substring(0,3).toUpperCase()}</div>
+        <div class="fnName">${esc(fn.name)}</div>
+        <div class="fnLinked">${renderLinkedApps(fn.id)}</div>
+      `;
+
+      container.appendChild(cell);
+    });
+  }
+
+  // =====================================================================
+  // FUNCTION — APP RELATION RENDER
+  // =====================================================================
+  function renderLinkedApps(fnId){
+
+    const appsForFunction = state.apps.filter(a =>
+      (a.functions || []).some(f => f.id === fnId)
+    );
+
+    if (!appsForFunction.length) {
+      return `<span class="none">No apps assigned</span>`;
+    }
+
+    return appsForFunction.map(a => {
+      return `
+        <span class="appMini">
+          ${OL.appLabelHTML(a)}
+        </span>
+      `;
+    }).join("");
   }
 
 })();
