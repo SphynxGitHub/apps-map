@@ -7,14 +7,16 @@
 
   const OL = window.OL;
 
-  // ============================================================
-  // VIEW MAP – matches route → element ID + render function
-  // ============================================================
   const views = {
     "#/apps": {
       label: "/Apps",
       id: "view-apps",
-      render: () => OL.renderApps && OL.renderApps()
+      render: () => {
+        setHTML("view-apps", `
+          <div id="appsContainer"></div>
+        `);
+        OL.renderApps();
+      }
     },
 
     "#/resources/zaps": {
@@ -78,9 +80,6 @@
     }
   };
 
-  // ============================================================
-  // HANDLE ROUTES
-  // ============================================================
   function handleRoute() {
     let hash = location.hash || "#/apps";
     let view = views[hash];
@@ -92,16 +91,10 @@
       location.hash = hash;
     }
 
-    // Update breadcrumb
     OL.updateBreadcrumb(view.label);
-
-    // Update active navigation state
     setActiveNav(hash);
-
-    // Swap visible views
     showView(view.id);
 
-    // Render into the specific view container
     try {
       view.render();
     } catch (err) {
@@ -109,10 +102,6 @@
       setHTML(view.id, `<div style="color:#ff5d5d;">Error rendering ${hash}</div>`);
     }
   }
-
-  // ============================================================
-  // HELPERS
-  // ============================================================
 
   function setHTML(id, html) {
     const el = document.getElementById(id);
@@ -132,9 +121,6 @@
     });
   }
 
-  // ============================================================
-  // EVENT LISTENERS
-  // ============================================================
   window.addEventListener("hashchange", handleRoute);
   window.addEventListener("DOMContentLoaded", handleRoute);
 
