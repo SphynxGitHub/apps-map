@@ -1,200 +1,145 @@
 ;(() => {
 
-  const core = window.OL;
-  const { state, persist } = core;
-  const esc = core.utils.esc;
-  const { appIconHTML } = core.icons;
-
-  // -------------------------------------------------
-  // Integration type cycle + colors
-  // -------------------------------------------------
-  const TYPE_ORDER = ["zapier", "direct", "both"];
-
-  const TYPE_BORDER_COLORS = {
-    zapier: "#ff77d4", // pink
-    direct: "#16e5ff", // cyan
-    both:   "#a675ff"  // purple
-  };
-
-  function nextType(current) {
-    const idx = TYPE_ORDER.indexOf(current || "zapier");
-    const nextIdx = (idx + 1) % TYPE_ORDER.length;
-    return TYPE_ORDER[nextIdx];
+  if (!window.OL) {
+    console.error("functions.js: OL core missing");
+    return;
   }
 
-  function ensureIntegrationsArray(app) {
-    if (!Array.isArray(app.integrations)) app.integrations = [];
-    return app.integrations;
-  }
+  const OL = window.OL;
 
-  // -------------------------------------------------
-  // RENDER: Integrations section inside App modal
-  // -------------------------------------------------
-  function renderIntegrationsInsideModal(app) {
-    const integrations = ensureIntegrationsArray(app);
-    const allApps = state.apps || [];
+  // ============================================================
+  // RENDER FUNCTIONS PANEL (not modal)
+  // ============================================================
+  OL.renderFunctions = function(){
+    const root = document.getElementById("view");
+    if (!root) return;
 
-    // Build pills for each existing integration
-    const pills = integrations
-      .map(int => {
-        const other = allApps.find(a => a.id === int.targetAppId);
-        if (!other) return "";
-        const type = int.type || "zapier";
-        const border = TYPE_BORDER_COLORS[type] || "#4b5563";
+    const appList = OL.state.apps;
+    const fnList = OL.state.functions;
 
-        return `
-          <span class="int-pill"
-                data-int="${other.id}"
-                data-type="${type}"
-                style="border-color:${border}">
-            ${appIconHTML(other)}
-            <span class="int-pill-name">${esc(other.name || "")}</span>
-            <span class="int-pill-remove" data-remove="${other.id}">×</span>
-          </span>
-        `;
-      })
-      .join("");
+    const filterAppId = OL.state.functionsFilterAppId;
 
-    return `
-      <div class="int-pill-wrap">
-        ${pills || `<span class="muted" style="font-size:12px;">No integrations yet.</span>`}
-      </div>
-      <div style="margin-top:8px;">
-        <button class="btn small" id="addIntegrationBtn">+ Add Integration</button>
-      </div>
-    `;
-  }
-
-  // -------------------------------------------------
-  // EVENTS: Integrations inside App modal
-  // -------------------------------------------------
-  function attachIntegrationModalHandlers(app) {
-    const integrations = ensureIntegrationsArray(app);
-
-    // Click pill body → cycle type
-    document.querySelectorAll(".int-pill").forEach(pill => {
-      pill.addEventListener("click", e => {
-        // ignore clicks on the remove icon
-        if (e.target.closest(".int-pill-remove")) return;
-
-        const targetId = pill.getAttribute("data-int");
-        const rec = integrations.find(x => x.targetAppId === targetId);
-        if (!rec) return;
-
-        rec.type = nextType(rec.type || "zapier");
-        persist();
-        core.replaceAppModalContent(app);
-      });
-    });
-
-    // Remove pill
-    document.querySelectorAll(".int-pill-remove").forEach(el => {
-      el.addEventListener("click", e => {
-        e.stopPropagation();
-        const targetId = el.getAttribute("data-remove");
-        const idx = integrations.findIndex(x => x.targetAppId === targetId);
-        if (idx >= 0) {
-          integrations.splice(idx, 1);
-          persist();
-          core.replaceAppModalContent(app);
-        }
-      });
-    });
-
-    // Add new integration
-    const addBtn = document.getElementById("addIntegrationBtn");
-    if (addBtn) {
-      addBtn.onclick = () => showIntegrationPicker(app);
-    }
-  }
-
-  // -------------------------------------------------
-  // PICKER: Add Integration (dropdown / small modal)
-  // -------------------------------------------------
-  function showIntegrationPicker(app) {
-    const allApps = (state.apps || []).filter(a => a.id !== app.id);
-    const integrations = ensureIntegrationsArray(app);
-
-    core.showModal(`
-      <div class="int-picker">
-        <h3 style="margin:0 0 6px;">Add Integration</h3>
-        <input type="text"
-               id="intSearchInput"
-               placeholder="Search apps to integrate with..."
-               class="int-search-input"/>
-
-        <div id="intPickerResults" class="int-picker-list"></div>
-
-        <div class="row" style="margin-top:10px;">
-          <button class="btn small ghost" id="cancelIntPick">Cancel</button>
+    root.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:20px;font-weight:600;">Functions</div>
+        <div>
+          <button id="toggleFunctionsView" class="btn small">${OL.state.functionsViewMode==="details" ? "Icons" : "Details"}</button>
         </div>
       </div>
-    `);
+      <br>
 
-    function renderResults() {
-      const listEl = document.getElementById("intPickerResults");
-      const q = (document.getElementById("intSearchInput").value || "").toLowerCase();
+      <div>
+        <label style="font-weight:600;">Filter by App:</label>
+        <select id="filterFunctionsApp">
+          <option value="">— All Apps —</option>
+          ${appList.map(a=>`
+            <option value="${a.id}" ${a.id===filterAppId?"selected":""}>${OL.utils.esc(a.name)}</option>
+          `).join("")}
+        </select>
+      </div>
 
-      const alreadyIds = new Set(integrations.map(i => i.targetAppId));
+      <br>
+      <div id="functionsList"></div>
+    `;
 
-      const matches = allApps.filter(a => {
-        if (alreadyIds.has(a.id)) return false;
-        if (!q) return true;
-        return (a.name || "").toLowerCase().includes(q);
-      });
+    document.getElementById("filterFunctionsApp").onchange = (e)=>{
+      OL.state.functionsFilterAppId = e.target.value;
+      OL.persist();
+      OL.renderFunctions();
+    };
 
-      if (!matches.length) {
-        listEl.innerHTML = `<div class="muted" style="font-size:12px;">No matching apps.</div>`;
-        return;
+    document.getElementById("toggleFunctionsView").onclick = ()=>{
+      OL.state.functionsViewMode = OL.state.functionsViewMode==="details" ? "icons" : "details";
+      OL.persist();
+      OL.renderFunctions();
+    };
+
+    renderList();
+  };
+
+  // ============================================================
+  // RENDER LIST OF FUNCTIONS
+  // ============================================================
+  function renderList(){
+
+    const wrap = document.getElementById("functionsList");
+    wrap.innerHTML = "";
+
+    const filterAppId = OL.state.functionsFilterAppId;
+    const mode = OL.state.functionsViewMode;
+
+    // build assigned mapping
+    // appId → list of function IDs
+    const assigned = {};
+    for (const app of OL.state.apps){
+      for(const fn of (app.functions||[])){
+        if (!assigned[fn.id]) assigned[fn.id]=[];
+        assigned[fn.id].push(app.id);
+      }
+    }
+
+    OL.state.functions.forEach(fn=>{
+      // Skip functions not relevant to selected app filter
+      if (filterAppId){
+        const usedBy = assigned[fn.id]||[];
+        if (!usedBy.includes(filterAppId)) return;
       }
 
-      listEl.innerHTML = matches
-        .map(a => `
-          <div class="int-option" data-app="${a.id}">
-            ${appIconHTML(a)}
-            <span class="int-option-name">${esc(a.name || "")}</span>
-          </div>
-        `)
-        .join("");
-
-      // click to select integration
-      listEl.querySelectorAll(".int-option").forEach(opt => {
-        opt.onclick = () => {
-          const targetId = opt.getAttribute("data-app");
-          if (!targetId) return;
-
-          // default new integration → zapier
-          integrations.push({
-            targetAppId: targetId,
-            type: "zapier"
-          });
-
-          persist();
-          core.hideModal();
-          core.replaceAppModalContent(app);
-        };
-      });
-    }
-
-    const searchInput = document.getElementById("intSearchInput");
-    const cancelBtn   = document.getElementById("cancelIntPick");
-
-    if (searchInput) {
-      searchInput.oninput = renderResults;
-      searchInput.focus();
-    }
-    if (cancelBtn) {
-      cancelBtn.onclick = () => core.hideModal();
-    }
-
-    renderResults();
+      if (mode==="icons"){
+        renderFunctionIcon(fn, assigned[fn.id]||[], wrap);
+      } else {
+        renderFunctionDetails(fn, assigned[fn.id]||[], wrap);
+      }
+    });
   }
 
-  // -------------------------------------------------
-  // PUBLIC API
-  // -------------------------------------------------
-  core.renderIntegrationsInsideModal = renderIntegrationsInsideModal;
-  core.attachIntegrationModalHandlers = attachIntegrationModalHandlers;
-  core.showIntegrationPicker = showIntegrationPicker;
+  // ============================================================
+  // RENDER: ICON MODE
+  // ============================================================
+  function renderFunctionIcon(fn, usedBy, wrap){
+    const div = document.createElement("div");
+    div.className="function-icon-card";
+
+    div.innerHTML = `
+      <div style="font-weight:600;">${OL.utils.esc(fn.name)}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;">
+        Used by: ${usedBy.length}
+      </div>
+    `;
+
+    div.onclick = ()=>{
+      console.log("future: open function inspector");
+    };
+
+    wrap.appendChild(div);
+  }
+
+  // ============================================================
+  // RENDER: DETAILS MODE
+  // ============================================================
+  function renderFunctionDetails(fn, usedBy, wrap){
+    const div = document.createElement("div");
+    div.className="function-card";
+
+    div.innerHTML = `
+      <div style="font-weight:600;font-size:15px;margin-bottom:4px;">
+        ${OL.utils.esc(fn.name)}
+      </div>
+
+      <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">
+        Used by:
+        ${usedBy.map(id=>{
+          const a = OL.state.apps.find(x=>x.id===id);
+          return `<span class="pill small">${OL.utils.esc(a? a.name : "?")}</span>`;
+        }).join(" ")}
+      </div>
+    `;
+
+    div.onclick = ()=>{
+      console.log("future: open function inspector");
+    };
+
+    wrap.appendChild(div);
+  }
 
 })();
