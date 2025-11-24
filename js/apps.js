@@ -121,11 +121,9 @@
     const mode = state.appsViewMode || "details";
     container.innerHTML = "";
   
-    //
     // =============================
-    // GRID (ICON) MODE
+    // ICON GRID (works now)
     // =============================
-    //
     if (mode === "grid") {
       const grid = document.createElement("div");
       grid.className = "apps-grid";
@@ -149,6 +147,37 @@
       container.appendChild(grid);
       return;
     }
+  
+    // =============================
+    // DETAILS MODE (works now)
+    // =============================
+    const list = document.createElement("div");
+    list.className = "apps-list";
+  
+    appsSorted.forEach(app => {
+      const card = document.createElement("div");
+      card.className = "app-card";
+      card.dataset.id = app.id;
+  
+      card.innerHTML = `
+        <div class="app-card-header">
+          <div class="app-icon-box small">${OL.appIconHTML(app)}</div>
+          <div class="app-card-title-block">
+            <div class="app-card-title">${esc(app.name)}</div>
+          </div>
+        </div>
+  
+        <div class="app-card-body">
+          <div class="app-card-notes">${esc(app.notes || "")}</div>
+        </div>
+      `;
+  
+      card.onclick = () => OL.openAppModal(app.id);
+      list.appendChild(card);
+    });
+  
+    container.appendChild(list);
+  }
 
   //
   // =============================
