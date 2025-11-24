@@ -28,7 +28,7 @@
   // PUBLIC ENTRY
   // ============================================================
   OL.renderApps = function renderApps() {
-    const container = document.getElementById("appsContainer");
+    const container = document.getElementById("view-apps");
     if (!container) return;
 
     const appsSorted = [...state.apps].sort(byNameWithZapierFirst);
@@ -165,7 +165,7 @@
   // FUNCTIONS CARDS
   // ============================================================
   function renderFunctionCards() {
-    const box = document.getElementById("functionsCards");
+    const box = document.getElementById("view-functions");
     if (!box) return;
     box.innerHTML = "";
 
