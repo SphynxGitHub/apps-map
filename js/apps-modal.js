@@ -1,4 +1,5 @@
 ;(() => {
+
   if (!window.OL) {
     console.error("apps-modal.js: OL core missing");
     return;
@@ -8,8 +9,6 @@
   const { uid, esc, debounce } = OL.utils;
 
   let modalLayer = null;
-  let currentApp = null;
-
   function ensureModalLayer() {
     modalLayer = document.getElementById("modal-layer");
   }
@@ -17,7 +16,7 @@
   // ============================================================
   // PUBLIC: OPEN EXISTING APP
   // ============================================================
-  OL.openAppModal = function (appId) {
+  OL.openAppModal = function(appId) {
     const app = OL.state.apps.find(a => a.id === appId);
     if (!app) return;
     showAppModal(app);
@@ -26,7 +25,7 @@
   // ============================================================
   // PUBLIC: OPEN NEW APP
   // ============================================================
-  OL.openAppModalNew = function () {
+  OL.openAppModalNew = function() {
     const app = {
       id: uid(),
       name: "",
@@ -46,8 +45,6 @@
   // ============================================================
   function showAppModal(app) {
     ensureModalLayer();
-    currentApp = app;
-
     modalLayer.innerHTML = "";
     modalLayer.style.display = "flex";
 
@@ -77,7 +74,8 @@
 
     // ===== NOTES =====
     body.appendChild(makeLabel("Notes"));
-    body.appendChild(makeTextarea("modalAppNotes"));
+    body.appendChild(makeDisplayBlock("modalAppNotesDisplay"));
+    body.appendChild(makeSmallLink("modalAppNotesEdit", "Edit notes"));
 
     // ===== FUNCTIONS =====
     body.appendChild(makeLabel("Functions"));
@@ -97,9 +95,7 @@
     modal.appendChild(body);
     modalLayer.appendChild(modal);
 
-    modalLayer.onclick = (e) => {
-      if (e.target === modalLayer) hideModal();
-    };
+    modalLayer.onclick = e => { if (e.target === modalLayer) hideModal(); };
 
     bindModalFields(app);
   }
@@ -111,16 +107,10 @@
     return lbl;
   }
 
-  function makeTextarea(id) {
-    const e = document.createElement("textarea");
-    e.id = id;
-    e.className = "modal-textarea";
-    return e;
-  }
-
   function makeWrap(id) {
     const el = document.createElement("div");
     el.id = id;
+    el.className = "modal-section-wrap";
     return el;
   }
 
@@ -132,11 +122,26 @@
     return btn;
   }
 
+  function makeSmallLink(id, text) {
+    const a = document.createElement("button");
+    a.id = id;
+    a.type = "button";
+    a.className = "text-link small";
+    a.textContent = text;
+    return a;
+  }
+
+  function makeDisplayBlock(id) {
+    const div = document.createElement("div");
+    div.id = id;
+    div.className = "modal-notes-display";
+    return div;
+  }
+
   function hideModal() {
+    if (!modalLayer) return;
     modalLayer.style.display = "none";
     modalLayer.innerHTML = "";
-    currentApp = null;
-    OL.closeIconPicker && OL.closeIconPicker();
   }
 
   // ============================================================
@@ -158,13 +163,48 @@
   // ============================================================
   // ICON
   // ============================================================
+  function buildIconNode(app) {
+    const wrap = document.createElement("div");
+    wrap.className = "app-icon-inner";
+
+    // explicit emoji
+    if (app.icon?.type === "emoji") {
+      wrap.textContent = app.icon.value;
+      return wrap;
+    }
+
+    // explicit image
+    if (app.icon?.type === "img") {
+      const img = document.createElement("img");
+      img.src = app.icon.url;
+      img.alt = "";
+      wrap.appendChild(img);
+      return wrap;
+    }
+
+    // auto letter
+    const meta = OL.utils.buildLetterIconMeta(app.name);
+    wrap.style.background = meta.bg;
+    wrap.style.color = meta.fg;
+    wrap.textContent = meta.initials;
+    return wrap;
+  }
+
   function bindIcon(app) {
     const el = document.getElementById("modalAppIcon");
-    if (!el) return;
     el.innerHTML = "";
-    el.appendChild(OL.buildIconNode(app));
-    el.onclick = (ev) => {
-      ev.stopPropagation();
+    el.appendChild(buildIconNode(app));
+
+    // expose a helper so icons.js can refresh just the icon
+    OL.refreshCurrentAppModalIcon = function() {
+      const n = document.getElementById("modalAppIcon");
+      if (!n) return;
+      n.innerHTML = "";
+      n.appendChild(buildIconNode(app));
+    };
+
+    el.onclick = (evt) => {
+      evt.stopPropagation();
       OL.openIconPicker(el, app);
     };
   }
@@ -174,15 +214,13 @@
   // ============================================================
   function bindName(app) {
     const el = document.getElementById("modalAppName");
-    if (!el) return;
-
     el.textContent = app.name || "(unnamed)";
 
     el.onclick = () => {
       el.contentEditable = true;
       el.classList.add("editing");
       el.focus();
-      // move cursor to end
+      // place caret at end
       const range = document.createRange();
       range.selectNodeContents(el);
       range.collapse(false);
@@ -196,7 +234,7 @@
       el.classList.remove("editing");
       app.name = el.textContent.trim();
       OL.persist();
-      OL.renderApps && OL.renderApps();
+      OL.renderApps?.();
     };
 
     el.onkeydown = (e) => {
@@ -208,17 +246,42 @@
   }
 
   // ============================================================
-  // NOTES
+  // NOTES (click-to-edit via inline textarea)
   // ============================================================
   function bindNotes(app) {
-    const input = document.getElementById("modalAppNotes");
-    if (!input) return;
+    const display = document.getElementById("modalAppNotesDisplay");
+    const editBtn  = document.getElementById("modalAppNotesEdit");
 
-    input.value = app.notes || "";
-    input.oninput = debounce(() => {
-      app.notes = input.value;
-      OL.persist();
-    }, 200);
+    function renderDisplay() {
+      display.textContent = (app.notes || "").trim() || "Click Edit to add notes…";
+      display.classList.toggle("muted", !app.notes);
+    }
+
+    renderDisplay();
+
+    editBtn.onclick = () => {
+      // swap display for textarea temporarily
+      const parent = display.parentElement;
+      const textarea = document.createElement("textarea");
+      textarea.className = "modal-textarea";
+      textarea.value = app.notes || "";
+      parent.insertBefore(textarea, display);
+      display.style.display = "none";
+      editBtn.textContent = "Save notes";
+
+      textarea.focus();
+
+      editBtn.onclick = () => {
+        app.notes = textarea.value;
+        OL.persist();
+        parent.removeChild(textarea);
+        display.style.display = "";
+        editBtn.textContent = "Edit notes";
+        renderDisplay();
+        // restore click handler
+        bindNotes(app);
+      };
+    };
   }
 
   // ============================================================
@@ -226,13 +289,16 @@
   // ============================================================
   function bindFunctions(app) {
     const wrap = document.getElementById("modalAppFunctions");
-    if (!wrap) return;
     wrap.innerHTML = "";
 
     app.functions.forEach(fn => {
       const pill = document.createElement("span");
       pill.className = "pill fn";
-      pill.textContent = findFunctionName(fn.id);
+
+      const fnMeta = OL.state.functions.find(f => f.id === fn.id);
+      pill.textContent = fnMeta ? fnMeta.name : "(unknown)";
+
+      pill.dataset.status = fn.status || "available";
 
       pill.onclick = () => {
         fn.status = nextFnState(fn.status);
@@ -251,12 +317,11 @@
     });
 
     const addBtn = document.getElementById("modalAddFunction");
-    if (!addBtn) return;
-
     addBtn.onclick = () => {
       const sel = document.createElement("select");
+      sel.className = "pill-select";
       sel.innerHTML =
-        `<option value="">Select…</option>` +
+        `<option value="">Select function…</option>` +
         OL.state.functions
           .filter(f => !app.functions.find(a => a.id === f.id))
           .map(f => `<option value="${f.id}">${esc(f.name)}</option>`)
@@ -264,12 +329,22 @@
 
       sel.onchange = () => {
         if (!sel.value) return;
-        app.functions.push({ id: sel.value, status: "available" });
+
+        // first app added to function = primary, later ones = available
+        const existingAssignments = OL.state.apps
+          .flatMap(a => (a.functions || []).map(f => ({ appId: a.id, fnId: f.id })))
+          .filter(x => x.fnId === sel.value);
+
+        const status = existingAssignments.length === 0 ? "primary" : "available";
+
+        app.functions.push({ id: sel.value, status });
         OL.persist();
         bindFunctions(app);
+        OL.renderApps?.();
       };
 
       wrap.appendChild(sel);
+      sel.focus();
     };
   }
 
@@ -279,17 +354,11 @@
     return "primary";
   }
 
-  function findFunctionName(id) {
-    const f = OL.state.functions.find(x => x.id === id);
-    return f ? f.name : "(unknown)";
-  }
-
   // ============================================================
-  // INTEGRATIONS (per app)
+  // INTEGRATIONS
   // ============================================================
   function bindIntegrations(app) {
     const wrap = document.getElementById("modalAppIntegrations");
-    if (!wrap) return;
     wrap.innerHTML = "";
 
     app.integrations.forEach(int => {
@@ -298,17 +367,13 @@
 
       const otherApp = OL.state.apps.find(a => a.id === int.appId);
       pill.textContent = otherApp ? otherApp.name : "(missing)";
-
-      pill.style.border = `1px solid ${
-        int.type === "zapier" ? "var(--accent)" :
-        int.type === "direct" ? "var(--ok)" :
-        "var(--muted)"
-      }`;
+      pill.dataset.type = int.type || "zapier";
 
       pill.onclick = () => {
         int.type = nextType(int.type);
         OL.persist();
         bindIntegrations(app);
+        OL.renderApps?.();
       };
 
       pill.oncontextmenu = (e) => {
@@ -316,16 +381,16 @@
         app.integrations = app.integrations.filter(i => i !== int);
         OL.persist();
         bindIntegrations(app);
+        OL.renderApps?.();
       };
 
       wrap.appendChild(pill);
     });
 
     const addBtn = document.getElementById("modalAddIntegration");
-    if (!addBtn) return;
-
     addBtn.onclick = () => {
       const sel = document.createElement("select");
+      sel.className = "pill-select";
       sel.innerHTML =
         `<option value="">Select app…</option>` +
         OL.state.apps
@@ -335,12 +400,14 @@
 
       sel.onchange = () => {
         if (!sel.value) return;
-        app.integrations.push({ appId: sel.value, type: "zapier" });
+        app.integrations.push({ appId: sel.value, type: "zapier" }); // default Zapier
         OL.persist();
         bindIntegrations(app);
+        OL.renderApps?.();
       };
 
       wrap.appendChild(sel);
+      sel.focus();
     };
   }
 
@@ -355,7 +422,6 @@
   // ============================================================
   function bindDatapoints(app) {
     const wrap = document.getElementById("modalAppDatapoints");
-    if (!wrap) return;
     wrap.innerHTML = "";
 
     app.datapointMappings.forEach(dp => {
@@ -370,8 +436,6 @@
     });
 
     const addBtn = document.getElementById("modalAddDatapoint");
-    if (!addBtn) return;
-
     addBtn.onclick = () => {
       app.datapointMappings.push({ master: "", inbound: "", outbound: "" });
       OL.persist();
@@ -390,14 +454,5 @@
     }, 200);
     return inp;
   }
-
-  // ============================================================
-  // PUBLIC HOOK FOR ICON PICKER
-  // ============================================================
-  OL.refreshModals = function () {
-    if (currentApp) {
-      bindIcon(currentApp);
-    }
-  };
 
 })();
