@@ -199,12 +199,75 @@ textarea{min-height:90px}
   border-radius: 8px;
   padding: 8px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.20);
-  position: absolute;
+  z-index: 20;
+  min-width: 220px;
+  max-width: 260px;
+}
+.picker-section {
+  margin-bottom: 8px;
+}
+.picker-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.picker-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.picker-option.emoji {
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: #0f131b;
+}
+.picker-option.emoji:hover {
+  background: #151b26;
 }
 
 /* =========================================
    MODALS
 ========================================= */
+.modal-window {
+  max-width: 720px;
+  width: 100%;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: 0 18px 40px rgba(0,0,0,.7);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-body {
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.modal-title-text.editing {
+  outline: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 2px 4px;
+  background: rgba(255,255,255,0.03);
+}
+
+#modalAppDatapoints .datapoint-row input {
+  flex: 1;
+}
 #modal-layer{
   position:fixed;
   inset:0;
@@ -233,35 +296,19 @@ textarea{min-height:90px}
   align-items:center;
   gap:10px;
 }
-.modal-body{
-  padding:14px;
-  overflow-y:auto;
-  flex:1;
-}
-/* Modal layout improvements */
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 16px;
-}
 
 .modal-title-text {
   font-size: 24px;
   font-weight: 600;
+   cursor:text;
   outline: none;
   padding: 4px 6px;
   min-width: 200px;
 }
 
-/* Click-to-edit visual */
-.modal-title-text.editing {
-  border-bottom: 2px solid var(--accent);
-}
-
 .modal-section-label {
   font-size: 14px;
+   color: var(--muted);
   font-weight: 600;
   margin-top: 22px;
   margin-bottom: 6px;
@@ -270,7 +317,7 @@ textarea{min-height:90px}
 
 .modal-textarea {
   width: 100%;
-  min-height: 90px;
+  min-height: 70px;
   padding: 8px;
   resize: vertical;
   font-size: 13px;
@@ -304,12 +351,8 @@ textarea{min-height:90px}
 /* Data points specific row styling */
 #modalAppDatapoints .row {
   display: flex;
-  gap: 4px;
-  margin-bottom: 5px;
-}
-
-#modalAppDatapoints .row input {
-  flex: 1;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
 /*=====================================
@@ -360,3 +403,65 @@ PILLS
   opacity: 0.7;
 }
 
+/*=========================
+INTEGRATION CARDS
+=========================*/
+.integration-card,
+.one-way-card,
+.bi-card {
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: var(--panel);
+}
+
+.integration-header .app-pair,
+.one-way-card .app-pair,
+.bi-card .app-pair {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-name {
+  font-size: 13px;
+}
+
+.flip-arrows {
+  display: flex;
+  flex-direction: column;
+  margin: 0 6px;
+}
+.flip-arrows .arrow {
+  font-size: 11px;
+  opacity: 0.35;
+}
+.flip-arrows .arrow.active {
+  color: var(--accent);
+  opacity: 1;
+}
+
+.arrow.single,
+.arrow.bi {
+  margin: 0 6px;
+}
+
+.integration-actions {
+  padding-left: 18px;
+  margin: 4px 0 8px;
+  font-size: 13px;
+}
+.integration-actions li {
+  margin-bottom: 2px;
+}
+
+.category-pill {
+  font-size: 11px;
+}
+
+/* Border styles by integration type */
+.int-zapier    { border-color: #f59e0b; }
+.int-direct    { border-color: #22c55e; }
+.int-both      { border-color: #1fd3bd; }
+.int-unknown   { border-color: var(--line); }
