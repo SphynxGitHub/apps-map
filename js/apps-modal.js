@@ -8,18 +8,25 @@
   const OL = window.OL;
   const { uid, esc, debounce } = OL.utils;
 
-  // ============================================================
+  let modalLayer = null;
+  function ensureModalLayer() {
+    if (!modalLayer) {
+      modalLayer = document.getElementById("modal-layer");
+    }
+  }
+
+  // ===============================
   // PUBLIC: OPEN EXISTING APP
-  // ============================================================
+  // ===============================
   OL.openAppModal = function(appId){
     const app = OL.state.apps.find(a=>a.id===appId);
     if (!app) return;
     showAppModal(app);
   };
 
-  // ============================================================
+  // ===============================
   // PUBLIC: CREATE NEW APP
-  // ============================================================
+  // ===============================
   OL.openAppModalNew = function(){
     const app = {
       id: uid(),
@@ -35,143 +42,184 @@
     showAppModal(app);
   };
 
-  // ============================================================
-  // MAIN MODAL RENDER
-  // ============================================================
-  function showAppModal(app){
-    OL.openModal(`
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-        <div id="appIconBox" style="cursor:pointer;">
-          ${OL.appIconHTML(app)}
-        </div>
-        <input id="appNameInput" type="text" 
-          placeholder="App name" 
-          value="${esc(app.name)}"
-          style="flex:1;background:none;border:none;font-size:18px;font-weight:600;color:var(--text);outline:none;">
-      </div>
+  // ===============================
+  // BUILD MODAL STRUCTURE
+  // ===============================
+  function showAppModal(app) {
+    ensureModalLayer();
+    modalLayer.innerHTML = "";
 
-      <label>Notes</label>
-      <textarea id="appNotesInput">${esc(app.notes||"")}</textarea>
+    const modal = document.createElement("div");
+    modal.className = "modal-window";
 
-      <br>
-      <label>Functions</label>
-      <div id="appFunctionsList" style="margin-bottom:6px;"></div>
-      <button class="btn small" id="addFunctionBtn">+ Add Function</button>
+    const body = document.createElement("div");
+    body.className = "modal-body";
 
-      <br><br>
-      <label>Integrations</label>
-      <div id="appIntegrationsList" style="margin-bottom:6px;"></div>
-      <button class="btn small" id="addIntegrationBtn">+ Add Integration</button>
+    // HEADER
+    const header = document.createElement("div");
+    header.className = "modal-header";
 
-      <br><br>
-      <label>Datapoints</label>
-      <div id="appDatapointsList" style="margin-bottom:6px;"></div>
-      <button class="btn small" id="addDatapointBtn">+ Add Datapoint</button>
-    `);
+    const icon = document.createElement("div");
+    icon.id = "modalAppIcon";
+    icon.className = "app-icon-box large clickable";
 
-    wireIcon(app);
-    wireName(app);
-    wireNotes(app);
-    wireFunctions(app);
-    wireIntegrations(app);
-    wireDatapoints(app);
+    const nameInput = document.createElement("input");
+    nameInput.id = "modalAppName";
+    nameInput.type = "text";
+    nameInput.className = "modal-title-input";
 
-    OL.refreshModals = ()=> showAppModal(app);
+    header.appendChild(icon);
+    header.appendChild(nameInput);
+    body.appendChild(header);
+
+    // NOTES
+    body.appendChild(makeLabel("Notes"));
+    const notesInput = document.createElement("textarea");
+    notesInput.id = "modalAppNotes";
+    notesInput.className = "modal-textarea";
+    body.appendChild(notesInput);
+
+    // FUNCTIONS
+    body.appendChild(makeLabel("Functions"));
+    const fnWrap = document.createElement("div");
+    fnWrap.id = "modalAppFunctions";
+    body.appendChild(fnWrap);
+
+    const btnFn = document.createElement("button");
+    btnFn.id = "modalAddFunction";
+    btnFn.className = "btn small";
+    btnFn.textContent = "+ Add Function";
+    body.appendChild(btnFn);
+
+    // INTEGRATIONS
+    body.appendChild(makeLabel("Integrations"));
+    const intWrap = document.createElement("div");
+    intWrap.id = "modalAppIntegrations";
+    body.appendChild(intWrap);
+
+    const btnInt = document.createElement("button");
+    btnInt.id = "modalAddIntegration";
+    btnInt.className = "btn small";
+    btnInt.textContent = "+ Add Integration";
+    body.appendChild(btnInt);
+
+    // DATAPOINTS
+    body.appendChild(makeLabel("Datapoints"));
+    const dpWrap = document.createElement("div");
+    dpWrap.id = "modalAppDatapoints";
+    body.appendChild(dpWrap);
+
+    const btnDp = document.createElement("button");
+    btnDp.id = "modalAddDatapoint";
+    btnDp.className = "btn small";
+    btnDp.textContent = "+ Add Datapoint";
+    body.appendChild(btnDp);
+
+    modal.appendChild(body);
+    modalLayer.appendChild(modal);
+    modalLayer.style.display = "flex";
+
+    modalLayer.onclick = e => { if (e.target === modalLayer) hideModal(); };
+
+    bindModalFields(app);
   }
 
-  // ============================================================
+  function makeLabel(text){
+    const lbl = document.createElement("label");
+    lbl.className = "modal-section-label";
+    lbl.textContent = text;
+    return lbl;
+  }
+
+  function hideModal(){
+    modalLayer.style.display = "none";
+  }
+
+  // ===============================
+  // BIND DATA
+  // ===============================
+  function bindModalFields(app) {
+    bindIcon(app);
+    bindName(app);
+    bindNotes(app);
+    bindFunctions(app);
+    bindIntegrations(app);
+    bindDatapoints(app);
+  }
+
   // ICON
-  // ============================================================
-  function wireIcon(app){
-    const box = document.getElementById("appIconBox");
-    box.onclick = (e)=>{
-      e.stopPropagation();
-      OL.openIconPicker(box, app);
-    };
+  function bindIcon(app){
+    const el = document.getElementById("modalAppIcon");
+    el.innerHTML = OL.appIconHTML(app);
+    el.onclick = ()=> OL.openIconPicker(el, app);
   }
 
-  function wireName(app){
-    const input = document.getElementById("appNameInput");
+  function bindName(app){
+    const input = document.getElementById("modalAppName");
+    input.value = app.name || "";
     input.oninput = debounce(()=>{
-      app.name = input.value.trim();
+      app.name = input.value;
       OL.persist();
       OL.renderApps();
-    },300);
+    },200);
   }
 
-  function wireNotes(app){
-    const input = document.getElementById("appNotesInput");
+  function bindNotes(app){
+    const input = document.getElementById("modalAppNotes");
+    input.value = app.notes || "";
     input.oninput = debounce(()=>{
       app.notes = input.value;
       OL.persist();
-    },300);
+    },200);
   }
 
-  // ============================================================
   // FUNCTIONS
-  // ============================================================
-  function wireFunctions(app){
-    const wrap = document.getElementById("appFunctionsList");
+  function bindFunctions(app){
+    const wrap = document.getElementById("modalAppFunctions");
     wrap.innerHTML = "";
 
     app.functions.forEach(fn=>{
       const pill = document.createElement("span");
-      pill.className = "pill";
-      pill.style.cursor="pointer";
-      pill.style.marginRight="6px";
+      pill.className = "pill fn";
       pill.textContent = findFunctionName(fn.id);
 
-      // Color-coded based on status
-      pill.style.background = fn.status==="primary" ? "var(--ok)" :
-                             fn.status==="evaluating" ? "#3d4c6b" :
-                             "var(--soft)";
-      pill.style.color = fn.status==="primary" ? "#011" : "#dde4ef";
-
-      // Left click — cycle state
       pill.onclick = ()=>{
-        cycleFunctionState(fn);
+        fn.status = nextFnState(fn.status);
         OL.persist();
-        OL.refreshModals();
-        OL.renderApps();
+        bindFunctions(app);
       };
 
-      // Right click — delete
       pill.oncontextmenu = (e)=>{
         e.preventDefault();
         app.functions = app.functions.filter(f=>f!==fn);
         OL.persist();
-        OL.refreshModals();
-        OL.renderApps();
+        bindFunctions(app);
       };
 
       wrap.appendChild(pill);
     });
 
-    document.getElementById("addFunctionBtn").onclick = ()=>{
+    document.getElementById("modalAddFunction").onclick = ()=>{
       const sel = document.createElement("select");
-      sel.innerHTML = 
-        `<option value="">Select function…</option>`+
-        OL.state.functions
-          .filter(f=>!app.functions.find(a=>a.id===f.id))
-          .map(f=>`<option value="${f.id}">${esc(f.name)}</option>`)
-          .join("");
+      sel.innerHTML = `<option value="">Select…</option>`+
+        OL.state.functions.filter(f=>!app.functions.find(a=>a.id===f.id))
+        .map(f=>`<option value="${f.id}">${esc(f.name)}</option>`)
+        .join("");
 
       sel.onchange = ()=>{
-        if(!sel.value) return;
-        app.functions.push({id:sel.value,status:"available"});
+        app.functions.push({ id: sel.value, status:"available" });
         OL.persist();
-        OL.refreshModals();
-        OL.renderApps();
+        bindFunctions(app);
       };
 
       wrap.appendChild(sel);
     };
   }
 
-  function cycleFunctionState(fn){
-    if (fn.status==="available") fn.status="primary";
-    else if (fn.status==="primary") fn.status="evaluating";
-    else fn.status="available";
+  function nextFnState(s){
+    if (s==="primary") return "evaluating";
+    if (s==="evaluating") return "available";
+    return "primary";
   }
 
   function findFunctionName(id){
@@ -179,48 +227,34 @@
     return f ? f.name : "(unknown)";
   }
 
-  // ============================================================
   // INTEGRATIONS
-  // ============================================================
-  function wireIntegrations(app){
-    const wrap = document.getElementById("appIntegrationsList");
+  function bindIntegrations(app){
+    const wrap = document.getElementById("modalAppIntegrations");
     wrap.innerHTML = "";
 
     app.integrations.forEach(int=>{
       const pill = document.createElement("span");
-      pill.className = "pill";
-      pill.style.marginRight="6px";
-      pill.style.cursor="pointer";
-
+      pill.className = "pill int";
       const otherApp = OL.state.apps.find(a=>a.id===int.appId);
       pill.textContent = otherApp ? otherApp.name : "(missing)";
 
-      // border = integration type
-      pill.style.border = `1px solid ${ 
-        int.type==="zapier" ? "var(--warn)" :
-        int.type==="direct" ? "var(--ok)" :
-        "var(--accent)"
-      }`;
-
-      // left click — cycle type
       pill.onclick = ()=>{
         int.type = nextType(int.type);
         OL.persist();
-        OL.refreshModals();
+        bindIntegrations(app);
       };
 
-      // right click — remove
       pill.oncontextmenu = (e)=>{
         e.preventDefault();
         app.integrations = app.integrations.filter(i=>i!==int);
         OL.persist();
-        OL.refreshModals();
+        bindIntegrations(app);
       };
 
       wrap.appendChild(pill);
     });
 
-    document.getElementById("addIntegrationBtn").onclick = ()=>{
+    document.getElementById("modalAddIntegration").onclick = ()=>{
       const sel = document.createElement("select");
       sel.innerHTML = `<option value="">Select app…</option>`+
         OL.state.apps
@@ -229,13 +263,9 @@
           .join("");
 
       sel.onchange = ()=>{
-        if (!sel.value) return;
-        app.integrations.push({
-          appId: sel.value,
-          type: "zapier"
-        });
+        app.integrations.push({ appId: sel.value, type: "zapier" });
         OL.persist();
-        OL.refreshModals();
+        bindIntegrations(app);
       };
 
       wrap.appendChild(sel);
@@ -248,53 +278,53 @@
     return "zapier";
   }
 
-  // ============================================================
   // DATAPOINTS
-  // ============================================================
-  function wireDatapoints(app){
-    const wrap = document.getElementById("appDatapointsList");
+  function bindDatapoints(app){
+    const wrap = document.getElementById("modalAppDatapoints");
     wrap.innerHTML = "";
 
-    app.datapointMappings.forEach(row=>{
-      const div = document.createElement("div");
-      div.className="row";
+    app.datapointMappings.forEach(dp=>{
+      const row = document.createElement("div");
+      row.className = "row";
 
-      const sel = document.createElement("input");
-      sel.type="text";
-      sel.style.width="29%";
-      sel.placeholder="Master";
-      sel.value=row.master||"";
-      sel.oninput=debounce(()=>{row.master=sel.value;OL.persist();},300);
-
+      const master = document.createElement("input");
+      master.type="text";
+      master.value = dp.master || "";
+      master.placeholder="Master";
+      master.oninput=debounce(()=>{
+        dp.master=master.value;
+        OL.persist();
+      },200);
+      
       const inbound = document.createElement("input");
       inbound.type="text";
-      inbound.style.width="35%";
+      inbound.value = dp.inbound || "";
       inbound.placeholder="Inbound";
-      inbound.value=row.inbound||"";
-      inbound.oninput=debounce(()=>{row.inbound=inbound.value;OL.persist();},300);
+      inbound.oninput=debounce(()=>{
+        dp.inbound=inbound.value;
+        OL.persist();
+      },200);
 
       const outbound = document.createElement("input");
       outbound.type="text";
-      outbound.style.width="35%";
+      outbound.value = dp.outbound || "";
       outbound.placeholder="Outbound";
-      outbound.value=row.outbound||"";
-      outbound.oninput=debounce(()=>{row.outbound=outbound.value;OL.persist();},300);
+      outbound.oninput=debounce(()=>{
+        dp.outbound=outbound.value;
+        OL.persist();
+      },200);
 
-      div.appendChild(sel);
-      div.appendChild(inbound);
-      div.appendChild(outbound);
+      row.appendChild(master);
+      row.appendChild(inbound);
+      row.appendChild(outbound);
 
-      wrap.appendChild(div);
+      wrap.appendChild(row);
     });
 
-    document.getElementById("addDatapointBtn").onclick = ()=>{
-      app.datapointMappings.push({
-        master:"",
-        inbound:"",
-        outbound:""
-      });
+    document.getElementById("modalAddDatapoint").onclick = ()=>{
+      app.datapointMappings.push({ master:"", inbound:"", outbound:"" });
       OL.persist();
-      OL.refreshModals();
+      bindDatapoints(app);
     };
   }
 
