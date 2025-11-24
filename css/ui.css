@@ -914,4 +914,86 @@ INTEGRATION CARDS
   font-style: italic;
   padding: 4px 2px;
 }
+/* =========================================
+   APPS – CARD GRID LAYOUT (uses existing markup)
+   ----------------------------------------- */
+/* Container becomes responsive grid of cards */
+#appsListContainer {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
 
+/* Old wrapper – let children behave as grid items */
+.appsTable {
+  display: contents;
+}
+
+/* One card per app */
+.appRow {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  row-gap: 2px;
+  cursor: pointer;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
+}
+
+/* Hover feel consistent with the rest of the theme */
+.appRow:hover {
+  border-color: rgba(31, 211, 189, 0.6);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+  transform: translateY(-1px);
+}
+
+/* Icon sits on the left, spanning title & notes rows */
+.appRowIcon {
+  grid-row: 1 / span 2;
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Title on the first row, right side */
+.appRowTitle {
+  grid-row: 1;
+  grid-column: 2;
+  font-size: 13px;
+  font-weight: 600;
+  align-self: center;
+}
+
+/* Notes (or extra details) below the title */
+.appRowNotes {
+  grid-row: 2;
+  grid-column: 2;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* If you ever add function pills / badges inside the row */
+.appRowMeta {
+  grid-row: 3;
+  grid-column: 1 / span 2;
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 11px;
+}
+
+/* Optional: slightly denser in "Icons" mode if your JS adds a class */
+.apps-grid-compact .appRow {
+  padding: 8px 10px;
+  grid-template-rows: auto;
+}
+.apps-grid-compact .appRowNotes {
+  display: none;
+}
