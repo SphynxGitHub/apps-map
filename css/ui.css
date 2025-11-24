@@ -230,6 +230,79 @@ textarea{min-height:90px}
   overflow-y:auto;
   flex:1;
 }
+/* Modal layout improvements */
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.modal-title-text {
+  font-size: 24px;
+  font-weight: 600;
+  outline: none;
+  padding: 4px 6px;
+  min-width: 200px;
+}
+
+/* Click-to-edit visual */
+.modal-title-text.editing {
+  border-bottom: 2px solid var(--accent);
+}
+
+.modal-section-label {
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 22px;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.modal-textarea {
+  width: 100%;
+  min-height: 90px;
+  padding: 8px;
+  resize: vertical;
+  font-size: 13px;
+}
+
+#modalAppFunctions,
+#modalAppIntegrations,
+#modalAppDatapoints {
+  margin-bottom: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Fix add buttons alignment */
+.btn.small {
+  margin-bottom: 12px;
+}
+
+/* Pill layout fix */
+.pill {
+  display: inline-block;
+  padding: 4px 9px;
+  border-radius: 8px;
+  font-size: 12px;
+  background: var(--soft);
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+/* Data points specific row styling */
+#modalAppDatapoints .row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 5px;
+}
+
+#modalAppDatapoints .row input {
+  flex: 1;
+}
 
 /*=====================================
 PILLS
