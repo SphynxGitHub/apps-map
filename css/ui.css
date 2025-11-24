@@ -1,4 +1,4 @@
-/* =========================================
+=========================================
    GLOBAL THEME
 ========================================= */
 :root{
@@ -106,56 +106,63 @@ a{color:inherit;text-decoration:none}
 }
 
 /* =========================================
-   APP CARD GRID LAYOUT
+   GRID + TABLE UI
 ========================================= */
-
-#appsListContainer {
-  width:100%;
+.grid{
+  display:grid; 
+  gap:12px
+}
+.grid.cols-2{
+  grid-template-columns: repeat(2, minmax(0,1fr))
+}
+.grid.cols-3{
+  grid-template-columns: repeat(3, minmax(0,1fr))
+}
+.card{
+  background:var(--panel); 
+  border:1px solid var(--line); 
+  border-radius:var(--radius); 
+  padding:14px
 }
 
-.appsTable.appsTable-cards {
-  display:grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
-  gap:14px !important;
-  align-items:stretch !important;
-  width:100%;
+/* =========================================
+   BUTTONS + INPUTS
+========================================= */
+.btn{
+  background:#1b2332; 
+  color:var(--text); 
+  border:1px solid var(--line); 
+  border-radius:10px; 
+  padding:8px 12px; 
+  cursor:pointer
 }
-
-.appRow {
-  display:block !important;
-  width:auto !important;
+.btn.small{
+  padding:6px 10px; 
+  font-size:12px
+}
+.btn.primary{
+  background:var(--accent); 
+  color:#061914; 
+  border-color:transparent; 
+  font-weight:600
+}
+.btn.ghost{
+  background:transparent
+}
+input[type=text], input[type=number], textarea, select{
+  width:100%; 
+  background:#0f131b; 
+  color:var(--text); 
   border:1px solid var(--line);
-  border-radius:var(--radius);
-  background:var(--panel);
-  padding:10px;
-  cursor:pointer;
-  transition:background .2s;
-  min-height:72px;
+  border-radius:10px; 
+  padding:8px 10px; 
+  outline:none
 }
-
-.appRow:hover {
-  background:#1b2332;
-}
-
-.appRowIcon {
-  margin-bottom:6px;
-}
-
-.appRowTitle {
-  font-weight:600;
-  font-size:15px;
-  margin-bottom:3px;
-}
-
-.appRowNotes {
-  font-size:12px;
-  color:var(--muted);
-}
+textarea{min-height:90px}
 
 /* =========================================
    ICONS
 ========================================= */
-
 .app-icon-box{
   width:42px;
   height:42px;
@@ -167,25 +174,335 @@ a{color:inherit;text-decoration:none}
 }
 
 .app-icon-box.small{
-  width:38px;
-  height:38px;
-  border-radius:10px;
+  width:40px;height:40px;border-radius:10px
 }
-/* --- Modal app icon: hard constraints --- */
+
+.app-icon-box img{
+  max-width:100%;
+  max-height:100%;
+  border-radius:10px;
+  display:block
+}
+
+.app-icon.initials{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:12px;
+  width:100%;height:100%;
+  font-weight:700;
+  font-size:14px;
+}
+.icon-picker {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.20);
+  z-index: 20;
+  min-width: 220px;
+  max-width: 260px;
+}
+.picker-section {
+  margin-bottom: 8px;
+}
+.picker-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.picker-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.picker-option.emoji {
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: #0f131b;
+}
+.picker-option.emoji:hover {
+  background: #151b26;
+}
+
+/* =========================================
+   MODALS
+========================================= */
+.modal-window {
+  max-width: 720px;
+  width: 100%;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: 0 18px 40px rgba(0,0,0,.7);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-body {
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.modal-title-text.editing {
+  outline: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 2px 4px;
+  background: rgba(255,255,255,0.03);
+}
+
+#modalAppDatapoints .datapoint-row input {
+  flex: 1;
+}
+#modal-layer{
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,.55);
+  backdrop-filter:blur(5px);
+  z-index:999;
+}
+.modal{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  min-width:520px;
+  max-width:740px;
+  max-height:82vh;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+.modal-head{
+  padding:14px;
+  border-bottom:1px solid var(--line);
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.modal-title-text {
+  font-size: 24px;
+  font-weight: 600;
+   cursor:text;
+  outline: none;
+  padding: 4px 6px;
+  min-width: 200px;
+}
+
+.modal-section-label {
+  font-size: 14px;
+   color: var(--muted);
+  font-weight: 600;
+  margin-top: 22px;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.modal-textarea {
+  width: 100%;
+  min-height: 70px;
+  padding: 8px;
+  resize: vertical;
+  font-size: 13px;
+}
+
+#modalAppFunctions,
+#modalAppIntegrations,
+#modalAppDatapoints {
+  margin-bottom: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Fix add buttons alignment */
+.btn.small {
+  margin-bottom: 12px;
+}
+
+/* Pill layout fix */
+.pill {
+  display: inline-block;
+  padding: 4px 9px;
+  border-radius: 8px;
+  font-size: 12px;
+  background: var(--soft);
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+/* Data points specific row styling */
+#modalAppDatapoints .row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+/*=====================================
+PILLS
+======================================*/
+.fn-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.fn-card {
+  margin-bottom: 10px;
+}
+
+.fnAppsWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.fnAppPill {
+  cursor: pointer;
+}
+
+/* Available = neutral */
+.fnAppPill-available {
+  background: #1f2937;
+  color: #e5e7eb;
+  border-color: #4b5563;
+}
+
+/* Primary = strong/green */
+.fnAppPill-primary {
+  background: #18c38a;
+  color: #02140d;
+  border-color: #0f9a6a;
+}
+
+/* Evaluating = muted/blue */
+.fnAppPill-evaluating {
+  background: #1f2937;
+  color: #93c5fd;
+  border-color: #3b82f6;
+}
+
+.pill-empty {
+  opacity: 0.7;
+}
+
+/*=========================
+INTEGRATION CARDS
+=========================*/
+.integration-card,
+.one-way-card,
+.bi-card {
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: var(--panel);
+}
+
+.integration-header .app-pair,
+.one-way-card .app-pair,
+.bi-card .app-pair {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-name {
+  font-size: 13px;
+}
+
+.flip-arrows {
+  display: flex;
+  flex-direction: column;
+  margin: 0 6px;
+}
+.flip-arrows .arrow {
+  font-size: 11px;
+  opacity: 0.35;
+}
+.flip-arrows .arrow.active {
+  color: var(--accent);
+  opacity: 1;
+}
+
+.arrow.single,
+.arrow.bi {
+  margin: 0 6px;
+}
+
+.integration-actions {
+  padding-left: 18px;
+  margin: 4px 0 8px;
+  font-size: 13px;
+}
+.integration-actions li {
+  margin-bottom: 2px;
+}
+
+.category-pill {
+  font-size: 11px;
+}
+
+/* Border styles by integration type */
+.int-zapier    { border-color: #f59e0b; }
+.int-direct    { border-color: #22c55e; }
+.int-both      { border-color: #1fd3bd; }
+.int-unknown   { border-color: var(--line); }
+
+/* Modal layout tweaks */
+.modal-window {
+  background: var(--panel, #0b1220);
+  border-radius: 16px;
+  border: 1px solid var(--line, #1f2937);
+  max-width: 640px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-body {
+  padding: 16px 18px 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
 .app-icon-box.large {
   width: 48px;
   height: 48px;
-  min-width: 48px;
-  max-width: 48px;
-  min-height: 48px;
-  max-height: 48px;
   border-radius: 12px;
-  background: #111827;
-  border: 1px solid #1f2937;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  background: #111827;
+  border: 1px solid #1f2937;
 }
 
 .app-icon-inner {
@@ -200,546 +517,400 @@ a{color:inherit;text-decoration:none}
   overflow: hidden;
 }
 
-/* Make sure images respect the box */
-.app-icon-box.large img,
 .app-icon-inner img {
   max-width: 100%;
   max-height: 100%;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
   display: block;
 }
 
-/* =========================================
-   CONTROLS
-========================================= */
-
-.view-toggle {
-  display:inline-flex;
-  border-radius:999px;
-  background:#020617;
-  border:1px solid #1f2937;
-  overflow:hidden;
-}
-
-.view-toggle button {
-  border:none;
-  background:transparent;
-  color:#9ca3af;
-  font-size:11px;
-  padding:4px 10px;
-  cursor:pointer;
-}
-
-.view-toggle button.active {
-  background:#111827;
-  color:#e5e7eb;
-}
-
-/* =========================================
-   FUNCTION CARDS
-========================================= */
-
-.functions-grid {
-  display:grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px,1fr));
-  gap:12px;
-}
-
-.function-card {
-  border-radius:12px;
-  background:#020617;
-  border:1px solid var(--line);
-  padding:10px;
-}
-
-/* =========================================
-   INTEGRATION CARDS
-========================================= */
-
-.integrations-grid {
-  display:grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px,1fr));
-  gap:12px;
-}
-
-/* =========================================
-   FILTERING
-========================================= */
-
-.filter-bar {
-  margin-bottom:8px;
-  font-size:12px;
-}
-
-.filter-tag {
-  display:inline-flex;
-  align-items:center;
-  padding:2px 6px;
-  border-radius:6px;
-  border:1px solid var(--line);
-  background:#111827;
-  cursor:pointer;
-  margin-right:6px;
-}
-
-/* ONCE YOU PASTE THIS, THE APP CARDS WILL:
-✔ align as cards
-✔ wrap horizontally
-✔ respond to width
-✔ maintain spacing
-✔ never vertical-stack again
-*/
-/* =========================================
-   APP CARDS — FIX
-========================================= */
-
-.appsTable {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 18px;
-  align-items: flex-start;
-  width: 100%;
-}
-
-.appCard {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-/* Header layout */
-.appCard-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* Title */
-.appCard-title {
-  font-size: 15px;
+.modal-title-text {
+  font-size: 18px;
   font-weight: 600;
-  color: var(--text);
+  color: var(--text, #e5e7eb);
+  outline: none;
+  padding: 4px 6px;
+  border-radius: 8px;
 }
 
-/* Notes or subtitles */
-.appCard-notes {
-  font-size: 12px;
-  color: var(--muted);
+.modal-title-text.editing {
+  background: rgba(148, 163, 184, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.4);
 }
 
-/* Internal rows for labels + pills */
-.appCard-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-/* Section labels */
-.appCard-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--muted);
-}
-
-/* Pills wrap */
-.appCard-pills {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-/* Edit button */
-.appCard-edit {
-  margin-left: auto;
-  opacity: 0.5;
-}
-.appCard-edit:hover {
-  opacity: 1;
-}
-/* =========================================
-   APPS SECTION – CARDS + GRID
-   (works with classes: appsTable, appCard, etc.)
-========================================= */
-
-/* Container grid for app cards */
-.appsTable {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 12px;
-}
-
-/* Generic app card */
-.appCard {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 10px 12px 8px;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Header row: icon + title + small meta */
-.appCard-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 6px;
-}
-
-.appCard-main {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-}
-
-.appCard-iconWrap {
-  flex-shrink: 0;
-}
-
-/* Icon sizing: respect existing .app-icon-box rules but keep it tight in cards */
-.appCard-iconWrap .app-icon-box.small {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-}
-
-/* Title + notes block */
-.appCard-titleBlock {
-  flex: 1;
-  min-width: 0;
-}
-
-.appCard-titleRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  margin-bottom: 2px;
-}
-
-.appCard-title {
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  overflow: hidden;
-}
-
-/* “Edit” button (until we swap to click-to-edit) */
-.appCard-meta .appCard-edit,
-.appCard-titleRow .appCard-edit {
-  margin-left: auto;
-}
-
-/* Short description / notes preview */
-.appCard-notes {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 2px;
-  max-height: 2.6em; /* ~2 lines */
-  overflow: hidden;
-}
-
-/* Meta row under notes (status, counts, etc.) */
-.appCard-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--muted);
-  margin-top: 4px;
-}
-
-.appCard-metaItem {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-/* Body rows (e.g. Functions, Integrations, Used In, Licenses) */
-.appCard-body {
+.modal-section-label {
   margin-top: 8px;
-  padding-top: 6px;
-  border-top: 1px solid var(--line);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  margin-bottom: 2px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
 }
 
-.appCard-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  font-size: 11px;
+.modal-section-wrap {
+  margin-bottom: 4px;
 }
 
-.appCard-row-meta {
-  font-size: 11px;
-  color: var(--muted);
+.modal-notes-display {
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(31, 41, 55, 0.9);
 }
 
-.appCard-label {
-  color: var(--muted);
-  white-space: nowrap;
+.modal-notes-display.muted {
+  color: #6b7280;
+  font-style: italic;
 }
 
-/* Pills inside rows (status, functions, etc.) */
-.appCard-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+.modal-textarea {
+  width: 100%;
+  min-height: 80px;
+  border-radius: 8px;
+  border: 1px solid #1f2937;
+  background: #020617;
+  color: #e5e7eb;
+  font-size: 13px;
+  padding: 8px 10px;
+  resize: vertical;
 }
 
-/* Base pill style reused from modal look */
-.appCard-pills .pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  background: var(--soft);
-  border: 1px solid transparent;
+/* Text link */
+.text-link.small {
+  margin-top: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  color: #60a5fa;
   cursor: pointer;
 }
 
-/* Status coloring on pills (same palette as legend) */
-.appCard-pills .status-primary {
+/* Datapoint rows */
+.row.datapoint-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.row.datapoint-row input {
+  width: 100%;
+}
+
+/* Icon picker */
+.icon-picker {
+  min-width: 260px;
+  background: #020617;
+  border-radius: 12px;
+  border: 1px solid #1f2937;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.45);
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.picker-section + .picker-section {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #111827;
+}
+
+.picker-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+  margin-bottom: 4px;
+}
+
+.picker-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.picker-row-url {
+  align-items: center;
+}
+
+.picker-row-url input {
+  flex: 1;
+  min-width: 0;
+  border-radius: 6px;
+  border: 1px solid #1f2937;
+  background: #020617;
+  color: #e5e7eb;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+
+.picker-option.emoji {
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: #020617;
+  border: 1px solid transparent;
+}
+
+.picker-option.emoji:hover {
+  border-color: #3b82f6;
+}
+
+/* View toggles & legend */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.section-header h1,
+.section-header h2 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.view-toggle {
+  display: inline-flex;
+  border-radius: 999px;
+  background: #020617;
+  border: 1px solid #1f2937;
+  overflow: hidden;
+}
+
+.view-toggle button {
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.view-toggle button.active {
+  background: #111827;
+  color: #e5e7eb;
+}
+
+.apps-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 11px;
+  color: #9ca3af;
+  margin-bottom: 8px;
+}
+
+.legend-pill {
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid #1f2937;
+}
+
+.status-primary {
   border-color: #38bdf8;
   color: #e0f2fe;
 }
 
-.appCard-pills .status-available {
+.status-available {
   border-color: #6b7280;
   color: #e5e7eb;
 }
 
-.appCard-pills .status-evaluating {
+.status-evaluating {
   border-color: #facc15;
   color: #fef3c7;
 }
 
-/* Integration type pills on cards (matching legend) */
-.appCard-pills .int-direct {
+.int-direct {
   border-color: #22c55e;
   color: #bbf7d0;
 }
 
-.appCard-pills .int-zapier {
+.int-zapier {
   border-color: #f97316;
   color: #fed7aa;
 }
 
-.appCard-pills .int-both {
+.int-both {
   border-color: #a855f7;
   color: #ede9fe;
 }
 
-/* Hover feedback */
-.appCard:hover {
-  border-color: #3b82f6;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.45);
+.legend-separator {
+  width: 1px;
+  height: 12px;
+  background: #1f2937;
+  margin: 0 4px;
 }
 
-.appCard-pills .pill:hover {
-  background: #111827;
+.legend-hint {
+  font-style: italic;
 }
 
-/* Small “Used in X”, “Y Functions” counters */
-.appCard-metaItem-count {
-  padding: 2px 6px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  font-size: 10px;
-}
-
-/* Apps section filter bar alignment (if present) */
-.apps-section {
-  margin-bottom: 18px;
-}
-
-.apps-section .apps-filters {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.apps-section .apps-filters-left,
-.apps-section .apps-filters-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.apps-section .apps-filter-inline-note {
-  font-size: 11px;
-  color: var(--muted);
-}
-/* ================================
-   FORCE ICON SIZE WITHIN APP CARDS
-=================================== */
-
-.appCard-iconWrap .app-icon-box.small {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  overflow: hidden; /* critical */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* If icon is initials (text), scale it down */
-.appCard-iconWrap .app-icon-box.small.app-icon.initials {
-  font-size: 12px;
-}
-
-/* If icon is an image, enforce strict scaling */
-.appCard-iconWrap .app-icon-box.small img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: center;
-  display: block;
-  border-radius: 6px;
-}
-/* ================================
-   FORCE ICON SIZE INSIDE MODAL
-=================================== */
-
-.modal-header .app-icon-box.large {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
-  overflow: hidden;  /* critical */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* text initials inside modal */
-.modal-header .app-icon-box.large.app-icon.initials {
-  font-size: 20px;
-}
-
-/* images inside modal */
-.modal-header .app-icon-box.large img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: center;
-  border-radius: 8px;
-  display: block;
-}
-.app-icon-box img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: center;
-}
-.function-card,
-.integration-card {
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.function-icon,
-.integration-icon,
-.app-icon-box {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  max-width: 40px;
-  border-radius: 10px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.function-icon img,
-.integration-icon img,
-.app-icon-box img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-/* =========================================
-   NORMALIZE CARD LOOK: APPS, FUNCTIONS, INTEGRATIONS
-========================================= */
-
-/* Apps cards container */
-.appsTable.appsTable-cards {
+/* Function cards */
+.functions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 10px;
 }
 
-/* Base card shell */
-.appCard,
-.function-card,
-.integration-card {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+.function-card {
+  border-radius: 12px;
+  border: 1px solid #1f2937;
+  background: #020617;
   padding: 10px 10px 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
-/* App card header alignment */
-.appCard-header {
+.function-card-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
-/* Make function + integration headers match */
-.function-card-header,
-.integration-card-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-/* Icons on function + integration cards same size as apps */
-.function-icon,
-.integration-icon {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  max-width: 40px;
-  border-radius: 10px;
+.function-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
   background: #0f172a;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 11px;
   font-weight: 600;
+}
+
+.function-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.function-apps-label {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-bottom: 4px;
+}
+
+.function-apps-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* App pills on function cards */
+.app-pill {
+  border-radius: 999px;
+  border: 1px solid #4b5563;
+  background: #020617;
+  color: #e5e7eb;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 6px 2px 2px;
+  cursor: pointer;
+}
+
+.app-pill .pill-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-pill .pill-icon .app-icon-box.small {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  font-size: 9px;
+}
+
+.app-pill[data-status="primary"] {
+  border-color: #38bdf8;
+}
+
+.app-pill[data-status="evaluating"] {
+  border-color: #facc15;
+}
+
+/* Integrations cards */
+.integrations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.integration-card {
+  border-radius: 12px;
+  border: 1px solid #1f2937;
+  background: #020617;
   overflow: hidden;
+  cursor: default;
 }
 
-.function-icon img,
-.integration-icon img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
+.integration-card-header {
+  padding: 8px 10px;
+  border-bottom: 1px solid #111827;
 }
 
+.integration-card-header.int-direct {
+  border-left: 3px solid #22c55e;
+}
+
+.integration-card-header.int-zapier {
+  border-left: 3px solid #f97316;
+}
+
+.integration-card-header.int-both {
+  border-left: 3px solid #a855f7;
+}
+
+.integration-arrows {
+  font-size: 11px;
+}
+
+.integration-arrows .arrow-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.integration-arrows.flip-mode .arrow-row.active .arrow-symbol {
+  color: #38bdf8;
+}
+
+.integration-arrows.flip-mode .arrow-row.inactive .arrow-symbol {
+  color: #4b5563;
+}
+
+.integration-arrows.single-mode .arrow-symbol,
+.integration-arrows.both-mode .arrow-symbol {
+  color: #38bdf8;
+}
+
+.integration-card-body {
+  padding: 6px 10px 8px;
+}
+
+.integration-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.integration-zap-hint {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #f97316;
+}
+
+.empty-hint {
+  font-size: 12px;
+  color: #6b7280;
+  font-style: italic;
+  padding: 4px 2px;
+}
