@@ -1,5 +1,4 @@
 ;(() => {
-
   if (!window.OL) {
     console.error("apps-modal.js: OL core missing");
     return;
@@ -9,6 +8,8 @@
   const { uid, esc, debounce } = OL.utils;
 
   let modalLayer = null;
+  let currentApp = null;
+
   function ensureModalLayer() {
     modalLayer = document.getElementById("modal-layer");
   }
@@ -16,8 +17,8 @@
   // ============================================================
   // PUBLIC: OPEN EXISTING APP
   // ============================================================
-  OL.openAppModal = function(appId){
-    const app = OL.state.apps.find(a=>a.id===appId);
+  OL.openAppModal = function (appId) {
+    const app = OL.state.apps.find(a => a.id === appId);
     if (!app) return;
     showAppModal(app);
   };
@@ -25,7 +26,7 @@
   // ============================================================
   // PUBLIC: OPEN NEW APP
   // ============================================================
-  OL.openAppModalNew = function(){
+  OL.openAppModalNew = function () {
     const app = {
       id: uid(),
       name: "",
@@ -45,6 +46,8 @@
   // ============================================================
   function showAppModal(app) {
     ensureModalLayer();
+    currentApp = app;
+
     modalLayer.innerHTML = "";
     modalLayer.style.display = "flex";
 
@@ -63,13 +66,13 @@
     icon.id = "modalAppIcon";
     icon.className = "app-icon-box large clickable";
 
-    const nameInput = document.createElement("div");
-    nameInput.id = "modalAppName";
-    nameInput.className = "modal-title-text";
-    nameInput.contentEditable = false;
+    const nameDisplay = document.createElement("div");
+    nameDisplay.id = "modalAppName";
+    nameDisplay.className = "modal-title-text";
+    nameDisplay.contentEditable = false;
 
     header.appendChild(icon);
-    header.appendChild(nameInput);
+    header.appendChild(nameDisplay);
     body.appendChild(header);
 
     // ===== NOTES =====
@@ -94,32 +97,34 @@
     modal.appendChild(body);
     modalLayer.appendChild(modal);
 
-    modalLayer.onclick = e => { if (e.target === modalLayer) hideModal(); };
+    modalLayer.onclick = (e) => {
+      if (e.target === modalLayer) hideModal();
+    };
 
     bindModalFields(app);
   }
 
-  function makeLabel(text){
+  function makeLabel(text) {
     const lbl = document.createElement("label");
     lbl.className = "modal-section-label";
     lbl.textContent = text;
     return lbl;
   }
 
-  function makeTextarea(id){
+  function makeTextarea(id) {
     const e = document.createElement("textarea");
     e.id = id;
     e.className = "modal-textarea";
     return e;
   }
 
-  function makeWrap(id){
+  function makeWrap(id) {
     const el = document.createElement("div");
     el.id = id;
     return el;
   }
 
-  function makeSmallBtn(id, text){
+  function makeSmallBtn(id, text) {
     const btn = document.createElement("button");
     btn.id = id;
     btn.className = "btn small";
@@ -127,14 +132,21 @@
     return btn;
   }
 
-  function hideModal(){
+  function hideModal() {
     modalLayer.style.display = "none";
+    modalLayer.innerHTML = "";
+    currentApp = null;
+    OL.closeIconPicker && OL.closeIconPicker();
   }
 
   // ============================================================
   // APPLY DATA INTO UI
   // ============================================================
   function bindModalFields(app) {
+    app.functions = app.functions || [];
+    app.integrations = app.integrations || [];
+    app.datapointMappings = app.datapointMappings || [];
+
     bindIcon(app);
     bindName(app);
     bindNotes(app);
@@ -146,60 +158,45 @@
   // ============================================================
   // ICON
   // ============================================================
-  function buildIconNode(app){
-    const wrap = document.createElement("div");
-    wrap.className = "app-icon-box small";
-  
-    // ICON: emoji
-    if (app.icon?.type === "emoji"){
-      wrap.textContent = app.icon.value;
-      return wrap;
-    }
-  
-    // ICON: image
-    if (app.icon?.type === "img"){
-      const img = document.createElement("img");
-      img.src = app.icon.url;
-      img.style.maxWidth = "100%";
-      img.style.maxHeight = "100%";
-      wrap.appendChild(img);
-      return wrap;
-    }
-  
-    // ICON: auto letter
-    const meta = OL.utils.buildLetterIconMeta(app.name);
-    wrap.style.background = meta.bg;
-    wrap.style.color = meta.fg;
-    wrap.textContent = meta.initials;
-    return wrap;
-  }
-
-  function bindIcon(app){
+  function bindIcon(app) {
     const el = document.getElementById("modalAppIcon");
+    if (!el) return;
     el.innerHTML = "";
-    el.appendChild(buildIconNode(app));
-    el.onclick = ()=> OL.openIconPicker(el, app);
+    el.appendChild(OL.buildIconNode(app));
+    el.onclick = (ev) => {
+      ev.stopPropagation();
+      OL.openIconPicker(el, app);
+    };
   }
 
   // ============================================================
-  // NAME
+  // NAME (click-to-edit)
   // ============================================================
-  function bindName(app){
+  function bindName(app) {
     const el = document.getElementById("modalAppName");
+    if (!el) return;
+
     el.textContent = app.name || "(unnamed)";
-    
+
     el.onclick = () => {
       el.contentEditable = true;
       el.classList.add("editing");
       el.focus();
+      // move cursor to end
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
     };
-    
+
     el.onblur = () => {
       el.contentEditable = false;
       el.classList.remove("editing");
       app.name = el.textContent.trim();
       OL.persist();
-      OL.renderApps();
+      OL.renderApps && OL.renderApps();
     };
 
     el.onkeydown = (e) => {
@@ -213,36 +210,39 @@
   // ============================================================
   // NOTES
   // ============================================================
-  function bindNotes(app){
+  function bindNotes(app) {
     const input = document.getElementById("modalAppNotes");
+    if (!input) return;
+
     input.value = app.notes || "";
-    input.oninput = debounce(()=>{
+    input.oninput = debounce(() => {
       app.notes = input.value;
       OL.persist();
-    },200);
+    }, 200);
   }
 
   // ============================================================
   // FUNCTIONS
   // ============================================================
-  function bindFunctions(app){
+  function bindFunctions(app) {
     const wrap = document.getElementById("modalAppFunctions");
+    if (!wrap) return;
     wrap.innerHTML = "";
 
-    app.functions.forEach(fn=>{
+    app.functions.forEach(fn => {
       const pill = document.createElement("span");
       pill.className = "pill fn";
       pill.textContent = findFunctionName(fn.id);
 
-      pill.onclick = ()=>{
+      pill.onclick = () => {
         fn.status = nextFnState(fn.status);
         OL.persist();
         bindFunctions(app);
       };
 
-      pill.oncontextmenu = (e)=>{
+      pill.oncontextmenu = (e) => {
         e.preventDefault();
-        app.functions = app.functions.filter(f=>f!==fn);
+        app.functions = app.functions.filter(f => f !== fn);
         OL.persist();
         bindFunctions(app);
       };
@@ -250,15 +250,21 @@
       wrap.appendChild(pill);
     });
 
-    document.getElementById("modalAddFunction").onclick = ()=>{
-      const sel = document.createElement("select");
-      sel.innerHTML = `<option value="">Select…</option>`+
-        OL.state.functions.filter(f=>!app.functions.find(a=>a.id===f.id))
-        .map(f=>`<option value="${f.id}">${esc(f.name)}</option>`)
-        .join("");
+    const addBtn = document.getElementById("modalAddFunction");
+    if (!addBtn) return;
 
-      sel.onchange = ()=>{
-        app.functions.push({ id: sel.value, status:"available" });
+    addBtn.onclick = () => {
+      const sel = document.createElement("select");
+      sel.innerHTML =
+        `<option value="">Select…</option>` +
+        OL.state.functions
+          .filter(f => !app.functions.find(a => a.id === f.id))
+          .map(f => `<option value="${f.id}">${esc(f.name)}</option>`)
+          .join("");
+
+      sel.onchange = () => {
+        if (!sel.value) return;
+        app.functions.push({ id: sel.value, status: "available" });
         OL.persist();
         bindFunctions(app);
       };
@@ -267,39 +273,47 @@
     };
   }
 
-  function nextFnState(s){
-    if (s==="primary") return "evaluating";
-    if (s==="evaluating") return "available";
+  function nextFnState(s) {
+    if (s === "primary") return "evaluating";
+    if (s === "evaluating") return "available";
     return "primary";
   }
 
-  function findFunctionName(id){
-    const f = OL.state.functions.find(x=>x.id===id);
+  function findFunctionName(id) {
+    const f = OL.state.functions.find(x => x.id === id);
     return f ? f.name : "(unknown)";
   }
 
   // ============================================================
-  // INTEGRATIONS
+  // INTEGRATIONS (per app)
   // ============================================================
-  function bindIntegrations(app){
+  function bindIntegrations(app) {
     const wrap = document.getElementById("modalAppIntegrations");
+    if (!wrap) return;
     wrap.innerHTML = "";
 
-    app.integrations.forEach(int=>{
+    app.integrations.forEach(int => {
       const pill = document.createElement("span");
       pill.className = "pill int";
-      const otherApp = OL.state.apps.find(a=>a.id===int.appId);
+
+      const otherApp = OL.state.apps.find(a => a.id === int.appId);
       pill.textContent = otherApp ? otherApp.name : "(missing)";
 
-      pill.onclick = ()=>{
+      pill.style.border = `1px solid ${
+        int.type === "zapier" ? "var(--accent)" :
+        int.type === "direct" ? "var(--ok)" :
+        "var(--muted)"
+      }`;
+
+      pill.onclick = () => {
         int.type = nextType(int.type);
         OL.persist();
         bindIntegrations(app);
       };
 
-      pill.oncontextmenu = (e)=>{
+      pill.oncontextmenu = (e) => {
         e.preventDefault();
-        app.integrations = app.integrations.filter(i=>i!==int);
+        app.integrations = app.integrations.filter(i => i !== int);
         OL.persist();
         bindIntegrations(app);
       };
@@ -307,15 +321,20 @@
       wrap.appendChild(pill);
     });
 
-    document.getElementById("modalAddIntegration").onclick = ()=>{
+    const addBtn = document.getElementById("modalAddIntegration");
+    if (!addBtn) return;
+
+    addBtn.onclick = () => {
       const sel = document.createElement("select");
-      sel.innerHTML = `<option value="">Select app…</option>`+
+      sel.innerHTML =
+        `<option value="">Select app…</option>` +
         OL.state.apps
-          .filter(a=>a.id!==app.id && !app.integrations.find(i=>i.appId===a.id))
-          .map(a=>`<option value="${a.id}">${esc(a.name)}</option>`)
+          .filter(a => a.id !== app.id && !app.integrations.find(i => i.appId === a.id))
+          .map(a => `<option value="${a.id}">${esc(a.name)}</option>`)
           .join("");
 
-      sel.onchange = ()=>{
+      sel.onchange = () => {
+        if (!sel.value) return;
         app.integrations.push({ appId: sel.value, type: "zapier" });
         OL.persist();
         bindIntegrations(app);
@@ -325,22 +344,23 @@
     };
   }
 
-  function nextType(t){
-    if (t==="zapier") return "direct";
-    if (t==="direct") return "both";
+  function nextType(t) {
+    if (t === "zapier") return "direct";
+    if (t === "direct") return "both";
     return "zapier";
   }
 
   // ============================================================
   // DATAPOINTS
   // ============================================================
-  function bindDatapoints(app){
+  function bindDatapoints(app) {
     const wrap = document.getElementById("modalAppDatapoints");
+    if (!wrap) return;
     wrap.innerHTML = "";
 
-    app.datapointMappings.forEach(dp=>{
+    app.datapointMappings.forEach(dp => {
       const row = document.createElement("div");
-      row.className = "row";
+      row.className = "row datapoint-row";
 
       row.appendChild(makeDataField("Master", dp, "master"));
       row.appendChild(makeDataField("Inbound", dp, "inbound"));
@@ -349,23 +369,35 @@
       wrap.appendChild(row);
     });
 
-    document.getElementById("modalAddDatapoint").onclick = ()=>{
-      app.datapointMappings.push({ master:"", inbound:"", outbound:"" });
+    const addBtn = document.getElementById("modalAddDatapoint");
+    if (!addBtn) return;
+
+    addBtn.onclick = () => {
+      app.datapointMappings.push({ master: "", inbound: "", outbound: "" });
       OL.persist();
       bindDatapoints(app);
     };
   }
 
-  function makeDataField(label, dp, field){
+  function makeDataField(label, dp, field) {
     const inp = document.createElement("input");
-    inp.type="text";
+    inp.type = "text";
     inp.placeholder = label;
     inp.value = dp[field] || "";
-    inp.oninput = debounce(()=>{
-      dp[field]=inp.value;
+    inp.oninput = debounce(() => {
+      dp[field] = inp.value;
       OL.persist();
-    },200);
+    }, 200);
     return inp;
   }
+
+  // ============================================================
+  // PUBLIC HOOK FOR ICON PICKER
+  // ============================================================
+  OL.refreshModals = function () {
+    if (currentApp) {
+      bindIcon(currentApp);
+    }
+  };
 
 })();
