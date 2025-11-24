@@ -230,3 +230,52 @@ textarea{min-height:90px}
   overflow-y:auto;
   flex:1;
 }
+
+/*=====================================
+PILLS
+======================================*/
+.fn-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.fn-card {
+  margin-bottom: 10px;
+}
+
+.fnAppsWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.fnAppPill {
+  cursor: pointer;
+}
+
+/* Available = neutral */
+.fnAppPill-available {
+  background: #1f2937;
+  color: #e5e7eb;
+  border-color: #4b5563;
+}
+
+/* Primary = strong/green */
+.fnAppPill-primary {
+  background: #18c38a;
+  color: #02140d;
+  border-color: #0f9a6a;
+}
+
+/* Evaluating = muted/blue */
+.fnAppPill-evaluating {
+  background: #1f2937;
+  color: #93c5fd;
+  border-color: #3b82f6;
+}
+
+.pill-empty {
+  opacity: 0.7;
+}
+
