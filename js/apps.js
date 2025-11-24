@@ -217,7 +217,6 @@
   });
 
   container.appendChild(list);
-}
 
  // ============================================================
   // FUNCTIONS CARDS  (fixed: drive off app assignments)
