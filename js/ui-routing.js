@@ -96,7 +96,7 @@
     showView(view.id);
 
     try {
-      view.render();
+      setTimeout(() => view.render(), 0);
     } catch (err) {
       console.error("Route render failed:", hash, err);
       setHTML(view.id, `<div style="color:#ff5d5d;">Error rendering ${hash}</div>`);
