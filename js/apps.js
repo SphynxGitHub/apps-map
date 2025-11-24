@@ -1,134 +1,118 @@
 ;(() => {
 
-  const core = window.OL;
-  const { state, persist } = core;
-  const { appIconHTML } = core.icons;
-
-  function esc(s) {
-    return core.utils.esc(s);
+  if (!window.OL) {
+    console.error("apps.js: OL core missing");
+    return;
   }
 
-  // APP LABEL = [icon] [full name]
-  function appLabelHTML(app) {
-    return `
-      <span class="appLabel">
-        ${appIconHTML(app)}
-        <span class="appLabelName">${esc(app.name || '')}</span>
-      </span>
+  const OL = window.OL;
+  const { esc } = OL.utils;
+
+  // ============================================================
+  // REGISTER PUBLIC API
+  // ============================================================
+  OL.renderApps = function(){
+    OL.updateBreadcrumb("/Apps");
+
+    const view = OL.state.appsViewMode || "details";
+
+    const container = document.getElementById("view");
+    if (!container) return;
+
+    container.innerHTML = `
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+        <div class="seg-group">
+          <button class="seg-btn ${view==="details"?"active":""}" data-mode="details">Details</button>
+          <button class="seg-btn ${view==="grid"?"active":""}" data-mode="grid">Grid</button>
+        </div>
+        <button class="btn small" id="newAppBtn">+ Add Application</button>
+      </div>
+      <div id="appsContainer"></div>
     `;
-  }
 
-  // =========================================================
-  // RENDER APPS LIST (GRID or DETAILS)
-  // =========================================================
+    container.querySelector("#newAppBtn").onclick = ()=> OL.openAppModalNew();
 
-  function renderApps() {
-    core.appFilterUI.renderAppFilterDropdown();
+    container.querySelectorAll(".seg-btn").forEach(btn=>{
+      btn.onclick = ()=>{
+        OL.state.appsViewMode = btn.dataset.mode;
+        OL.persist();
+        OL.renderApps();
+      };
+    });
 
+    renderAppsContent();
+  };
+
+  // ============================================================
+  // RENDER MAIN CONTENT
+  // ============================================================
+  function renderAppsContent(){
     const container = document.getElementById("appsContainer");
     if (!container) return;
 
-    container.innerHTML = "";
-    state.appsViewMode = state.appsViewMode || "details";
-
-    if (state.appsViewMode === "grid") {
-      renderAppsGrid(container);
+    if (OL.state.appsViewMode === "grid") {
+      container.innerHTML = `<div class="grid cols-3" id="appGrid"></div>`;
+      renderGrid(document.getElementById("appGrid"));
     } else {
-      renderAppsDetails(container);
+      container.innerHTML = `<div class="appsTable" id="appsTable"></div>`;
+      renderTable(document.getElementById("appsTable"));
     }
   }
 
-  // =========================================================
+  // ============================================================
+  // DETAILS TABLE VIEW
+  // ============================================================
+  function renderTable(el){
+    el.innerHTML = "";
+
+    OL.state.apps.forEach(app=>{
+      const row = document.createElement("div");
+      row.className = "appRow";
+      row.style.display = "grid";
+      row.style.gridTemplateColumns = "60px 200px 1fr";
+      row.style.alignItems = "center";
+      row.style.padding = "6px";
+      row.style.cursor = "pointer";
+      row.style.borderBottom = "1px solid var(--line)";
+
+      row.innerHTML = `
+        <div>${OL.appIconHTML(app)}</div>
+        <div><strong>${esc(app.name)}</strong></div>
+        <div>${esc(app.notes || "")}</div>
+      `;
+
+      row.onclick = ()=> OL.openAppModal(app.id);
+
+      el.appendChild(row);
+    });
+  }
+
+  // ============================================================
   // GRID VIEW
-  // =========================================================
+  // ============================================================
+  function renderGrid(el){
+    el.innerHTML = "";
 
-  function renderAppsGrid(container) {
-    const grid = document.createElement("div");
-    grid.className = "appsGrid";
+    OL.state.apps.forEach(app=>{
+      const card = document.createElement("div");
+      card.className = "card app-card";
+      card.style.cursor = "pointer";
+      card.style.display = "flex";
+      card.style.flexDirection = "column";
+      card.style.alignItems = "flex-start";
+      card.style.gap = "6px";
+      card.style.padding = "10px";
 
-    state.apps.forEach(app => {
-      if (state.uiFilters.selectedApps.length === 0 ||
-          core.appFilterUI.isAppSelected(app.id)) {
+      card.innerHTML = `
+        <div>${OL.appIconHTML(app)}</div>
+        <div class="app-title">${esc(app.name)}</div>
+        <div class="muted" style="font-size:12px;">${esc(app.notes||"")}</div>
+      `;
 
-        const card = document.createElement("div");
-        card.className = "appCard";
-        card.dataset.id = app.id;
+      card.onclick = ()=> OL.openAppModal(app.id);
 
-        card.innerHTML = `
-          <div class="app-icon-box">
-            ${appIconHTML(app)}
-          </div>
-          <div class="app-title">${esc(app.name)}</div>
-        `;
-
-        card.onclick = () => {
-          core.openAppModal(app.id);
-        };
-
-        grid.appendChild(card);
-      }
+      el.appendChild(card);
     });
-
-    // + Add Application button
-    const addBtn = document.createElement("button");
-    addBtn.className = "btn small";
-    addBtn.textContent = "+ Add Application";
-    addBtn.onclick = () => core.openAppModalNew();
-
-    const wrap = document.createElement("div");
-    wrap.className = "appsAddNew";
-    wrap.appendChild(addBtn);
-
-    container.appendChild(grid);
-    container.appendChild(wrap);
   }
-
-  // =========================================================
-  // DETAILS VIEW
-  // =========================================================
-
-  function renderAppsDetails(container) {
-    const table = document.createElement("div");
-    table.className = "appsTable";
-
-    state.apps.forEach(app => {
-      if (state.uiFilters.selectedApps.length === 0 ||
-          core.appFilterUI.isAppSelected(app.id)) {
-
-        const row = document.createElement("div");
-        row.className = "appRow";
-        row.dataset.id = app.id;
-
-        row.innerHTML = `
-          <div class="appRowIcon">${appIconHTML(app)}</div>
-          <div class="appRowTitle">${esc(app.name)}</div>
-          <div class="appRowNotes">${esc(app.notes || "")}</div>
-        `;
-
-        row.onclick = () => core.openAppModal(app.id);
-        table.appendChild(row);
-      }
-    });
-
-    // + Add Application button
-    const addBtn = document.createElement("button");
-    addBtn.className = "btn small";
-    addBtn.textContent = "+ Add Application";
-    addBtn.onclick = () => core.openAppModalNew();
-
-    const wrap = document.createElement("div");
-    wrap.className = "appsAddNew";
-    wrap.appendChild(addBtn);
-
-    container.appendChild(table);
-    container.appendChild(wrap);
-  }
-
-  // =========================================================
-  // PUBLIC API
-  // =========================================================
-
-  core.renderApps = renderApps;
-  core.appLabelHTML = appLabelHTML;
 
 })();
