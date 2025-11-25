@@ -538,5 +538,68 @@
       window.removeEventListener("keydown", escClose);
     };
   }
+  // ============================================================
+  // USED IN RESOURCES
+  // ============================================================
+  function bindUsedInResources(app) {
+    const body = document.getElementById("appModalBody");
+  
+    // insert Section label
+    const label = document.createElement("label");
+    label.className = "modal-section-label";
+    label.textContent = "Used in Resources";
+    body.appendChild(label);
+  
+    const wrap = document.createElement("div");
+    wrap.id = "modalAppResources";
+    wrap.className = "modal-section-wrap";
+    body.appendChild(wrap);
+  
+    const refs = getResourceReferencesForApp(app.id);
+  
+    if (!refs.length) {
+      wrap.innerHTML = `<div class="empty-hint">No resource references.</div>`;
+      return;
+    }
+  
+    refs.forEach(r => {
+      const btn = document.createElement("button");
+      btn.className = "pill resource";
+      btn.textContent = r.name;
+      btn.onclick = () => {
+        if (typeof OL.openResourceModal === "function") {
+          OL.openResourceModal(r.id);
+        }
+      };
+      wrap.appendChild(btn);
+    });
+  }
+  
+  // Pull all resources that reference this app
+  function getResourceReferencesForApp(appId) {
+    const out = [];
+    (OL.state.resources || []).forEach(res => {
+      if (!res.references) return;
+  
+      if (res.references.apps && res.references.apps.includes(appId)) {
+        out.push(res);
+        return;
+      }
+  
+      if (res.references.functions) {
+        for (const fnId of res.references.functions) {
+          if ((OL.state.apps || []).some(a =>
+            a.id === appId &&
+            (a.functions || []).some(f => f.id === fnId)
+          )) {
+            out.push(res);
+            return;
+          }
+        }
+      }
+    });
+  
+    return out;
+  }
 
 })();
