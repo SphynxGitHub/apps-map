@@ -494,16 +494,15 @@ textarea{min-height:90px}
   gap: 8px;
   margin-bottom: 6px;
 }
-
 /* =========================================
-   INTEGRATIONS MODAL CAPABILITIES
+   INTEGRATION MODAL CAPABILITIES
 ========================================= */
 
 .int-modal-header-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 10px;
+  width: 100%;
 }
 
 .int-modal-app-select {
@@ -515,49 +514,63 @@ textarea{min-height:90px}
 
 .int-modal-app-select label {
   color: var(--muted);
+  font-size: 11px;
 }
 
 .int-modal-app-select select {
-  min-width: 140px;
-  font-size: 13px;
+  background: #020617;
+  border: 1px solid #1f2937;
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 12px;
+  padding: 4px 8px;
+  outline: none;
 }
 
 .int-modal-swap {
-  border-radius: 999px;
-  border: 1px solid var(--line);
+  border: 1px solid #1f2937;
   background: #020617;
-  padding: 4px 10px;
-  font-size: 11px;
+  border-radius: 999px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  font-size: 14px;
+  color: var(--muted);
 }
 
-.int-modal-swap span {
-  font-size: 13px;
+.int-modal-swap:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
-/* Legend inside integrations modal */
 .int-modal-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
   align-items: center;
+  gap: 8px;
   font-size: 11px;
   color: var(--muted);
-  margin: 4px 0 10px;
+  margin-bottom: 10px;
 }
 
 .int-modal-legend-label {
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .cap-dot {
+  display: inline-block;
   width: 8px;
   height: 8px;
   border-radius: 3px;
-  display: inline-block;
   margin-right: 4px;
 }
 
+/* color meaning: integration type */
 .cap-dot-direct {
   background: #22c55e;
 }
@@ -571,43 +584,44 @@ textarea{min-height:90px}
 }
 
 .cap-dot-unknown {
-  border: 1px solid #4b5563;
-  background: transparent;
+  background: #4b5563;
 }
 
-/* Grouping + list */
+.int-modal-split-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
 .capability-groups {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 2px;
-}
-
-.capability-group {
-  border-radius: 10px;
-  border: 1px solid #111827;
-  background: #020617;
-  padding: 8px 9px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
 }
 
 .capability-group-title {
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #9ca3af;
+  letter-spacing: 0.06em;
+  color: var(--muted);
   margin-bottom: 4px;
 }
 
 .capability-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  border: 1px solid #1f2937;
+  border-radius: 8px;
+  background: #020617;
+  padding: 6px 8px;
+  max-height: 260px;
+  overflow-y: auto;
 }
 
 .capability-row {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 3px 0;
   font-size: 12px;
 }
 
@@ -615,28 +629,34 @@ textarea{min-height:90px}
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+  max-width: 60%;
+}
+
+/* dot is left, then text: locked in */
+.capability-name span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .capability-meta {
-  font-size: 11px;
-  color: #9ca3af;
   text-align: right;
+  font-size: 11px;
+  color: var(--muted);
+  max-width: 40%;
 }
 
-.capability-meta span + span {
-  margin-left: 6px;
+.capability-meta span {
+  display: block;
+  line-height: 1.2;
 }
 
 .capability-empty {
   font-size: 12px;
   color: #6b7280;
   font-style: italic;
-}
-
-/* Light divider for split A/B text in header */
-.int-modal-split-label {
-  font-size: 11px;
-  color: var(--muted);
+  padding: 4px 2px;
 }
 
 /* =========================================
