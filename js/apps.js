@@ -386,6 +386,29 @@
   // ------------------------------------------------
   // INTEGRATIONS CARDS
   // ------------------------------------------------
+
+  OL.assignIntegration = function(appAId, appBId, type) {
+    const appA = OL.state.apps.find(a => a.id === appAId);
+    const appB = OL.state.apps.find(a => a.id === appBId);
+    if (!appA || !appB) return;
+  
+    if (!appA.integrations) appA.integrations = [];
+    if (!appB.integrations) appB.integrations = [];
+  
+    // Add record on A
+    if (!appA.integrations.some(i => i.appId === appBId)) {
+      appA.integrations.push({ appId: appBId, type });
+    }
+  
+    // Add record on B
+    if (!appB.integrations.some(i => i.appId === appAId)) {
+      appB.integrations.push({ appId: appAId, type });
+    }
+  
+    OL.persist && OL.persist();
+    OL.renderApps && OL.renderApps();
+  };
+
   function wireIntegrationsViewToggle() {
     const mode = state.integrationsViewMode || "flip";
     state.integrationsViewMode = mode;
