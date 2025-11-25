@@ -1,302 +1,255 @@
 ;(() => {
   if (!window.OL) {
-    console.error("integrations.js: OL not loaded");
+    console.error("integrations.js: OL core missing");
     return;
   }
 
   const OL = window.OL;
-  const { state, utils, persist } = OL;
-  const { esc } = utils;
+  const { state, utils } = OL;
+  const esc = (utils && utils.esc) ? utils.esc : (s => String(s ?? ""));
 
-  // Ensure collection
-  if (!Array.isArray(state.integrationsMatrix)) {
-    state.integrationsMatrix = [];
+  // --------------------------------------------------
+  // BASIC HELPERS
+  // --------------------------------------------------
+  function getApps() {
+    return Array.isArray(state.apps) ? state.apps : [];
   }
 
-  // Seed one sample Calendly <-> Wealthbox relationship if empty
-  if (state.integrationsMatrix.length === 0 && state.apps && state.apps.length) {
-    const calendly = state.apps.find(a => /calendly/i.test(a.name));
-    const wb       = state.apps.find(a => /wealthbox/i.test(a.name));
-    if (calendly && wb) {
-      state.integrationsMatrix.push({
-        id: utils.uid(),
-        aId: calendly.id,
-        bId: wb.id,
-        category: "Scheduling",
-        aToB: {
-          type: "zapier",
-          actions: [
-            "Meeting booked → create contact in CRM",
-            "Meeting booked → create task / workflow"
-          ]
-        },
-        bToA: {
-          type: "direct",
-          actions: [
-            "Update scheduling link from CRM fields"
-          ]
-        }
-      });
-      persist();
-    }
+  function getAppById(id) {
+    return getApps().find(a => a.id === id) || null;
   }
 
-  // View modes: flip | one-way | bi
-  state.integrationsViewMode = state.integrationsViewMode || "flip";
+  function byName(a, b) {
+    return (a.name || "").toLowerCase().localeCompare((b.name || "").toLowerCase());
+  }
 
-  // ============================================================
-  // PUBLIC ENTRY: RENDER TECH COMPARISON ROUTE
-  // ============================================================
-  OL.renderTechComparison = function () {
-    const view = document.getElementById("view");
-    if (!view) return;
+  function getCapabilities() {
+    // expected shape:
+    // state.capabilities = [
+    //   { id, canonical, type: "trigger"|"search"|"action", appId, integrationType: "direct"|"zapier"|"both", ... }
+    // ]
+    return Array.isArray(state.capabilities) ? state.capabilities : [];
+  }
 
-    OL.updateBreadcrumb && OL.updateBreadcrumb("/ Apps / Tech Comparison");
+  // --------------------------------------------------
+  // CAPABILITY FILTERING
+  // --------------------------------------------------
+  function capsForAppSide(appId, side) {
+    const all = getCapabilities().filter(c => c.appId === appId);
+    if (!all.length) return { triggers: [], searches: [], actions: [] };
 
-    view.innerHTML = `
-      <div class="card">
-        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <div class="row" style="gap:8px;align-items:center;">
-            <h2 style="margin:0;font-size:16px;">Integration Cards</h2>
-            <span class="muted" style="font-size:12px;">App-to-app flows with direction + actions</span>
-          </div>
-          <div class="seg-group">
-            <button class="seg-btn ${state.integrationsViewMode === "flip" ? "active" : ""}" data-int-view="flip">Flip</button>
-            <button class="seg-btn ${state.integrationsViewMode === "one-way" ? "active" : ""}" data-int-view="one-way">One Direction</button>
-            <button class="seg-btn ${state.integrationsViewMode === "bi" ? "active" : ""}" data-int-view="bi">Bi-Directional</button>
-          </div>
-        </div>
-        <div id="integrationsCards" class="grid cols-2"></div>
-      </div>
-    `;
+    const triggers = [];
+    const searches = [];
+    const actions  = [];
 
-    // Wire toggle
-    view.querySelectorAll("[data-int-view]").forEach(btn => {
-      btn.onclick = () => {
-        state.integrationsViewMode = btn.dataset.intView;
-        persist();
-        OL.renderTechComparison();
-      };
-    });
-
-    renderCards();
-  };
-
-  // ============================================================
-  // CARD RENDERING
-  // ============================================================
-  function renderCards() {
-    const container = document.getElementById("integrationsCards");
-    if (!container) return;
-    container.innerHTML = "";
-
-    const rels = state.integrationsMatrix || [];
-    if (!rels.length) {
-      container.innerHTML = `<div class="muted">No integrations mapped yet.</div>`;
-      return;
-    }
-
-    rels.forEach(rel => {
-      const a = state.apps.find(x => x.id === rel.aId);
-      const b = state.apps.find(x => x.id === rel.bId);
-      if (!a || !b) return;
-
-      const card = document.createElement("div");
-      card.className = "card integration-card";
-
-      if (state.integrationsViewMode === "flip") {
-        card.innerHTML = buildFlipCard(rel, a, b);
-      } else if (state.integrationsViewMode === "one-way") {
-        card.innerHTML = buildOneWayCard(rel, a, b);
+    all.forEach(c => {
+      const t = (c.type || "").toLowerCase();
+      if (side === "A") {
+        // A = source side: only triggers
+        if (t === "trigger") triggers.push(c);
       } else {
-        card.innerHTML = buildBiCard(rel, a, b);
+        // B = target side: searches + actions
+        if (t === "search") searches.push(c);
+        if (t === "action") actions.push(c);
       }
+    });
 
-      // Wire flip control (for flip mode)
-      if (state.integrationsViewMode === "flip") {
-        wireFlip(card, rel);
+    // sort canonical name alpha for stability
+    const sortByCanon = (x, y) =>
+      (x.canonical || "").toLowerCase().localeCompare((y.canonical || "").toLowerCase());
+
+    triggers.sort(sortByCanon);
+    searches.sort(sortByCanon);
+    actions.sort(sortByCanon);
+
+    return { triggers, searches, actions };
+  }
+
+  function badgeClassForIntegrationType(t) {
+    const v = (t || "").toLowerCase();
+    if (v === "direct") return "cap-type-direct";
+    if (v === "zapier") return "cap-type-zapier";
+    if (v === "both") return "cap-type-both";
+    return "cap-type-unknown";
+  }
+
+  function renderCapList(title, list) {
+    if (!list || !list.length) return "";
+    const rows = list.map(c => {
+      const badgeClass = badgeClassForIntegrationType(c.integrationType);
+      return `
+        <div class="cap-row">
+          <span class="cap-type-dot ${badgeClass}"></span>
+          <span class="cap-name">${esc(c.canonical || c.id || "")}</span>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <div class="cap-group">
+        <div class="cap-group-title">${esc(title)}</div>
+        <div class="cap-group-body">
+          ${rows}
+        </div>
+      </div>
+    `;
+  }
+
+  // --------------------------------------------------
+  // MODAL RENDERING
+  // --------------------------------------------------
+  function buildAppSelectHtml(selectId, selectedId) {
+    const apps = getApps().slice().sort(byName);
+    const options = apps.map(app => {
+      const sel = app.id === selectedId ? " selected" : "";
+      return `<option value="${esc(app.id)}"${sel}>${esc(app.name || "(unnamed)")}</option>`;
+    }).join("");
+
+    return `<select id="${selectId}" class="int-modal-app-select">${options}</select>`;
+  }
+
+  function buildModalBodyHtml(appAId, appBId) {
+    const appA = getAppById(appAId);
+    const appB = getAppById(appBId);
+
+    if (!appA || !appB) {
+      return `<div class="empty-hint">One or both applications are missing.</div>`;
+    }
+
+    const capsA = capsForAppSide(appA.id, "A");
+    const capsB = capsForAppSide(appB.id, "B");
+
+    const sideALeft = [
+      renderCapList("Triggers", capsA.triggers)
+    ].join("");
+
+    const sideBRight = [
+      renderCapList("Searches", capsB.searches),
+      renderCapList("Actions",  capsB.actions)
+    ].join("");
+
+    const sideAContent = sideALeft || `<div class="empty-hint">No triggers mapped yet for ${esc(appA.name)}.</div>`;
+    const sideBContent = sideBRight || `<div class="empty-hint">No searches or actions mapped yet for ${esc(appB.name)}.</div>`;
+
+    return `
+      <div class="int-modal-body-inner">
+        <div class="int-modal-column">
+          <div class="int-modal-app-label">Source (A)</div>
+          <div class="int-modal-app-name">${esc(appA.name || "")}</div>
+          <div class="int-modal-capabilities">
+            ${sideAContent}
+          </div>
+        </div>
+        <div class="int-modal-column">
+          <div class="int-modal-app-label">Target (B)</div>
+          <div class="int-modal-app-name">${esc(appB.name || "")}</div>
+          <div class="int-modal-capabilities">
+            ${sideBContent}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function buildModalHtml(appAId, appBId) {
+    const appA = getAppById(appAId);
+    const appB = getAppById(appBId);
+
+    if (!appA || !appB) {
+      return `
+        <div class="modal">
+          <div class="modal-head">
+            <div class="modal-title-text">Integration details</div>
+          </div>
+          <div class="modal-body">
+            <div class="empty-hint">One or both apps no longer exist.</div>
+          </div>
+        </div>
+      `;
+    }
+
+    const selectA = buildAppSelectHtml("intModalAppA", appAId);
+    const selectB = buildAppSelectHtml("intModalAppB", appBId);
+
+    return `
+      <div class="modal">
+        <div class="modal-head int-modal-head">
+          <div class="int-modal-app-selector">
+            ${selectA}
+          </div>
+          <button type="button" class="int-modal-swap-btn" id="intModalSwap" title="Swap A/B">
+            ⇄
+          </button>
+          <div class="int-modal-app-selector">
+            ${selectB}
+          </div>
+        </div>
+        <div class="modal-body" id="intModalBody">
+          ${buildModalBodyHtml(appAId, appBId)}
+        </div>
+      </div>
+    `;
+  }
+
+  function wireModalInteractions(initialAId, initialBId) {
+    let currentA = initialAId;
+    let currentB = initialBId;
+
+    const bodyEl = document.getElementById("intModalBody");
+    const selA  = document.getElementById("intModalAppA");
+    const selB  = document.getElementById("intModalAppB");
+    const swap  = document.getElementById("intModalSwap");
+
+    if (!bodyEl || !selA || !selB || !swap) return;
+
+    function rerenderBody() {
+      bodyEl.innerHTML = buildModalBodyHtml(currentA, currentB);
+    }
+
+    selA.addEventListener("change", () => {
+      currentA = selA.value;
+      // prevent A and B from being identical; if they are, nudge B
+      if (currentA === currentB) {
+        const apps = getApps().slice().sort(byName);
+        const alt = apps.find(a => a.id !== currentA);
+        if (alt) {
+          currentB = alt.id;
+          selB.value = currentB;
+        }
       }
+      rerenderBody();
+    });
 
-      container.appendChild(card);
+    selB.addEventListener("change", () => {
+      currentB = selB.value;
+      if (currentB === currentA) {
+        const apps = getApps().slice().sort(byName);
+        const alt = apps.find(a => a.id !== currentB);
+        if (alt) {
+          currentA = alt.id;
+          selA.value = currentA;
+        }
+      }
+      rerenderBody();
+    });
+
+    swap.addEventListener("click", () => {
+      const oldA = currentA;
+      currentA = currentB;
+      currentB = oldA;
+      selA.value = currentA;
+      selB.value = currentB;
+      rerenderBody();
     });
   }
 
-  // ------------------------------------------------------------
-  // FLIP VIEW: single card, two arrows stacked, top arrow = active dir
-  // ------------------------------------------------------------
-  function buildFlipCard(rel, a, b) {
-    const dir = rel._activeDir || "aToB"; // aToB or bToA
-    const forward = dir === "aToB";
-    const from = forward ? a : b;
-    const to   = forward ? b : a;
-    const data = forward ? rel.aToB : rel.bToA;
-
-    const forwardArrowClass = forward ? "arrow active" : "arrow";
-    const backwardArrowClass = !forward ? "arrow active" : "arrow";
-
-    const typeClass = getTypeClass(data.type);
-
-    return `
-      <div class="row integration-header">
-        <div class="row app-pair">
-          ${OL.appIconHTML(from)}
-          <span class="app-name">${esc(from.name)}</span>
-          <div class="flip-arrows">
-            <span class="${forwardArrowClass}">➜</span>
-            <span class="${backwardArrowClass}">➜</span>
-          </div>
-          <span class="app-name">${esc(to.name)}</span>
-          ${OL.appIconHTML(to)}
-        </div>
-        <span class="pill category-pill" style="background:${categoryColor(rel.category)}">
-          ${esc(rel.category || "Uncategorized")}
-        </span>
-      </div>
-      <div class="integration-body ${typeClass}">
-        <div class="muted" style="font-size:11px;margin-bottom:4px;">
-          ${labelType(data.type)} integration from <strong>${esc(from.name)}</strong> to <strong>${esc(to.name)}</strong>
-        </div>
-        <ul class="integration-actions">
-          ${(data.actions || []).map(a => `<li>${esc(a)}</li>`).join("") || "<li class='muted'>No actions defined yet.</li>"}
-        </ul>
-        <div class="row" style="justify-content:flex-end;">
-          <button class="btn small ghost flip-toggle" data-rel-id="${rel.id}">Flip Direction</button>
-        </div>
-      </div>
-    `;
-  }
-
-  function wireFlip(card, rel) {
-    const btn = card.querySelector(".flip-toggle");
-    if (!btn) return;
-    btn.onclick = () => {
-      rel._activeDir = rel._activeDir === "bToA" ? "aToB" : "bToA";
-      persist();
-      OL.renderTechComparison();
-    };
-  }
-
-  // ------------------------------------------------------------
-  // ONE DIRECTION VIEW: two cards (A→B and B→A separately)
-  // ------------------------------------------------------------
-  function buildOneWayCard(rel, a, b) {
-    // We render combined DOM for both directions, but visually as two “sub-cards”
-    return `
-      <div class="one-way-wrapper">
-        ${buildOneWaySub(rel, a, b, "aToB")}
-        ${buildOneWaySub(rel, b, a, "bToA")}
-      </div>
-    `;
-  }
-
-  function buildOneWaySub(rel, from, to, key) {
-    const data = rel[key];
-    if (!data) return "";
-    const typeClass = getTypeClass(data.type);
-
-    return `
-      <div class="one-way-card ${typeClass}">
-        <div class="row app-pair">
-          ${OL.appIconHTML(from)}
-          <span class="app-name">${esc(from.name)}</span>
-          <span class="arrow single">➜</span>
-          <span class="app-name">${esc(to.name)}</span>
-          ${OL.appIconHTML(to)}
-        </div>
-        <div class="row" style="justify-content:space-between;align-items:center;margin:6px 0 4px;">
-          <span class="pill category-pill" style="background:${categoryColor(rel.category)}">
-            ${esc(rel.category || "Uncategorized")}
-          </span>
-          <span class="muted" style="font-size:11px;">${labelType(data.type)} integration</span>
-        </div>
-        <ul class="integration-actions">
-          ${(data.actions || []).map(a => `<li>${esc(a)}</li>`).join("") || "<li class='muted'>No actions defined yet.</li>"}
-        </ul>
-      </div>
-    `;
-  }
-
-  // ------------------------------------------------------------
-  // BI-DIRECTIONAL VIEW: single card, showing both directions with <-> label
-  // ------------------------------------------------------------
-  function buildBiCard(rel, a, b) {
-    const aType = labelType(rel.aToB?.type);
-    const bType = labelType(rel.bToA?.type);
-
-    const biType = combineTypes(rel.aToB?.type, rel.bToA?.type);
-    const typeClass = getTypeClass(biType);
-
-    return `
-      <div class="bi-card ${typeClass}">
-        <div class="row app-pair">
-          ${OL.appIconHTML(a)}
-          <span class="app-name">${esc(a.name)}</span>
-          <span class="arrow bi">⇄</span>
-          <span class="app-name">${esc(b.name)}</span>
-          ${OL.appIconHTML(b)}
-        </div>
-        <div class="row" style="justify-content:space-between;align-items:center;margin:6px 0 4px;">
-          <span class="pill category-pill" style="background:${categoryColor(rel.category)}">
-            ${esc(rel.category || "Uncategorized")}
-          </span>
-          <span class="muted" style="font-size:11px;">
-            ${aType || "—"} from ${esc(a.name)} · ${bType || "—"} from ${esc(b.name)}
-          </span>
-        </div>
-
-        <div class="grid cols-2">
-          <div>
-            <div class="muted" style="font-size:11px;margin-bottom:4px;">
-              ${esc(a.name)} ➜ ${esc(b.name)}
-            </div>
-            <ul class="integration-actions">
-              ${(rel.aToB?.actions || []).map(x => `<li>${esc(x)}</li>`).join("") || "<li class='muted'>No actions.</li>"}
-            </ul>
-          </div>
-          <div>
-            <div class="muted" style="font-size:11px;margin-bottom:4px;">
-              ${esc(b.name)} ➜ ${esc(a.name)}
-            </div>
-            <ul class="integration-actions">
-              ${(rel.bToA?.actions || []).map(x => `<li>${esc(x)}</li>`).join("") || "<li class='muted'>No actions.</li>"}
-            </ul>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  // ============================================================
-  // HELPERS
-  // ============================================================
-  function labelType(t) {
-    if (t === "zapier") return "Zapier";
-    if (t === "direct") return "Direct";
-    if (t === "both") return "Direct + Zapier";
-    return "Unknown";
-  }
-
-  function getTypeClass(t) {
-    if (t === "zapier") return "int-zapier";
-    if (t === "direct") return "int-direct";
-    if (t === "both") return "int-both";
-    return "int-unknown";
-  }
-
-  function categoryColor(cat) {
-    if (!cat) return "rgba(148, 163, 184, 0.25)";
-    const key = cat.toLowerCase();
-    if (key.includes("sched")) return "rgba(31, 211, 189, 0.22)";
-    if (key.includes("email")) return "rgba(96, 165, 250, 0.22)";
-    if (key.includes("crm")) return "rgba(244, 114, 182, 0.22)";
-    return "rgba(148, 163, 184, 0.2)";
-  }
-
-  function combineTypes(aType, bType) {
-    const s = new Set([aType, bType].filter(Boolean));
-    if (s.size === 1) return [...s][0];
-    if (s.size === 0) return "unknown";
-    return "both";
-  }
+  // --------------------------------------------------
+  // PUBLIC ENTRY POINT
+  // --------------------------------------------------
+  OL.openIntegrationModal = function openIntegrationModal(appAId, appBId) {
+    const html = buildModalHtml(appAId, appBId);
+    OL.openModal(html);
+    wireModalInteractions(appAId, appBId);
+  };
 
 })();
