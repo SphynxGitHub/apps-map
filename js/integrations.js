@@ -269,128 +269,200 @@
   // ============================================================
   // INTEGRATIONS CAPABILITIES MODAL
   // ============================================================
-  OL.openIntegrationModal = function(appIdA, appIdB) {
+  OL.openIntegrationModal = function openIntegrationModal(appIdA, appIdB) {
     const apps = OL.state.apps || [];
-    const caps = OL.state.capabilities || [];
+    const caps = OL.state.capabilities || []; // canonical library
   
-    let appA = apps.find(a => a.id === appIdA);
-    let appB = apps.find(a => a.id === appIdB);
+    if (!apps.length) return;
   
-    if (!appA) appA = apps[0];
-    if (!appB) appB = apps.find(a => a.id !== appA.id);
+    // Resolve A/B apps
+    let appA = apps.find(a => a.id === appIdA) || null;
+    let appB = apps.find(a => a.id === appIdB) || null;
   
-    function getCaps(appId, type) {
-      return caps.filter(cap => cap.type === type)
+    if (!appA && apps.length) appA = apps[0];
+    if (!appB && apps.length) appB = apps.find(a => a.id !== appA.id) || appA;
+  
+    if (!appA || !appB) return;
+  
+    // ---------- Capability helpers ----------
+  
+    function getAppCaps(appId, type) {
+      // capability shape:
+      // {
+      //   id, canonical, type: 'trigger' | 'search' | 'action',
+      //   apps: [
+      //     { appId, via: 'direct'|'zapier'|'both', label, apiName, notes }
+      //   ]
+      // }
+      return caps
+        .filter(cap => cap.type === type)
         .map(cap => {
-          const match = (cap.apps || []).find(a => a.appId === appId);
-          return match
-            ? { canonical: cap.canonical, via: match.via, appLabel: match.label || "", apiName: match.api || "" }
-            : null;
+          const appInfo = (cap.apps || []).find(a => a.appId === appId);
+          if (!appInfo) return null;
+          return {
+            canonical: cap.canonical || cap.id || "",
+            type: cap.type,
+            via: appInfo.via || appInfo.type || "unknown",
+            appLabel: appInfo.label || "",
+            apiName: appInfo.apiName || appInfo.api || "",
+            notes: appInfo.notes || ""
+          };
         })
         .filter(Boolean)
-        .sort((a,b)=>a.canonical.localeCompare(b.canonical));
+        .sort((a, b) => a.canonical.localeCompare(b.canonical));
     }
   
-    // strict — only what THIS PAIR supports
-    const triggersA = getCaps(appA.id, "trigger");
-    const searchesB = getCaps(appB.id, "search");
-    const actionsB  = getCaps(appB.id, "action");
+    const triggersA = getAppCaps(appA.id, "trigger");
+    const searchesB = getAppCaps(appB.id, "search");
+    const actionsB  = getAppCaps(appB.id, "action");
   
-    const html = `
-      <div class="modal">
-        <div class="modal-head">
-  
-          <label>A</label>
-          <select id="intModalAppA">
-            ${apps.map(a => `
-              <option value="${a.id}" ${a.id===appA.id?"selected":""}>
-                ${OL.utils.esc(a.name)}
-              </option>
-            `).join("")}
-          </select>
-  
-          <button id="intModalSwap" class="int-modal-swap">⇄</button>
-  
-          <label>B</label>
-          <select id="intModalAppB">
-            ${apps.map(b => `
-              <option value="${b.id}" ${b.id===appB.id?"selected":""}>
-                ${OL.utils.esc(b.name)}
-              </option>
-            `).join("")}
-          </select>
-  
-        </div>
-  
-        <div class="modal-body">
-  
-          <div class="int-modal-legend">
-            <span class="cap-dot cap-dot-direct"></span>Direct
-            <span class="cap-dot cap-dot-zapier"></span>Zapier
-            <span class="cap-dot cap-dot-both"></span>Both
-          </div>
-  
-          <div class="capability-group">
-            <div class="cap-title">
-              ${OL.utils.esc(appA.name)} — Triggers
-            </div>
-            ${renderCapList(triggersA)}
-          </div>
-  
-          <div class="capability-group">
-            <div class="cap-title">
-              ${OL.utils.esc(appB.name)} — Searches
-            </div>
-            ${renderCapList(searchesB)}
-          </div>
-  
-          <div class="capability-group">
-            <div class="cap-title">
-              ${OL.utils.esc(appB.name)} — Actions
-            </div>
-            ${renderCapList(actionsB)}
-          </div>
-  
-        </div>
-      </div>
-    `;
-  
-    function renderCapList(list) {
+    function renderCapList(list, emptyLabel) {
+      if (!list.length) {
+        return `<div class="capability-empty">${emptyLabel}</div>`;
+      }
       return `
         <div class="capability-list">
-          ${
-            list.length
-              ? list.map(item => `
-                <div class="capability-row">
-                  <span class="cap-dot cap-dot-${item.via}"></span>
-                  <span>${item.canonical}</span>
+          ${list.map(item => {
+            let dotClass = "cap-dot-unknown";
+            if (item.via === "direct") dotClass = "cap-dot-direct";
+            else if (item.via === "zapier") dotClass = "cap-dot-zapier";
+            else if (item.via === "both") dotClass = "cap-dot-both";
+  
+            return `
+              <div class="capability-row">
+                <div class="capability-name">
+                  <span class="cap-dot ${dotClass}"></span>
+                  <span>${OL.utils.esc(item.canonical)}</span>
                 </div>
-              `).join("")
-              : `<div class="capability-empty">none</div>`
-          }
+                <div class="capability-meta">
+                  ${item.appLabel ? `<span>${OL.utils.esc(item.appLabel)}</span>` : ""}
+                  ${item.apiName ? `<span>${OL.utils.esc(item.apiName)}</span>` : ""}
+                </div>
+              </div>
+            `;
+          }).join("")}
         </div>
       `;
     }
   
-    OL.openModal(html);
+    const hasLibrary = caps && caps.length;
   
-    const modal = document.querySelector("#modal-layer .modal");
-    modal.querySelector("#intModalAppA").onchange = () => {
-      OL.openIntegrationModal(
-        modal.querySelector("#intModalAppA").value,
-        modal.querySelector("#intModalAppB").value
-      );
-    };
-    modal.querySelector("#intModalAppB").onchange = () => {
-      OL.openIntegrationModal(
-        modal.querySelector("#intModalAppA").value,
-        modal.querySelector("#intModalAppB").value
-      );
-    };
-    modal.querySelector("#intModalSwap").onclick = () => {
-      OL.openIntegrationModal(appIdB, appIdA);
-    };
+    const modalHtml = `
+      <div class="modal">
+        <div class="modal-head">
+          <div class="int-modal-header-row">
+            <div class="int-modal-app-select">
+              <label>A:</label>
+              <select id="intModalAppA">
+                ${apps
+                  .slice()
+                  .sort((x, y) => (x.name || "").localeCompare(y.name || ""))
+                  .map(a => `
+                    <option value="${a.id}" ${a.id === appA.id ? "selected" : ""}>
+                      ${OL.utils.esc(a.name || "")}
+                    </option>
+                  `).join("")}
+              </select>
+            </div>
+  
+            <button class="int-modal-swap" id="intModalSwap" type="button" title="Swap A & B">
+              <span>&#8646;</span>
+            </button>
+  
+            <div class="int-modal-app-select">
+              <label>B:</label>
+              <select id="intModalAppB">
+                ${apps
+                  .slice()
+                  .sort((x, y) => (x.name || "").localeCompare(y.name || ""))
+                  .map(b => `
+                    <option value="${b.id}" ${b.id === appB.id ? "selected" : ""}>
+                      ${OL.utils.esc(b.name || "")}
+                    </option>
+                  `).join("")}
+              </select>
+            </div>
+          </div>
+        </div>
+  
+        <div class="modal-body">
+          <div class="int-modal-legend">
+            <span class="int-modal-legend-label">Integration type:</span>
+            <span><span class="cap-dot cap-dot-direct"></span>Direct</span>
+            <span><span class="cap-dot cap-dot-zapier"></span>Zapier</span>
+            <span><span class="cap-dot cap-dot-both"></span>Both</span>
+            <span><span class="cap-dot cap-dot-unknown"></span>Unknown</span>
+          </div>
+  
+          ${!hasLibrary ? `
+            <div class="empty-hint">
+              No capabilities library loaded yet. Add canonical triggers/searches/actions
+              to <code>state.capabilities</code> to populate this view.
+            </div>
+          ` : `
+            <div class="int-modal-split-label">
+              Showing <strong>${OL.utils.esc(appA.name || "")}</strong> triggers
+              → <strong>${OL.utils.esc(appB.name || "")}</strong> searches & actions
+            </div>
+  
+            <div class="capability-groups">
+              <div class="capability-group">
+                <div class="capability-group-title">
+                  A: ${OL.utils.esc(appA.name || "")} · Triggers
+                </div>
+                ${renderCapList(triggersA, "No triggers found for this app.")}
+              </div>
+  
+              <div class="capability-group">
+                <div class="capability-group-title">
+                  B: ${OL.utils.esc(appB.name || "")} · Searches
+                </div>
+                ${renderCapList(searchesB, "No search capabilities found for this app.")}
+              </div>
+  
+              <div class="capability-group">
+                <div class="capability-group-title">
+                  B: ${OL.utils.esc(appB.name || "")} · Actions
+                </div>
+                ${renderCapList(actionsB, "No actions found for this app.")}
+              </div>
+            </div>
+          `}
+        </div>
+      </div>
+    `;
+  
+    OL.openModal(modalHtml);
+  
+    // Wire behaviour inside modal
+    const layer = document.getElementById("modal-layer");
+    if (!layer) return;
+    const modal = layer.querySelector(".modal");
+    if (!modal) return;
+  
+    const selA = modal.querySelector("#intModalAppA");
+    const selB = modal.querySelector("#intModalAppB");
+    const swap = modal.querySelector("#intModalSwap");
+  
+    if (selA) {
+      selA.addEventListener("change", () => {
+        const newA = selA.value;
+        const newB = selB && selB.value ? selB.value : appB.id;
+        OL.openIntegrationModal(newA, newB);
+      });
+    }
+    if (selB) {
+      selB.addEventListener("change", () => {
+        const newA = selA && selA.value ? selA.value : appA.id;
+        const newB = selB.value;
+        OL.openIntegrationModal(newA, newB);
+      });
+    }
+    if (swap) {
+      swap.addEventListener("click", () => {
+        OL.openIntegrationModal(appB.id, appA.id);
+      });
+    }
   };
-
 
 })();
