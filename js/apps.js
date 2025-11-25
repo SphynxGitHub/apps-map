@@ -240,6 +240,56 @@
 
     container.appendChild(list);
   }
+  
+  // ============================================================
+  // ADD FUNCTION TO APP
+  // ============================================================
+  OL.assignFunctionToApp = function(appId, functionId) {
+    const app = OL.state.apps.find(a => a.id === appId);
+    if (!app) return;
+    if (!app.functions) app.functions = [];
+  
+    // Find how many apps have this function already
+    const existingMappings = OL.state.apps
+      .map(a => a.functions || [])
+      .flat()
+      .filter(fn => fn.id === functionId);
+  
+    let newStatus;
+    if (existingMappings.length === 0) {
+      // FIRST APP FOR THIS FUNCTION
+      newStatus = "primary";
+    } else {
+      // Function already exists on other apps
+      newStatus = "available";
+    }
+  
+    // Create mapping object
+    const newMapping = {
+      id: functionId,
+      status: newStatus
+    };
+  
+    // Add mapping to this app
+    app.functions.push(newMapping);
+  
+    OL.persist();
+  
+    // Rerender UI if currently inside Functions or Apps
+    if (window.location.hash === "#/apps") {
+      if (typeof OL.renderApps === "function") {
+        OL.renderApps();
+      }
+    }
+  };
+  function onAddFunctionFromAppModal(appId, functionId) {
+    OL.assignFunctionToApp(appId, functionId);
+    OL.openAppModal(appId); // refresh modal view
+  }
+  pill.onclick = (e) => {
+    e.stopPropagation();
+    onAddFunctionFromAppModal(app.id, fn.id);
+  };
 
   // ------------------------------------------------
   // FUNCTIONS CARDS (driven off app.function assignments)
