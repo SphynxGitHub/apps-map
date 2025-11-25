@@ -347,14 +347,6 @@
           <span class="pill-label">${esc(app.name || "")}</span>
         `;
 
-        // Left-click: cycle status
-        pill.onclick = e => {
-          e.stopPropagation();
-          assignment.status = nextFnState(assignment.status);
-          OL.persist && OL.persist();
-          renderFunctionCards();
-        };
-
         // Right-click: unassign this app from the function
         pill.oncontextmenu = e => {
           e.preventDefault();
