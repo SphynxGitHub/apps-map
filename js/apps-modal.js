@@ -9,8 +9,21 @@
   const { uid, esc, debounce } = OL.utils;
 
   let modalLayer = null;
+
   function ensureModalLayer() {
     modalLayer = document.getElementById("modal-layer");
+    if (!modalLayer) {
+      modalLayer = document.createElement("div");
+      modalLayer.id = "modal-layer";
+      modalLayer.className = "modalOverlay";
+      modalLayer.style.display = "none";
+      modalLayer.style.position = "fixed";
+      modalLayer.style.inset = "0";
+      modalLayer.style.zIndex = "999";
+      modalLayer.style.background = "rgba(0,0,0,0.5)";
+      modalLayer.style.backdropFilter = "blur(4px)";
+      document.body.appendChild(modalLayer);
+    }
   }
 
   // ============================================================
@@ -41,7 +54,7 @@
   };
 
   // ============================================================
-  // RENDER MODAL
+  // RENDER MODAL (APP MODAL)
   // ============================================================
   function showAppModal(app) {
     ensureModalLayer();
@@ -95,7 +108,9 @@
     modal.appendChild(body);
     modalLayer.appendChild(modal);
 
-    modalLayer.onclick = e => { if (e.target === modalLayer) hideModal(); };
+    modalLayer.onclick = e => { 
+      if (e.target === modalLayer) hideModal(); 
+    };
 
     bindModalFields(app);
   }
@@ -453,6 +468,75 @@
       OL.persist();
     }, 200);
     return inp;
+  }
+
+  // ============================================================
+  // SHARED GENERIC MODAL (FOR INTEGRATIONS CAPABILITIES, ETC.)
+  // ============================================================
+  if (!OL.openModal) {
+    let activeCloseHandler = null;
+
+    function escClose(e) {
+      if (e.key === "Escape") {
+        hideModal();
+        if (activeCloseHandler) activeCloseHandler();
+        activeCloseHandler = null;
+        window.removeEventListener("keydown", escClose);
+      }
+    }
+
+    OL.openModal = function({ width = "620px", contentHTML = "", onClose = null } = {}) {
+      ensureModalLayer();
+      modalLayer.innerHTML = "";
+      modalLayer.style.display = "flex";
+
+      activeCloseHandler = onClose || null;
+
+      const modal = document.createElement("div");
+      modal.className = "modalBox";
+      modal.style.position = "absolute";
+      modal.style.top = "50%";
+      modal.style.left = "50%";
+      modal.style.transform = "translate(-50%, -50%)";
+      modal.style.width = width;
+      modal.style.maxHeight = "80vh";
+      modal.style.background = "var(--panel)";
+      modal.style.border = "1px solid var(--line)";
+      modal.style.borderRadius = "14px";
+      modal.style.display = "flex";
+      modal.style.flexDirection = "column";
+      modal.style.overflow = "hidden";
+
+      const body = document.createElement("div");
+      body.className = "modalContent";
+      body.style.padding = "16px";
+      body.style.overflowY = "auto";
+      body.style.flex = "1";
+      body.innerHTML = contentHTML;
+
+      modal.appendChild(body);
+      modalLayer.appendChild(modal);
+
+      modalLayer.onclick = (e) => {
+        if (e.target === modalLayer) {
+          hideModal();
+          if (activeCloseHandler) activeCloseHandler();
+          activeCloseHandler = null;
+          window.removeEventListener("keydown", escClose);
+        }
+      };
+
+      window.addEventListener("keydown", escClose);
+
+      return modal;
+    };
+
+    OL.closeModal = function() {
+      hideModal();
+      if (activeCloseHandler) activeCloseHandler();
+      activeCloseHandler = null;
+      window.removeEventListener("keydown", escClose);
+    };
   }
 
 })();
