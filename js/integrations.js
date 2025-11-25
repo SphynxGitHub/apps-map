@@ -432,8 +432,10 @@
       </div>
     `;
   
-    OL.openModal(modalHtml);
-  
+    OL.openModal({
+      contentHTML: modalHtml
+    });
+
     // Wire behaviour inside modal
     const layer = document.getElementById("modal-layer");
     if (!layer) return;
