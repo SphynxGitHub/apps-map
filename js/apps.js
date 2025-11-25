@@ -542,13 +542,11 @@
       </div>
     `;
 
-    // Card click -> integration modal, if defined
-    card.onclick = () => {
-      if (typeof OL.openIntegrationModal === "function") {
-        OL.openIntegrationModal(appA.id, appB.id);
-      }
+      card.onclick = () => {
+      // always open modal in canonical A -> B order
+      OL.openIntegrationModal(sourceApp.id, targetApp.id);
     };
-
+  
     return card;
   }
 
