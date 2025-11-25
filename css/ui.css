@@ -872,6 +872,15 @@ Color Indicator Zapier, Direct, Both
   font-size: 12px;
   flex: 1;
 }
+.cap-block-header {
+  margin-top: 10px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: #9ca3af;
+}
+
 
 /* =========================================
    MISC LEGACY / FN PILL STYLES
