@@ -836,6 +836,43 @@ textarea{min-height:90px}
   padding: 4px 2px;
 }
 
+/*================================
+Color Indicator Zapier, Direct, Both
+=================================*/
+
+.cap-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.cap-type-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* capability types per app connection mode */
+.cap-type-direct {
+  background: #22c55e;
+}
+.cap-type-zapier {
+  background: #f97316;
+}
+.cap-type-both {
+  background: #a855f7;
+}
+.cap-type-unknown {
+  background: #6b7280;
+}
+
+.cap-name {
+  font-size: 12px;
+  flex: 1;
+}
+
 /* =========================================
    MISC LEGACY / FN PILL STYLES
 ========================================= */
