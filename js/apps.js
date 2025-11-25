@@ -286,10 +286,6 @@
     OL.assignFunctionToApp(appId, functionId);
     OL.openAppModal(appId); // refresh modal view
   }
-  pill.onclick = (e) => {
-    e.stopPropagation();
-    onAddFunctionFromAppModal(app.id, fn.id);
-  };
 
   // ------------------------------------------------
   // FUNCTIONS CARDS (driven off app.function assignments)
