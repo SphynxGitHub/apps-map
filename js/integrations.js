@@ -73,27 +73,50 @@
     return "cap-type-unknown";
   }
 
-  function renderCapList(title, list) {
-    if (!list || !list.length) return "";
-    const rows = list.map(c => {
-      const badgeClass = badgeClassForIntegrationType(c.integrationType);
-      return `
-        <div class="cap-row">
-          <span class="cap-type-dot ${badgeClass}"></span>
-          <span class="cap-name">${esc(c.canonical || c.id || "")}</span>
-        </div>
-      `;
-    }).join("");
-
-    return `
-      <div class="cap-group">
-        <div class="cap-group-title">${esc(title)}</div>
-        <div class="cap-group-body">
-          ${rows}
-        </div>
-      </div>
-    `;
+  function renderCapabilitiesList(capabilities) {
+    const wrap = document.createElement("div");
+  
+    // Group by canonical type
+    const byType = {
+      trigger: [],
+      search: [],
+      action: []
+    };
+  
+    capabilities.forEach(c => {
+      const type = (c.type || "").toLowerCase();
+      if (byType[type]) byType[type].push(c);
+    });
+  
+    // Render in order: Triggers → Searches → Actions
+    renderCapBlock("Triggers", byType.trigger, wrap);
+    renderCapBlock("Searches", byType.search, wrap);
+    renderCapBlock("Actions", byType.action, wrap);
+  
+    return wrap;
   }
+  
+  function renderCapBlock(label, list, wrap) {
+    if (!list || !list.length) return;
+  
+    const header = document.createElement("div");
+    header.className = "cap-block-header";
+    header.textContent = label;
+    wrap.appendChild(header);
+  
+    list.forEach(c => {
+      const row = document.createElement("div");
+      row.className = "cap-row";
+  
+      row.innerHTML = `
+        <div class="cap-type-dot ${badgeClassForIntegrationType(c.integrationType)}"></div>
+        <div class="cap-name">${esc(c.canonicalName)}</div>
+      `;
+  
+      wrap.appendChild(row);
+    });
+  }
+
 
   // --------------------------------------------------
   // MODAL RENDERING
