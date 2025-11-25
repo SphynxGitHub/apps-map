@@ -461,91 +461,104 @@
     });
   }
 
-  function buildIntegrationCard(appA, appB, rec, viewMode) {
+  function buildIntegrationCard(sourceApp, targetApp, rec, dirMode, viewMode) {
     const card = document.createElement("div");
     card.className = "integration-card";
-
+  
     const directCount = rec.direct;
     const zapCount    = rec.zapier;
     const bothCount   = rec.both;
-
+  
     let intClass = "";
     if (bothCount > 0) intClass = "int-both";
     else if (directCount > 0) intClass = "int-direct";
     else if (zapCount > 0) intClass = "int-zapier";
-
+  
+    const total = directCount + zapCount + bothCount;
+  
+    // Arrow block
     let arrowBlock = "";
-    if (viewMode === "single") {
-      // Single visible direction A -> B
+    if (viewMode === "flip") {
+      const activeRight = dirMode === "AtoB";
       arrowBlock = `
-        <div class="integration-arrows single-mode">
-          <div class="arrow-row">
-            <span class="arrow-app">${esc(appA.name || "")}</span>
+        <div class="integration-arrows flip-mode">
+          <div class="arrow-row active">
+            <span class="arrow-app">${esc(sourceApp.name)}</span>
             <span class="arrow-symbol">&#8594;</span>
-            <span class="arrow-app">${esc(appB.name || "")}</span>
+            <span class="arrow-app">${esc(targetApp.name)}</span>
+          </div>
+          <div class="arrow-row inactive">
+            <span class="arrow-app">${esc(targetApp.name)}</span>
+            <span class="arrow-symbol">&#8594;</span>
+            <span class="arrow-app">${esc(sourceApp.name)}</span>
           </div>
         </div>
       `;
-    } else if (viewMode === "both") {
-      // Show both directions, same styling
+    } else if (viewMode === "single") {
       arrowBlock = `
-        <div class="integration-arrows both-mode">
-          <div class="arrow-row">
-            <span class="arrow-app">${esc(appA.name || "")}</span>
-            <span class="arrow-symbol">&#8594;</span>
-            <span class="arrow-app">${esc(appB.name || "")}</span>
-          </div>
-          <div class="arrow-row">
-            <span class="arrow-app">${esc(appB.name || "")}</span>
-            <span class="arrow-symbol">&#8594;</span>
-            <span class="arrow-app">${esc(appA.name || "")}</span>
-          </div>
+        <div class="integration-arrows single-mode">
+          <span class="arrow-app">${esc(sourceApp.name)}</span>
+          <span class="arrow-symbol">&#8594;</span>
+          <span class="arrow-app">${esc(targetApp.name)}</span>
         </div>
       `;
     } else {
-      // "Flip" mode – visually emphasize A -> B as the primary line
       arrowBlock = `
-        <div class="integration-arrows flip-mode">
+        <div class="integration-arrows both-mode">
           <div class="arrow-row">
-            <span class="arrow-app">${esc(appA.name || "")}</span>
+            <span class="arrow-app">${esc(sourceApp.name)}</span>
             <span class="arrow-symbol">&#8594;</span>
-            <span class="arrow-app">${esc(appB.name || "")}</span>
+            <span class="arrow-app">${esc(targetApp.name)}</span>
           </div>
           <div class="arrow-row">
-            <span class="arrow-app">${esc(appB.name || "")}</span>
+            <span class="arrow-app">${esc(targetApp.name)}</span>
             <span class="arrow-symbol">&#8594;</span>
-            <span class="arrow-app">${esc(appA.name || "")}</span>
+            <span class="arrow-app">${esc(sourceApp.name)}</span>
           </div>
         </div>
       `;
     }
-
+  
     card.innerHTML = `
       <div class="integration-card-header ${intClass}">
         ${arrowBlock}
       </div>
       <div class="integration-card-body">
         <div class="integration-summary">
-          <span>
-            <span class="integration-type-dot direct"></span>
-            Direct: ${directCount}
-          </span>
-          <span>
-            <span class="integration-type-dot zapier"></span>
-            Zapier: ${zapCount}
-          </span>
-          <span>
-            <span class="integration-type-dot both"></span>
-            Both: ${bothCount}
-          </span>
+          <span>Direct: ${directCount}</span>
+          <span>Zapier: ${zapCount}</span>
+          <span>Both: ${bothCount}</span>
+          <span>· Total: ${total}</span>
         </div>
+        <button class="btn xsmall ghost int-view-btn" type="button">
+          View capabilities
+        </button>
       </div>
     `;
-
-      card.onclick = () => {
-      // always open modal in canonical A -> B order
-      OL.openIntegrationModal(sourceApp.id, targetApp.id);
-    };
+  
+    // Flip behaviour (icon mode / flip mode) is card click…
+    if (viewMode === "flip") {
+      card.addEventListener("click", (e) => {
+        // If the click was on the "View capabilities" button, don't flip
+        if (e.target.closest(".int-view-btn")) return;
+        const newDir = dirMode === "AtoB" ? "BtoA" : "AtoB";
+        const parent = card.parentElement;
+        if (!parent) return;
+        const replacement = buildIntegrationCard(targetApp, sourceApp, rec, newDir, "flip");
+        parent.replaceChild(replacement, card);
+      });
+    }
+  
+    // "View capabilities" opens the integrations modal with sourceApp as A, targetApp as B
+    const btn = card.querySelector(".int-view-btn");
+    if (btn) {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (typeof OL.openIntegrationModal === "function") {
+          OL.openIntegrationModal(sourceApp.id, targetApp.id);
+        }
+      });
+    }
   
     return card;
   }
