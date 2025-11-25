@@ -496,6 +496,150 @@ textarea{min-height:90px}
 }
 
 /* =========================================
+   INTEGRATIONS MODAL CAPABILITIES
+========================================= */
+
+.int-modal-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.int-modal-app-select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.int-modal-app-select label {
+  color: var(--muted);
+}
+
+.int-modal-app-select select {
+  min-width: 140px;
+  font-size: 13px;
+}
+
+.int-modal-swap {
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #020617;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.int-modal-swap span {
+  font-size: 13px;
+}
+
+/* Legend inside integrations modal */
+.int-modal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--muted);
+  margin: 4px 0 10px;
+}
+
+.int-modal-legend-label {
+  font-weight: 600;
+}
+
+.cap-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  display: inline-block;
+  margin-right: 4px;
+}
+
+.cap-dot-direct {
+  background: #22c55e;
+}
+
+.cap-dot-zapier {
+  background: #f97316;
+}
+
+.cap-dot-both {
+  background: #a855f7;
+}
+
+.cap-dot-unknown {
+  border: 1px solid #4b5563;
+  background: transparent;
+}
+
+/* Grouping + list */
+.capability-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.capability-group {
+  border-radius: 10px;
+  border: 1px solid #111827;
+  background: #020617;
+  padding: 8px 9px;
+}
+
+.capability-group-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+  margin-bottom: 4px;
+}
+
+.capability-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.capability-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.capability-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.capability-meta {
+  font-size: 11px;
+  color: #9ca3af;
+  text-align: right;
+}
+
+.capability-meta span + span {
+  margin-left: 6px;
+}
+
+.capability-empty {
+  font-size: 12px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Light divider for split A/B text in header */
+.int-modal-split-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* =========================================
    VIEW TOGGLES & LEGENDS
 ========================================= */
 .section-header {
