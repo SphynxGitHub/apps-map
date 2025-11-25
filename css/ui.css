@@ -806,6 +806,27 @@ textarea{min-height:90px}
   font-size: 11px;
   color: #9ca3af;
 }
+/* Type squares used in integration summaries + future modals */
+.integration-type-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  display: inline-block;
+  margin-right: 4px;
+}
+
+/* Color mapping */
+.integration-type-dot.direct {
+  background: #22c55e;   /* direct */
+}
+
+.integration-type-dot.zapier {
+  background: #f97316;   /* zapier */
+}
+
+.integration-type-dot.both {
+  background: #a855f7;   /* both */
+}
 
 /* Generic "empty" hint */
 .empty-hint {
