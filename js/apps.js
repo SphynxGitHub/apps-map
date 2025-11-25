@@ -522,7 +522,7 @@
     });
   }
 
-  function buildIntegrationCard(sourceApp, targetApp, rec, dirMode, viewMode) {
+  function buildIntegrationCard(sourceApp, targetApp, rec, viewMode) {
     const card = document.createElement("div");
     card.className = "integration-card";
   
@@ -537,18 +537,17 @@
   
     const total = directCount + zapCount + bothCount;
   
-    // Arrow block
+    // Arrow block (visual only, no flip logic here)
     let arrowBlock = "";
     if (viewMode === "flip") {
-      const activeRight = dirMode === "AtoB";
       arrowBlock = `
         <div class="integration-arrows flip-mode">
-          <div class="arrow-row active">
+          <div class="arrow-row">
             <span class="arrow-app">${esc(sourceApp.name)}</span>
             <span class="arrow-symbol">&#8594;</span>
             <span class="arrow-app">${esc(targetApp.name)}</span>
           </div>
-          <div class="arrow-row inactive">
+          <div class="arrow-row">
             <span class="arrow-app">${esc(targetApp.name)}</span>
             <span class="arrow-symbol">&#8594;</span>
             <span class="arrow-app">${esc(sourceApp.name)}</span>
@@ -591,37 +590,16 @@
           <span>Both: ${bothCount}</span>
           <span>· Total: ${total}</span>
         </div>
-        <button class="btn xsmall ghost int-view-btn" type="button">
-          View capabilities
-        </button>
       </div>
     `;
   
-    // Flip behaviour (icon mode / flip mode) is card click…
-    if (viewMode === "flip") {
-      card.addEventListener("click", (e) => {
-        // If the click was on the "View capabilities" button, don't flip
-        if (e.target.closest(".int-view-btn")) return;
-        const newDir = dirMode === "AtoB" ? "BtoA" : "AtoB";
-        const parent = card.parentElement;
-        if (!parent) return;
-        const replacement = buildIntegrationCard(targetApp, sourceApp, rec, newDir, "flip");
-        parent.replaceChild(replacement, card);
-      });
-    }
-  
-    // "View capabilities" opens the integrations modal with sourceApp as A, targetApp as B
-    const btn = card.querySelector(".int-view-btn");
-    if (btn) {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (typeof OL.openIntegrationModal === "function") {
-          OL.openIntegrationModal(sourceApp.id, targetApp.id);
-        }
-      });
-    }
+    // Entire card opens the capabilities modal
+    card.addEventListener("click", () => {
+      if (typeof OL.openIntegrationModal === "function") {
+        OL.openIntegrationModal(sourceApp.id, targetApp.id);
+      }
+    });
   
     return card;
   }
-
 })();
