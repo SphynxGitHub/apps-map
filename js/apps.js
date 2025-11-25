@@ -526,9 +526,18 @@
       </div>
       <div class="integration-card-body">
         <div class="integration-summary">
-          <span>Direct: ${directCount}</span>
-          <span>Zapier: ${zapCount}</span>
-          <span>Both: ${bothCount}</span>
+          <span>
+            <span class="integration-type-dot direct"></span>
+            Direct: ${directCount}
+          </span>
+          <span>
+            <span class="integration-type-dot zapier"></span>
+            Zapier: ${zapCount}
+          </span>
+          <span>
+            <span class="integration-type-dot both"></span>
+            Both: ${bothCount}
+          </span>
         </div>
       </div>
     `;
