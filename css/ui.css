@@ -1000,7 +1000,7 @@ textarea{min-height:90px}
 .integration-arrows.flip-compressed .arrow-stack {
   position: relative;
   width: 14px;
-  height: 14px;
+  height: 17px;
   display: inline-flex;
   align-items: center;
   justify-content: left;
@@ -1017,7 +1017,6 @@ textarea{min-height:90px}
 .integration-arrows.flip-compressed .arrow-right {
   top: -1px;
   color: #38bdf8; /* blue */
-   margin-bottom: 1%;
 }
 
 .integration-arrows.flip-compressed .arrow-left {
