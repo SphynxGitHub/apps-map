@@ -240,7 +240,7 @@
 
     container.appendChild(list);
   }
-  
+
   // ============================================================
   // ADD FUNCTION TO APP
   // ============================================================
@@ -248,13 +248,13 @@
     const app = OL.state.apps.find(a => a.id === appId);
     if (!app) return;
     if (!app.functions) app.functions = [];
-  
+
     // Find how many apps have this function already
     const existingMappings = OL.state.apps
       .map(a => a.functions || [])
       .flat()
       .filter(fn => fn.id === functionId);
-  
+
     let newStatus;
     if (existingMappings.length === 0) {
       // FIRST APP FOR THIS FUNCTION
@@ -263,18 +263,18 @@
       // Function already exists on other apps
       newStatus = "available";
     }
-  
+
     // Create mapping object
     const newMapping = {
       id: functionId,
       status: newStatus
     };
-  
+
     // Add mapping to this app
     app.functions.push(newMapping);
-  
+
     OL.persist();
-  
+
     // Rerender UI if currently inside Functions or Apps
     if (window.location.hash === "#/apps") {
       if (typeof OL.renderApps === "function") {
@@ -282,6 +282,7 @@
       }
     }
   };
+
   function onAddFunctionFromAppModal(appId, functionId) {
     OL.assignFunctionToApp(appId, functionId);
     OL.openAppModal(appId); // refresh modal view
@@ -297,7 +298,7 @@
 
     const apps = state.apps || [];
     const fnMeta = new Map();  // fnId -> fn object (from state.functions)
-    const byFnId = new Map();  // fnId -> [{ app, assignment }, ...]
+    const byFnId = new Map();  // fnId -> [{ app, assignment }, ... ]
 
     (state.functions || []).forEach(fn => {
       if (fn && fn.id) fnMeta.set(fn.id, fn);
@@ -323,6 +324,7 @@
 
       const card = document.createElement("div");
       card.className = "function-card";
+      card.dataset.fnId = fn.id;
 
       card.innerHTML = `
         <div class="function-card-header">
@@ -337,7 +339,16 @@
 
       const list = card.querySelector(".function-apps-list");
 
-      appAssignments.forEach(({ app, assignment }) => {
+      const orderedAssignments = appAssignments.slice().sort((a, b) => {
+        const getRank = (s) =>
+          s === "primary" ? 1 :
+          s === "evaluating" ? 2 :
+          3;
+        return getRank(a.assignment.status) - getRank(b.assignment.status);
+      });
+      
+      orderedAssignments.forEach(({ app, assignment }) => {
+
         const pill = document.createElement("button");
         pill.type = "button";
         pill.className = "app-pill";
@@ -347,9 +358,21 @@
           <span class="pill-label">${esc(app.name || "")}</span>
         `;
 
+        // Left click: cycle status (primary → evaluating → available → primary)
+        pill.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const current = assignment.status || "available";
+          const next = nextFnState(current);
+          assignment.status = next;
+          pill.dataset.status = next;
+          OL.persist && OL.persist();
+          renderFunctionCards();
+        });
+
         // Right-click: unassign this app from the function
         pill.oncontextmenu = e => {
           e.preventDefault();
+          e.stopPropagation();
           app.functions = (app.functions || []).filter(f => f !== assignment);
           OL.persist && OL.persist();
           renderFunctionCards();
@@ -358,12 +381,16 @@
         list.appendChild(pill);
       });
 
-      // Click whole card -> open function modal if present
-      card.onclick = () => {
-        if (typeof OL.openFunctionModal === "function") {
-          OL.openFunctionModal(fnId);
-        }
-      };
+      // Only header opens the function modal; body/pills do NOT
+      const headerEl = card.querySelector(".function-card-header");
+      if (headerEl) {
+        headerEl.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (typeof OL.openFunctionModal === "function") {
+            OL.openFunctionModal(fnId);
+          }
+        });
+      }
 
       box.appendChild(card);
     }
@@ -383,20 +410,20 @@
     const appA = OL.state.apps.find(a => a.id === appAId);
     const appB = OL.state.apps.find(a => a.id === appBId);
     if (!appA || !appB) return;
-  
+
     if (!appA.integrations) appA.integrations = [];
     if (!appB.integrations) appB.integrations = [];
-  
+
     // Add record on A
     if (!appA.integrations.some(i => i.appId === appBId)) {
       appA.integrations.push({ appId: appBId, type });
     }
-  
+
     // Add record on B
     if (!appB.integrations.some(i => i.appId === appAId)) {
       appB.integrations.push({ appId: appAId, type });
     }
-  
+
     OL.persist && OL.persist();
     OL.renderApps && OL.renderApps();
   };
@@ -525,18 +552,18 @@
   function buildIntegrationCard(sourceApp, targetApp, rec, viewMode) {
     const card = document.createElement("div");
     card.className = "integration-card";
-  
+
     const directCount = rec.direct;
     const zapCount    = rec.zapier;
     const bothCount   = rec.both;
-  
+
     let intClass = "";
     if (bothCount > 0) intClass = "int-both";
     else if (directCount > 0) intClass = "int-direct";
     else if (zapCount > 0) intClass = "int-zapier";
-  
+
     const total = directCount + zapCount + bothCount;
-  
+
     // Arrow block (visual only, no flip logic here)
     let arrowBlock = "";
     if (viewMode === "flip") {
@@ -574,7 +601,7 @@
         </div>
       `;
     }
-  
+
     card.innerHTML = `
       <div class="integration-card-header ${intClass}">
         ${arrowBlock}
@@ -588,14 +615,14 @@
         </div>
       </div>
     `;
-  
+
     // Entire card opens the capabilities modal
     card.addEventListener("click", () => {
       if (typeof OL.openIntegrationModal === "function") {
         OL.openIntegrationModal(sourceApp.id, targetApp.id);
       }
     });
-  
+
     return card;
   }
 })();
