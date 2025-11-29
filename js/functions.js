@@ -102,26 +102,26 @@
     const listEl = document.getElementById("functionsList");
     if (!listEl) return;
   
-  const groups = buildFunctionIndex();
-  
-  // get selected app filter if available
-  let selectedAppIds = [];
-  if (OL.appFilterUI && typeof OL.appFilterUI.getSelectedAppIds === "function") {
-    selectedAppIds = OL.appFilterUI.getSelectedAppIds() || [];
-  }
-  
-  // Filter BEFORE checking length
-  const filtered = groups.filter(group => {
-    if (!selectedAppIds.length) return true;
-    return group.apps.some(link => selectedAppIds.includes(link.app.id));
-  });
-  
-  if (!filtered.length) {
-    listEl.innerHTML = `<p class="muted">No functions match the current filters.</p>`;
-    return;
-  }
-  
-  listEl.innerHTML = filtered.map(group => renderFunctionCard(group)).join("");
+    const groups = buildFunctionIndex();
+    
+    // get selected app filter if available
+    let selectedAppIds = [];
+    if (OL.appFilterUI && typeof OL.appFilterUI.getSelectedAppIds === "function") {
+      selectedAppIds = OL.appFilterUI.getSelectedAppIds() || [];
+    }
+    
+    // Apply filtering BEFORE referencing `filtered`
+    const filtered = groups.filter(group => {
+      if (!selectedAppIds.length) return true;
+      return group.apps.some(link => selectedAppIds.includes(link.app.id));
+    });
+    
+    if (!filtered.length) {
+      listEl.innerHTML = `<p class="muted">No functions match the current filters.</p>`;
+      return;
+    }
+    
+    listEl.innerHTML = filtered.map(group => renderFunctionCard(group)).join("");
 
     // wire pills (click = cycle state, right-click = remove)
     filtered.forEach(group => {
