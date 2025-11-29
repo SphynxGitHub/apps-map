@@ -986,10 +986,22 @@ textarea{min-height:90px}
   color:#4b5563;
 }
 .integration-arrows.flip-compressed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.integration-arrows.flip-compressed .arrow-app {
+  color: #e5e7eb;
+  font-size: 12px;
+}
+
+.integration-arrows.flip-compressed .arrow-stack {
   position: relative;
-  display: inline-flex;
-  width: 12px;
+  width: 14px;
   height: 14px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
 }
@@ -1004,15 +1016,13 @@ textarea{min-height:90px}
 
 .integration-arrows.flip-compressed .arrow-right {
   top: -1px;
-  color: #38bdf8; /* BLUE */
-  margin-bottom: 1px;
+  color: #38bdf8; /* blue */
 }
 
 .integration-arrows.flip-compressed .arrow-left {
   bottom: -1px;
-  color: #4b5563; /* GREY */
+  color: #4b5563; /* grey */
 }
-
 .integration-card-body {
   padding: 6px 10px 8px;
 }
