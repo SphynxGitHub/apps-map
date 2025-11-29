@@ -66,37 +66,30 @@
       <section class="apps-section">
         <div class="section-header">
           <h1>Applications</h1>
-          <div class="view-toggle" id="appsViewToggle">
-            <button data-view="details">Details</button>
-            <button data-view="grid">Icons</button>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <button class="btn small" id="addNewAppBtn">+ Add Application</button>
+            <div class="view-toggle" id="appsViewToggle">
+              <button data-view="details">Details</button>
+              <button data-view="grid">Icons</button>
+            </div>
           </div>
         </div>
         <div id="appsListContainer"></div>
-        <div class="appsAddNew">
-          <button class="btn small" id="addNewAppBtn">+ Add Application</button>
-        </div>
       </section>
 
       <!-- Functions -->
       <section class="apps-section">
         <div class="section-header">
           <h2>Functions</h2>
-      
-          <div style="display:flex; align-items:center; gap:12px;">
-      
-            <button class="btn small" id="addNewFunctionBtn">+ Add Function</button>
-      
-            <div class="apps-legend">
-              <span><strong>Status:</strong></span>
-              <span class="legend-pill status-primary">Primary</span>
-              <span class="legend-pill status-available">Available</span>
-              <span class="legend-pill status-evaluating">Evaluating</span>
-              <span class="legend-hint">Click to cycle • Right-click to remove</span>
-            </div>
-      
-          </div>
+          <button class="btn small" id="addNewFunctionBtn">+ Add Function</button>
         </div>
-      
+        <div class="apps-legend fn-legend">
+          <span><strong>Status:</strong></span>
+          <span class="legend-pill status-primary">Primary</span>
+          <span class="legend-pill status-available">Available</span>
+          <span class="legend-pill status-evaluating">Evaluating</span>
+          <span class="legend-hint">Click to cycle • Right-click to remove</span>
+        </div>
         <div id="functionsCards" class="functions-grid"></div>
       </section>
 
