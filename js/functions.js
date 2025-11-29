@@ -330,3 +330,10 @@
       };
     });
   };
+  // ------------------------------------------------------------
+  // Export
+  // ------------------------------------------------------------
+  OL.renderFunctionsView = renderFunctionsView;
+  OL.renderFunctions = renderFunctionsView;
+
+})();
