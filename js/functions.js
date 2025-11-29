@@ -82,7 +82,7 @@
   }
 
   // ------------------------------------------------------------
-  // Public entry: render Functions view
+  // Public entry: render Functions view (/ Apps / Functions)
   // ------------------------------------------------------------
   function renderFunctionsView() {
     const root = document.getElementById("view");
@@ -111,15 +111,17 @@
     root.appendChild(wrapper);
 
     const addBtn = document.getElementById("fnAddButton");
-    addBtn.onclick = () => {
-      const name = (prompt("Name this function:") || "").trim();
-      if (!name) return;
-      const newFn = { id: uid(), name };
-      state.functions = state.functions || [];
-      state.functions.push(newFn);
-      persist();
-      renderFunctionsList();
-    };
+    if (addBtn) {
+      addBtn.onclick = () => {
+        const name = (prompt("Name this function:") || "").trim();
+        if (!name) return;
+        const newFn = { id: uid(), name };
+        state.functions = state.functions || [];
+        state.functions.push(newFn);
+        persist();
+        renderFunctionsList();
+      };
+    }
 
     renderFunctionsList();
   }
@@ -138,7 +140,6 @@
       return;
     }
 
-    // Render cards
     listEl.innerHTML = groups.map(renderFunctionCard).join("");
 
     // Wire up card header click (open modal) and pills (cycle/remove)
@@ -160,14 +161,12 @@
         };
       }
 
-      // Prevent body clicks from bubbling up to anything else
       if (body) {
         body.onclick = (e) => {
           e.stopPropagation();
         };
       }
 
-      // Pills in the card body
       const pills = card.querySelectorAll(".app-pill");
       pills.forEach(pill => {
         pill.onclick = (e) => {
@@ -197,7 +196,7 @@
   }
 
   // ------------------------------------------------------------
-  // Render a single function card using .function-card markup
+  // Render a single function card
   // ------------------------------------------------------------
   function renderFunctionCard(group) {
     const fn = group.fn;
@@ -235,7 +234,6 @@
     const { app, status, fnId } = link;
     const normalized = normalizeStatus(status);
 
-    // If you have OL.appLabelHTML, use it so it renders the icon + label structure
     const labelHTML = typeof OL.appLabelHTML === "function"
       ? OL.appLabelHTML(app)
       : `<span class="pill-label">${esc(app.name || "")}</span>`;
@@ -256,7 +254,6 @@
   // Function Modal
   // ------------------------------------------------------------
   OL.openFunctionModal = function(fnId) {
-
     const groups = buildFunctionIndex();
     const group = groups.find(g => g.fn.id === fnId);
     if (!group) return;
@@ -268,11 +265,6 @@
       .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
     const linkedIds = new Set(appsLinked.map(x => x.app.id));
-
-    const appOptions = allApps
-      .filter(a => !linkedIds.has(a.id))
-      .map(a => `<option value="${esc(a.id)}">${esc(a.name || "")}</option>`)
-      .join("");
 
     const appsSorted = appsLinked
       .slice()
@@ -333,7 +325,7 @@
     if (assignBtn) {
       assignBtn.onclick = (e) => {
         e.stopPropagation();
-        showAddAppsSelector();
+        showAddAppsSelector(fnId, allApps, linkedIds);
       };
     }
 
@@ -364,79 +356,6 @@
         persist();
       });
     }
-
-    function showAddAppsSelector() {
-      const wrap = document.getElementById("fnModalApps");
-      if (!wrap) return;
-    
-      // Temporary UI container
-      const selectorBox = document.createElement("div");
-      selectorBox.className = "modal-checklist";
-    
-      selectorBox.innerHTML = `
-        <input type="text" class="modal-search" placeholder="Search apps..." id="fnSearchApps">
-        <div id="fnCheckList"></div>
-      `;
-    
-      wrap.insertAdjacentElement("afterend", selectorBox);
-    
-      const listDiv = document.getElementById("fnCheckList");
-      const searchInput = document.getElementById("fnSearchApps");
-    
-      let filtered = allApps.slice();
-    
-      function renderList() {
-        listDiv.innerHTML = "";
-    
-        filtered.forEach(app => {
-          const isLinked = linkedIds.has(app.id);
-          const cb = document.createElement("input");
-          cb.type = "checkbox";
-          cb.checked = isLinked;
-    
-          const row = document.createElement("label");
-          row.className = "modal-checklist-row";
-    
-          row.appendChild(cb);
-          row.appendChild(document.createTextNode(" " + (app.name || "")));
-    
-          cb.onchange = () => {
-            linkedIds.add(app.id);
-            if (cb.checked) {
-              const existingAssignments = state.apps
-                .flatMap(a => (a.functions || []).map(f => f.id))
-                .filter(x => x === fnId);
-          
-              const status = existingAssignments.length === 0 ? "primary" : "available";
-          
-              const targetApp = state.apps.find(a => a.id === app.id);
-              targetApp.functions = targetApp.functions || [];
-              targetApp.functions.push({ id: fnId, status });
-
-            } else {
-              removeAssignment(app, fnId);
-            }
-            persist();
-            renderFunctionsList();
-            if (OL.renderApps) OL.renderApps();
-
-          };
-    
-          listDiv.appendChild(row);
-        });
-      }
-    
-      searchInput.oninput = () => {
-        const q = searchInput.value.toLowerCase();
-        filtered = allApps.filter(a =>
-          (a.name || "").toLowerCase().includes(q)
-        );
-        renderList();
-      };
-    
-      renderList();
-    }
-
 
     // Cycle / remove inside modal
     const appsWrap = document.getElementById("fnModalApps");
@@ -474,6 +393,93 @@
   };
 
   // ------------------------------------------------------------
+  // Checklist-style app assignment for Function modal
+  // ------------------------------------------------------------
+  function showAddAppsSelector(fnId, allApps, linkedIds) {
+    const wrap = document.getElementById("fnModalApps");
+    if (!wrap) return;
+
+    const existingSelector = document.querySelector(".modal-checklist");
+    if (existingSelector) {
+      existingSelector.remove();
+    }
+
+    const selectorBox = document.createElement("div");
+    selectorBox.className = "modal-checklist";
+
+    selectorBox.innerHTML = `
+      <input type="text" class="modal-search" placeholder="Search apps..." id="fnSearchApps">
+      <div id="fnCheckList"></div>
+    `;
+
+    wrap.insertAdjacentElement("afterend", selectorBox);
+
+    const listDiv = document.getElementById("fnCheckList");
+    const searchInput = document.getElementById("fnSearchApps");
+
+    let filtered = allApps.slice();
+
+    function renderList() {
+      listDiv.innerHTML = "";
+
+      filtered.forEach(app => {
+        const isLinked = linkedIds.has(app.id);
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = isLinked;
+
+        const row = document.createElement("label");
+        row.className = "modal-checklist-row";
+
+        row.appendChild(cb);
+        row.appendChild(document.createTextNode(" " + (app.name || "")));
+
+        cb.onchange = () => {
+          const targetApp = state.apps.find(a => a.id === app.id);
+          if (!targetApp) return;
+
+          targetApp.functions = targetApp.functions || [];
+
+          if (cb.checked) {
+            // ADD mapping
+            if (!targetApp.functions.some(f => f.id === fnId)) {
+              const existingAssignments = state.apps
+                .flatMap(a => (a.functions || []).map(f => f.id))
+                .filter(x => x === fnId);
+
+              const status = existingAssignments.length === 0 ? "primary" : "available";
+
+              targetApp.functions.push({ id: fnId, status });
+            }
+            linkedIds.add(app.id);
+          } else {
+            // REMOVE mapping
+            removeAssignment(targetApp, fnId);
+            linkedIds.delete(app.id);
+          }
+
+          persist();
+          renderFunctionsList();
+          if (OL.renderApps) OL.renderApps();
+          OL.openFunctionModal(fnId);
+        };
+
+        listDiv.appendChild(row);
+      });
+    }
+
+    searchInput.oninput = () => {
+      const q = searchInput.value.toLowerCase();
+      filtered = allApps.filter(a =>
+        (a.name || "").toLowerCase().includes(q)
+      );
+      renderList();
+    };
+
+    renderList();
+  }
+
+  // ------------------------------------------------------------
   // Exports
   // ------------------------------------------------------------
   OL.renderFunctionsView = renderFunctionsView;
@@ -485,34 +491,30 @@
   document.addEventListener("click", function(e) {
     const pill = e.target.closest(".app-pill, .fnAppPill");
     if (!pill) return;
-  
+
     e.stopPropagation();
-  
-    // Detect fnId by walking DOM upward
+
     const card = pill.closest(".function-card, .fn-card");
     if (!card) return;
-  
+
     const fnId = card.getAttribute("data-fn-id");
     if (!fnId) return;
-  
-    // Detect appId depending on layout
+
     let appId = pill.getAttribute("data-app-id");
     if (!appId) {
-      // In app-pill layout, we extract name instead
       const appName = pill.querySelector(".pill-label")?.textContent?.trim();
       if (!appName) return;
       const app = state.apps.find(a => a.name === appName);
       if (!app) return;
       appId = app.id;
     }
-  
+
     const app = state.apps.find(a => a.id === appId);
     if (!app) return;
-  
+
     cycleAssignmentStatus(app, fnId);
     persist();
-  
-    // Refresh both UIs if present
+
     OL.renderFunctions?.();
     OL.renderApps?.();
   });
