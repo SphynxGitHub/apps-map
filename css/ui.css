@@ -988,7 +988,7 @@ textarea{min-height:90px}
 .integration-arrows.flip-compressed {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: left;
   gap: 6px;
 }
 
