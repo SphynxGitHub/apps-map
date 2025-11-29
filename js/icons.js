@@ -10,24 +10,31 @@
   // ============================================================
   // APP ICON HTML RENDERING
   // ============================================================
-  OL.appIconHTML = function(app) {
-    // Explicit emoji
-    if (app.icon && app.icon.type === "emoji") {
-      return `<div class="app-icon-box small"><span>${app.icon.value}</span></div>`;
+  OL.appIconHTML = function(obj) {
+    // obj may be an app or function — same schema
+  
+    const icon = obj.icon || null;
+    const name = obj.name || "";
+  
+    // If explicit icon URL
+    if (icon && typeof icon === "string" && icon.startsWith("http")) {
+      return `<img src="${icon}" class="icon-img">`;
     }
-
-    // Image URL / uploaded
-    if (app.icon && app.icon.type === "img") {
-      return `<div class="app-icon-box small"><img src="${app.icon.url}" alt=""></div>`;
+  
+    // If base64-encoded or blob
+    if (icon && icon.startsWith("data:image")) {
+      return `<img src="${icon}" class="icon-img">`;
     }
-
-    // Auto-letter icon
-    const meta = OL.utils.buildLetterIconMeta(app.name);
-    return `
-      <div class="app-icon-box small" style="background:${meta.bg};color:${meta.fg}">
-        ${meta.initials}
-      </div>
-    `;
+  
+    // Default internal initials
+    const letters = name
+      .split(" ")
+      .map(w => w[0])
+      .join("")
+      .substring(0, 2)
+      .toUpperCase();
+  
+    return `<div class="icon-fallback">${letters}</div>`;
   };
 
   // ============================================================
