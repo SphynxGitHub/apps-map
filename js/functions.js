@@ -215,7 +215,7 @@
     return `
       <div class="function-card" data-fn-id="${fn.id}">
         <div class="function-card-header">
-          <div class="function-icon">Fn</div>
+          <div class="function-icon"> ${OL.appIconHTML(fn)}</div>
           <div>
             <div class="function-title">${esc(fn.name || "")}</div>
             <div class="function-apps-label">Apps</div>
@@ -292,6 +292,7 @@
     const modalHtml = `
       <div class="modal">
         <div class="modal-head">
+        <button class="icon-edit-btn" id="fnEditIconBtn">🖼️</button>
           <div class="modal-title-text" contenteditable="true" id="fnModalTitle">
             ${esc(fn.name || "")}
           </div>
@@ -320,6 +321,16 @@
     `;
 
     OL.openModal({ contentHTML: modalHtml });
+
+    const editIconBtn = document.getElementById("fnEditIconBtn");
+    if (editIconBtn) {
+      editIconBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (OL.openIconPicker) {
+          OL.openIconPicker(fn, "function");
+        }
+      };
+    }
 
     const assignBtn = document.getElementById("fnShowAppSelector");
     if (assignBtn) {
@@ -489,17 +500,22 @@
   // Global pill handler — works on both layouts
   // ============================================================
   document.addEventListener("click", function(e) {
+    const inFunctionsView = document.querySelector(".function-card") !== null;
+  
+    // Only allow cycling if we are in the Functions view
+    if (!inFunctionsView) return;
+  
     const pill = e.target.closest(".app-pill, .fnAppPill");
     if (!pill) return;
-
+  
     e.stopPropagation();
-
+  
     const card = pill.closest(".function-card, .fn-card");
     if (!card) return;
-
+  
     const fnId = card.getAttribute("data-fn-id");
     if (!fnId) return;
-
+  
     let appId = pill.getAttribute("data-app-id");
     if (!appId) {
       const appName = pill.querySelector(".pill-label")?.textContent?.trim();
@@ -508,13 +524,13 @@
       if (!app) return;
       appId = app.id;
     }
-
+  
     const app = state.apps.find(a => a.id === appId);
     if (!app) return;
-
+  
     cycleAssignmentStatus(app, fnId);
     persist();
-
+  
     OL.renderFunctions?.();
     OL.renderApps?.();
   });
