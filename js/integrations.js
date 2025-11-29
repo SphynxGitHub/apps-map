@@ -329,7 +329,7 @@
             else if (item.via === "both") dotClass = "cap-dot-both";
   
             return `
-              <div class="capability-row">
+              <div class="capability-row" title="${OL.utils.esc(item.notes || '')}">
                 <div class="capability-name">
                   <span class="cap-dot ${dotClass}"></span>
                   <span>${OL.utils.esc(item.canonical)}</span>
@@ -452,6 +452,7 @@
         const newB = selB && selB.value ? selB.value : appB.id;
         OL.openIntegrationModal(newA, newB);
       });
+      selA.addEventListener("click", evt => evt.stopPropagation());
     }
     if (selB) {
       selB.addEventListener("change", () => {
@@ -459,11 +460,13 @@
         const newB = selB.value;
         OL.openIntegrationModal(newA, newB);
       });
+      selB.addEventListener("click", evt => evt.stopPropagation());
     }
     if (swap) {
       swap.addEventListener("click", () => {
         OL.openIntegrationModal(appB.id, appA.id);
       });
+      swap.addEventListener("click", evt => evt.stopPropagation());
     }
   };
 
