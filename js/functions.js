@@ -423,4 +423,42 @@
   OL.renderFunctionsView = renderFunctionsView;
   OL.renderFunctions = renderFunctionsView;
 
+  // ============================================================
+  // Global pill handler — works on both layouts
+  // ============================================================
+  document.addEventListener("click", function(e) {
+    const pill = e.target.closest(".app-pill, .fnAppPill");
+    if (!pill) return;
+  
+    e.stopPropagation();
+  
+    // Detect fnId by walking DOM upward
+    const card = pill.closest(".function-card, .fn-card");
+    if (!card) return;
+  
+    const fnId = card.getAttribute("data-fn-id");
+    if (!fnId) return;
+  
+    // Detect appId depending on layout
+    let appId = pill.getAttribute("data-app-id");
+    if (!appId) {
+      // In app-pill layout, we extract name instead
+      const appName = pill.querySelector(".pill-label")?.textContent?.trim();
+      if (!appName) return;
+      const app = state.apps.find(a => a.name === appName);
+      if (!app) return;
+      appId = app.id;
+    }
+  
+    const app = state.apps.find(a => a.id === appId);
+    if (!app) return;
+  
+    cycleAssignmentStatus(app, fnId);
+    persist();
+  
+    // Refresh both UIs if present
+    OL.renderFunctions?.();
+    OL.renderApps?.();
+  });
+
 })();
