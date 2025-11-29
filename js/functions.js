@@ -256,6 +256,14 @@
   // Function Modal
   // ------------------------------------------------------------
   OL.openFunctionModal = function(fnId) {
+    const assignBtn = document.getElementById("fnShowAppSelector");
+    if (assignBtn) {
+      assignBtn.onclick = (e) => {
+        e.stopPropagation();
+        showAddAppsSelector();
+      };
+    }
+
     const groups = buildFunctionIndex();
     const group = groups.find(g => g.fn.id === fnId);
     if (!group) return;
@@ -316,13 +324,9 @@
             ${appsHtml}
           </div>
 
-          <div class="row" style="margin-top:6px; gap:6px;">
-            <select id="fnAddAppSelect">
-              <option value="">— Select App —</option>
-              ${appOptions}
-            </select>
-            <button class="btn small" id="fnAddAppButton">+ Add</button>
-          </div>
+          <button class="btn small" id="fnShowAppSelector" style="margin-top:6px;">
+            + Assign Apps
+          </button>
 
           <label class="modal-section-label" style="margin-top:12px;">Notes</label>
           <textarea id="fnModalNotes" class="modal-textarea">${esc(fn.notes || "")}</textarea>
@@ -360,27 +364,73 @@
       });
     }
 
-    // Add app
-    const addBtn = document.getElementById("fnAddAppButton");
-    const selectEl = document.getElementById("fnAddAppSelect");
-    if (addBtn && selectEl) {
-      addBtn.onclick = () => {
-        const appId = selectEl.value;
-        if (!appId) return;
-        const app = (state.apps || []).find(a => a.id === appId);
-        if (!app) return;
-
-        app.functions = app.functions || [];
-        if (!app.functions.find(f => f.id === fnId)) {
-          app.functions.push({ id: fnId, status: "available" });
-        }
-
-        persist();
-        renderFunctionsList();
-        if (OL.renderApps) OL.renderApps();
-        OL.openFunctionModal(fnId);
+    function showAddAppsSelector() {
+      const wrap = document.getElementById("fnModalApps");
+      if (!wrap) return;
+    
+      // Temporary UI container
+      const selectorBox = document.createElement("div");
+      selectorBox.className = "modal-checklist";
+    
+      selectorBox.innerHTML = `
+        <input type="text" class="modal-search" placeholder="Search apps..." id="fnSearchApps">
+        <div id="fnCheckList"></div>
+      `;
+    
+      wrap.insertAdjacentElement("afterend", selectorBox);
+    
+      const listDiv = document.getElementById("fnCheckList");
+      const searchInput = document.getElementById("fnSearchApps");
+    
+      let filtered = allApps.slice();
+    
+      function renderList() {
+        listDiv.innerHTML = "";
+    
+        filtered.forEach(app => {
+          const isLinked = linkedIds.has(app.id);
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = isLinked;
+    
+          const row = document.createElement("label");
+          row.className = "modal-checklist-row";
+    
+          row.appendChild(cb);
+          row.appendChild(document.createTextNode(" " + (app.name || "")));
+    
+          cb.onchange = () => {
+            if (cb.checked) {
+              const existingAssignments = state.apps
+                .flatMap(a => (a.functions || []).map(f => f.id))
+                .filter(x => x === fnId);
+          
+              const status = existingAssignments.length === 0 ? "primary" : "available";
+          
+              app.functions.push({ id: fnId, status });
+            } else {
+              removeAssignment(app, fnId);
+            }
+          
+            persist();
+            OL.openFunctionModal(fnId);
+          };
+    
+          listDiv.appendChild(row);
+        });
+      }
+    
+      searchInput.oninput = () => {
+        const q = searchInput.value.toLowerCase();
+        filtered = allApps.filter(a =>
+          (a.name || "").toLowerCase().includes(q)
+        );
+        renderList();
       };
+    
+      renderList();
     }
+
 
     // Cycle / remove inside modal
     const appsWrap = document.getElementById("fnModalApps");
