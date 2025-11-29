@@ -874,6 +874,21 @@ textarea{min-height:90px}
   margin-bottom: 6px;
 }
 
+.app-delete {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 20px;
+  font-weight: 500;
+  color: #777;
+  cursor: pointer;
+  z-index: 999;
+}
+
+.app-delete:hover {
+  color: #e63946;
+}
+
 .app-card-title-block {
   display:flex;
   flex-direction:column;
