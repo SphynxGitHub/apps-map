@@ -997,6 +997,13 @@ textarea{min-height:90px}
   font-weight: 700;
   color: #38bdf8;
 }
+.integration-arrows.flip-compressed .arrow-left {
+  color: #4b5563; /* grey */
+}
+
+.integration-arrows.flip-compressed .arrow-right {
+  color: #38bdf8; /* blue */
+}
 
 .integration-card-body {
   padding: 6px 10px 8px;
