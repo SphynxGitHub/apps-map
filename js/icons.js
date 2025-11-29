@@ -10,25 +10,20 @@
   // ============================================================
   // APP ICON HTML RENDERING
   // ============================================================
-   OL.appIconHTML = function(obj) {
+  OL.appIconHTML = function(obj) {
     const icon = obj.icon;
   
-    // 1. If icon is a string URL
-    if (typeof icon === "string" && icon.startsWith("http")) {
-      return `<img src="${icon}" class="icon-img">`;
+    // explicit emoji
+    if (icon && icon.type === "emoji") {
+      return `<div class="icon-emoji">${icon.value}</div>`;
     }
   
-    // 2. If icon is a base64-encoded string
-    if (typeof icon === "string" && icon.startsWith("data:image")) {
-      return `<img src="${icon}" class="icon-img">`;
-    }
-  
-    // 3. If icon is an object with a url property
-    if (icon && typeof icon === "object" && typeof icon.url === "string") {
+    // explicit image
+    if (icon && icon.type === "img") {
       return `<img src="${icon.url}" class="icon-img">`;
     }
   
-    // 4. Fallback initials
+    // auto initials
     const name = obj.name || "";
     const letters = name
       .split(" ")
@@ -43,7 +38,7 @@
   // ============================================================
   // ICON PICKER UI
   // ============================================================
-  OL.openIconPicker = function(targetEl, app) {
+  OL.openIconPicker = function(targetEl, obj) {
     // close any existing picker first
     OL.closeIconPicker();
 
@@ -100,7 +95,7 @@
     picker.querySelectorAll(".picker-option.emoji").forEach(el => {
       el.onclick = (ev) => {
         ev.stopPropagation();
-        app.icon = { type: "emoji", value: el.textContent };
+        obj.icon = { type: "emoji", value: el.textContent };
         OL.persist();
         OL.refreshCurrentAppModalIcon?.();
         OL.renderApps?.();
@@ -112,7 +107,7 @@
     if (resetBtn) {
       resetBtn.onclick = (ev) => {
         ev.stopPropagation();
-        app.icon = null;
+        obj.icon = null;
         OL.persist();
         OL.refreshCurrentAppModalIcon?.();
         OL.renderApps?.();
@@ -127,7 +122,7 @@
         ev.stopPropagation();
         const url = (urlInput.value || "").trim();
         if (!url) return;
-        app.icon = { type: "img", url };
+        obj.icon = { type: "img", url };
         OL.persist();
         OL.refreshCurrentAppModalIcon?.();
         OL.renderApps?.();
@@ -142,7 +137,7 @@
         const file = ev.target.files[0];
         if (!file) return;
         const url = await fileToBase64(file);
-        app.icon = { type: "img", url };
+        obj.icon = { type: "img", url };
         OL.persist();
         OL.refreshCurrentAppModalIcon?.();
         OL.renderApps?.();
@@ -154,7 +149,7 @@
     if (removeBtn) {
       removeBtn.onclick = (ev) => {
         ev.stopPropagation();
-        app.icon = null;
+        obj.icon = null;
         OL.persist();
         OL.refreshCurrentAppModalIcon?.();
         OL.renderApps?.();
