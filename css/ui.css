@@ -1150,25 +1150,23 @@ Color Indicator Zapier, Direct, Both
   cursor: pointer;
 }
 
-/* Available = neutral */
+/* Available = grey */
 .fnAppPill-available {
-  background: #1f2937;
-  color: #e5e7eb;
-  border-color: #4b5563;
+  background: #1e293b;
+  border: 1px solid #6b7280;
+  color: #9ca3af;
 }
-
-/* Primary = strong/green */
+/* Primary = blue */
 .fnAppPill-primary {
-  background: #18c38a;
-  color: #02140d;
-  border-color: #0f9a6a;
+  background: #1e293b;
+  border: 1px solid #38bdf8;
+  color: #38bdf8;
 }
-
-/* Evaluating = muted/blue */
+/* Evaluating = yellow */
 .fnAppPill-evaluating {
-  background: #1f2937;
-  color: #93c5fd;
-  border-color: #3b82f6;
+  background: #1e293b;
+  border: 1px solid #facc15;
+  color: #facc15;
 }
 
 .pill-empty {
