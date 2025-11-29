@@ -173,6 +173,19 @@
     bindFunctions(app);
     bindIntegrations(app);
     bindDatapoints(app);
+    
+    // ──────────────────────────────
+    // Insert visual break before Resources
+    // ──────────────────────────────
+    const sep = document.createElement("div");
+    sep.className = "modal-section-separator";
+    const body = document.getElementById("appModalBody");
+    body.appendChild(sep);
+    
+    // ──────────────────────────────
+    // Insert "Used in Resources"
+    // ──────────────────────────────
+    bindUsedInResources(app);
   }
 
   // ============================================================
