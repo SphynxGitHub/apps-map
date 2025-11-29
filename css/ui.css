@@ -373,6 +373,21 @@ textarea{min-height:90px}
   gap: 8px;
   padding: 4px 0;
 }
+.fn-pill-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.modal-select-box {
+  margin-top: 6px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255,255,255,0.04);
+}
+
 
 .app-icon-inner {
   width: 100%;
