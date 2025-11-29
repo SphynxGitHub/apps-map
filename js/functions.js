@@ -8,6 +8,12 @@
   const { state, persist, utils } = OL;
   const { esc, uid } = utils;
 
+  const statusOrder = {
+    "primary": 1,
+    "evaluating": 2,
+    "available": 3
+  };
+
   // ------------------------------------------------------------
   // Cross-map functions → apps
   // ------------------------------------------------------------
@@ -139,8 +145,11 @@
 
   function renderFunctionCard(group) {
     const fn = group.fn;
-    const appsHTML = group.apps.length
-      ? group.apps.map(functionAppPillHTML).join("")
+    const appsSorted = group.apps.slice().sort((a, b) =>
+      statusOrder[a.status || "available"] - statusOrder[b.status || "available"]
+    );
+    const appsHTML = appsSorted.length
+      ? appsSorted.map(link => functionAppPillHTML(link)).join("")
       : `<span class="pill pill-empty">No apps mapped</span>`;
 
     return `
@@ -204,8 +213,12 @@
       .map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`)
       .join("");
 
-    const appsHtml = appsLinked.length
-      ? appsLinked.map(link => `
+    const appsSorted = appsLinked.slice().sort((a, b) =>
+      statusOrder[a.status || "available"] - statusOrder[b.status || "available"]
+    );
+    
+    const appsHtml = appsSorted.length
+      ? appsSorted.map(link => `
           <span class="pill fnAppPill ${statusClassForFn(link.status)}"
                 data-app-id="${link.app.id}"
                 data-fn-id="${fn.id}">
