@@ -102,18 +102,28 @@
 
     listEl.innerHTML = groups.map(renderFunctionCard).join("");
 
-    // Attach card click handlers
+    // Attach click handlers properly
     groups.forEach(group => {
       const fnId = group.fn.id;
       const cardEl = listEl.querySelector(`.fn-card[data-fn-id="${fnId}"]`);
       if (!cardEl) return;
-
-      cardEl.querySelector(".fn-main").onclick = (e) => {
-        e.stopPropagation();
-        if (typeof OL.openFunctionModal === "function") {
+    
+      // Clicking on left section opens modal
+      const mainEl = cardEl.querySelector(".fn-main");
+      if (mainEl) {
+        mainEl.onclick = (e) => {
+          e.stopPropagation();
           OL.openFunctionModal(fnId);
-        }
-      };
+        };
+      }
+    
+      // Clicking on right pill area should NOT open modal
+      const pillWrap = cardEl.querySelector(".fnAppsWrap");
+      if (pillWrap) {
+        pillWrap.onclick = (e) => {
+          e.stopPropagation();
+        };
+      }
     });
 
     // Attach pill click & right-click
