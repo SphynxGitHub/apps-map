@@ -541,7 +541,7 @@
     let arrowBlock = "";
     if (viewMode === "flip") {
       arrowBlock = `
-        <div class="integration-arrows flip-mode">
+        <div class="integration-arrows flip-compressed">
           <div class="arrow-row">
             <span class="arrow-app">${esc(sourceApp.name)}</span>
             <span class="arrow-symbol">&#8594;</span>
