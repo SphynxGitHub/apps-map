@@ -102,12 +102,12 @@
       const cardEl = listEl.querySelector(`.fn-card[data-fn-id="${fnId}"]`);
       if (!cardEl) return;
 
-      cardEl.addEventListener("click", (e) => {
+      cardEl.querySelector(".fn-main").onclick = (e) => {
         e.stopPropagation();
         if (typeof OL.openFunctionModal === "function") {
           OL.openFunctionModal(fnId);
         }
-      });
+      };
     });
 
     // Attach pill click & right-click
@@ -222,7 +222,15 @@
           </div>
           <div class="modal-body">
 
-            <label class="modal-section-label">Used in Apps</label>
+            <div class="row" style="align-items:center; gap:10px;">
+              <label class="modal-section-label">Apps Used</label>
+              <div class="row" style="gap:6px; font-size:11px;">
+                <span class="pill fnAppPill-primary">Primary</span>
+                <span class="pill fnAppPill-available">Available</span>
+                <span class="pill fnAppPill-evaluating">Evaluating</span>
+              </div>
+            </div>
+
             <div id="fnModalApps">${appsHtml}</div>
 
             <div class="row" style="margin-top:6px; gap:6px;">
@@ -231,12 +239,6 @@
                 ${appOptions}
               </select>
               <button class="btn small" id="fnAddAppButton">+ Add</button>
-            </div>
-
-            <div class="row" style="margin-top:10px; gap:10px; font-size:11px; color:#9ca3af;">
-              <span class="pill fnAppPill-primary">Primary</span>
-              <span class="pill fnAppPill-available">Available</span>
-              <span class="pill fnAppPill-evaluating">Evaluating</span>
             </div>
 
             <label class="modal-section-label" style="margin-top:12px;">Notes</label>
