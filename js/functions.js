@@ -107,16 +107,6 @@
         e.preventDefault();
         e.stopPropagation();
       };
-
-      cardEl.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      };
-
-      cardEl.oncontextmenu = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      };
     });
 
     groups.forEach(group => {
