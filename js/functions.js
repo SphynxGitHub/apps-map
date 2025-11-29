@@ -93,44 +93,47 @@
 
     listEl.innerHTML = groups.map(renderFunctionCard).join("");
 
+    // EVENT DELEGATION — click handling for each card
     groups.forEach(group => {
       const fnId = group.fn.id;
       const cardEl = listEl.querySelector(`.fn-card[data-fn-id="${fnId}"]`);
       if (!cardEl) return;
 
-      cardEl.querySelector(".fn-main").onclick = (e) => {
-        e.stopPropagation();
-        OL.openFunctionModal(fnId);
-      };
-
-      cardEl.querySelector(".fn-main").oncontextmenu = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      };
-    });
-
-    groups.forEach(group => {
-      const fnId = group.fn.id;
-      group.apps.forEach(link => {
-        const pillSel = `.fnAppsWrap .fnAppPill[data-fn-id="${fnId}"][data-app-id="${link.app.id}"]`;
-        const pillEl = listEl.querySelector(pillSel);
-        if (!pillEl) return;
-
-        pillEl.onclick = (e) => {
+      cardEl.addEventListener("click", e => {
+        const pill = e.target.closest(".fnAppPill");
+        if (!pill) {
           e.stopPropagation();
-          cycleAssignmentStatus(link.app, fnId);
-          persist();
-          renderFunctionsList();
-          OL.renderApps?.();
-        };
+          OL.openFunctionModal(fnId);
+        }
+      });
 
-        pillEl.oncontextmenu = (e) => {
-          e.preventDefault();
-          removeAssignment(link.app, fnId);
-          persist();
-          renderFunctionsList();
-          OL.renderApps?.();
-        };
+      groups.forEach(group => {
+        group.apps.forEach(link => {
+          const pillEl = listEl.querySelector(
+            `.fnAppsWrap .fnAppPill[data-fn-id="${fnId}"][data-app-id="${link.app.id}"]`
+          );
+          if (!pillEl) return;
+
+          pillEl.addEventListener("click", e => {
+            e.stopPropagation();
+            const actual = e.target.closest(".fnAppPill");
+            if (!actual) return;
+            cycleAssignmentStatus(link.app, fnId);
+            persist();
+            renderFunctionsList();
+            OL.renderApps?.();
+          });
+
+          pillEl.addEventListener("contextmenu", e => {
+            e.preventDefault();
+            const actual = e.target.closest(".fnAppPill");
+            if (!actual) return;
+            removeAssignment(link.app, fnId);
+            persist();
+            renderFunctionsList();
+            OL.renderApps?.();
+          });
+        });
       });
     });
   }
@@ -147,8 +150,12 @@
     return `
       <div class="card fn-card" data-fn-id="${fn.id}">
         <div class="row" style="justify-content:space-between; align-items:flex-start; gap:12px;">
-          <div class="fn-main"><div class="fn-name">${esc(fn.name)}</div></div>
-          <div class="fnAppsWrap">${appsHTML}</div>
+          <div class="fn-main">
+            <div class="fn-name">${esc(fn.name)}</div>
+          </div>
+          <div class="fnAppsWrap">
+            ${appsHTML}
+          </div>
         </div>
       </div>
     `;
@@ -160,7 +167,7 @@
       <span class="pill fnAppPill ${statusClassForFn(status)}"
             data-fn-id="${fnId}"
             data-app-id="${app.id}">
-        ${esc(app.name)}
+        <span class="pill-label">${esc(app.name)}</span>
       </span>
     `;
   }
@@ -185,10 +192,124 @@
   }
 
   OL.openFunctionModal = function(fnId) {
-    /* NO CHANGES MADE HERE — modal logic untouched */
+    const groups = buildFunctionIndex();
+    const group = groups.find(g => g.fn.id === fnId);
+    if (!group) return;
+
+    const fn = group.fn;
+    const appsLinked = group.apps || [];
+    const allApps = [...(state.apps || [])].sort((a, b) => (a.name||"").localeCompare(b.name||""));
+    const linkedIds = new Set(appsLinked.map(x => x.app.id));
+
+    const appOptions =
+      allApps.filter(a => !linkedIds.has(a.id))
+      .map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`)
+      .join("");
+
+    const appsSorted = appsLinked.slice().sort((a, b) =>
+      statusOrder[a.status || "available"] - statusOrder[b.status || "available"]
+    );
+    
+    const appsHtml = appsSorted.length
+      ? appsSorted.map(link => `
+          <span class="pill fnAppPill ${statusClassForFn(link.status)}"
+                data-app-id="${link.app.id}"
+                data-fn-id="${fn.id}">
+            <span class="pill-label">${esc(link.app.name)}</span>
+          </span>
+        `).join("")
+      : `<span class="pill pill-empty">No apps mapped</span>`;
+
+    OL.openModal({
+      contentHTML: `
+        <div class="modal">
+          <div class="modal-head">
+            <div class="modal-title-text" contenteditable="true" id="fnModalTitle">${esc(fn.name)}</div>
+          </div>
+          <div class="modal-body">
+
+          <div class="int-modal-legend" style="margin-top:6px;">
+            <span class="int-modal-legend-label">Status</span>
+            <span><span class="integration-type-dot primary"></span>Primary</span>
+            <span><span class="integration-type-dot evaluating"></span>Evaluating</span>
+            <span><span class="integration-type-dot available"></span>Available</span>
+          </div>
+
+            <div id="fnModalApps">${appsHtml}</div>
+
+            <div class="row" style="margin-top:6px; gap:6px;">
+              <select id="fnAddAppSelect">
+                <option value="">— Select App —</option>
+                ${appOptions}
+              </select>
+              <button class="btn small" id="fnAddAppButton">+ Add</button>
+            </div>
+
+            <label class="modal-section-label" style="margin-top:12px;">Notes</label>
+            <textarea id="fnModalNotes" class="modal-textarea">${esc(fn.notes || "")}</textarea>
+          </div>
+        </div>
+      `
+    });
+
+    document.getElementById("fnModalNotes").oninput = () => {
+      fn.notes = document.getElementById("fnModalNotes").value;
+      persist();
+    };
+
+    document.getElementById("fnModalTitle").onblur = () => {
+      fn.name = document.getElementById("fnModalTitle").textContent.trim();
+      persist();
+      renderFunctionsList();
+      OL.renderApps?.();
+    };
+
+    document.getElementById("fnAddAppButton").onclick = () => {
+      const appId = document.getElementById("fnAddAppSelect").value;
+      const app = state.apps.find(a => a.id === appId);
+      if (!app) return;
+
+      app.functions ||= [];
+      if (!app.functions.find(f => f.id === fnId)) {
+        app.functions.push({ id: fnId, status: "available" });
+      }
+
+      persist();
+      renderFunctionsList();
+      OL.renderApps?.();
+      OL.openFunctionModal(fnId);
+    };
+
+    appsLinked.forEach(link => {
+      const pillEl = document.querySelector(
+        `.fnAppPill[data-fn-id="${fn.id}"][data-app-id="${link.app.id}"]`
+      );
+      if (!pillEl) return;
+
+      pillEl.addEventListener("click", e => {
+        e.stopPropagation();
+        const actual = e.target.closest(".fnAppPill");
+        if (!actual) return;
+        cycleAssignmentStatus(link.app, fn.id);
+        persist();
+        renderFunctionsList();
+        OL.renderApps?.();
+        OL.openFunctionModal(fnId);
+      });
+
+      pillEl.addEventListener("contextmenu", e => {
+        e.preventDefault();
+        const actual = e.target.closest(".fnAppPill");
+        if (!actual) return;
+        removeAssignment(link.app, fn.id);
+        persist();
+        renderFunctionsList();
+        OL.renderApps?.();
+        OL.openFunctionModal(fnId);
+      });
+    });
   };
 
   OL.renderFunctionsView = renderFunctionsView;
   OL.renderFunctions = renderFunctionsView;
-
 })();
