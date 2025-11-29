@@ -102,27 +102,27 @@
     const listEl = document.getElementById("functionsList");
     if (!listEl) return;
   
-    const groups = buildFunctionIndex();
+  const groups = buildFunctionIndex();
   
-    // get selected app filter if available
-    let selectedAppIds = [];
-    if (OL.appFilterUI && typeof OL.appFilterUI.getSelectedAppIds === "function") {
-      selectedAppIds = OL.appFilterUI.getSelectedAppIds() || [];
-    }
+  // get selected app filter if available
+  let selectedAppIds = [];
+  if (OL.appFilterUI && typeof OL.appFilterUI.getSelectedAppIds === "function") {
+    selectedAppIds = OL.appFilterUI.getSelectedAppIds() || [];
+  }
   
-    const filtered = groups.filter(group => {
-      if (!selectedAppIds.length) return true;
-      return group.apps.some(link => selectedAppIds.includes(link.app.id));
-    });
+  // Filter BEFORE checking length
+  const filtered = groups.filter(group => {
+    if (!selectedAppIds.length) return true;
+    return group.apps.some(link => selectedAppIds.includes(link.app.id));
+  });
   
-    if (!filtered.length) {
-      listEl.innerHTML = `<p class="muted">No functions match the current filters.</p>`;
-      return;
-    }
+  if (!filtered.length) {
+    listEl.innerHTML = `<p class="muted">No functions match the current filters.</p>`;
+    return;
+  }
   
-    const html = filtered.map(group => renderFunctionCard(group)).join("");
-    listEl.innerHTML = html;
-  
+  listEl.innerHTML = filtered.map(group => renderFunctionCard(group)).join("");
+
     // wire pills (click = cycle state, right-click = remove)
     filtered.forEach(group => {
       const fnId = group.fn.id;
