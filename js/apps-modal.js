@@ -318,62 +318,69 @@
   function bindFunctions(app) {
     const wrap = document.getElementById("modalAppFunctions");
     wrap.innerHTML = "";
-
-    app.functions.forEach(fn => {
-      const pill = document.createElement("span");
-      pill.className = "pill fn";
-
-      const fnMeta = OL.state.functions.find(f => f.id === fn.id);
-      pill.textContent = fnMeta ? fnMeta.name : "(unknown)";
-
-      pill.dataset.status = fn.status || "available";
-
-      pill.onclick = () => {
-        fn.status = nextFnState(fn.status);
-        OL.persist();
-        bindFunctions(app);
-      };
-
-      pill.oncontextmenu = (e) => {
-        e.preventDefault();
-        app.functions = app.functions.filter(f => f !== fn);
-        OL.persist();
-        bindFunctions(app);
-      };
-
-      wrap.appendChild(pill);
-    });
-
-    const addBtn = document.getElementById("modalAddFunction");
-    addBtn.onclick = () => {
-      const sel = document.createElement("select");
-      sel.className = "pill-select";
-      sel.innerHTML =
-        `<option value="">Select function…</option>` +
-        OL.state.functions
-          .filter(f => !app.functions.find(a => a.id === f.id))
-          .map(f => `<option value="${f.id}">${esc(f.name)}</option>`)
-          .join("");
-
-      sel.onchange = () => {
-        if (!sel.value) return;
-
-        // first app added to function = primary, later ones = available
-        const existingAssignments = OL.state.apps
-          .flatMap(a => (a.functions || []).map(f => ({ appId: a.id, fnId: f.id })))
-          .filter(x => x.fnId === sel.value);
-
-        const status = existingAssignments.length === 0 ? "primary" : "available";
-
-        app.functions.push({ id: sel.value, status });
-        OL.persist();
-        bindFunctions(app);
-        OL.renderApps?.();
-      };
-
-      wrap.appendChild(sel);
-      sel.focus();
-    };
+  
+    // SEARCH INPUT
+    const search = document.createElement("input");
+    search.type = "text";
+    search.className = "modal-search";
+    search.placeholder = "Search functions…";
+    wrap.appendChild(search);
+  
+    // LIST CONTAINER
+    const list = document.createElement("div");
+    list.className = "modal-checklist";
+    wrap.appendChild(list);
+  
+    // RENDER
+    render();
+  
+    search.oninput = () => render();
+  
+    function render() {
+      list.innerHTML = "";
+      const term = search.value.toLowerCase();
+  
+      OL.state.functions
+        .filter(fn => fn.name.toLowerCase().includes(term))
+        .forEach(fn => {
+          const assigned = app.functions.some(f => f.id === fn.id);
+  
+          const row = document.createElement("label");
+          row.className = "modal-checkrow";
+  
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = assigned;
+  
+          cb.onchange = () => {
+            if (cb.checked) {
+              // Auto-assign
+              const existing = OL.state.apps
+                .flatMap(a => (a.functions || []).map(f => ({ appId: a.id, fnId: f.id })))
+                .filter(x => x.fnId === fn.id);
+  
+              const status = existing.length === 0
+                ? "primary"
+                : "available";
+  
+              app.functions.push({ id: fn.id, status });
+            } else {
+              app.functions = app.functions.filter(f => f.id !== fn.id);
+            }
+  
+            OL.persist();
+            bindFunctions(app);
+            OL.renderApps?.();
+          };
+  
+          const name = document.createElement("span");
+          name.textContent = fn.name;
+  
+          row.appendChild(cb);
+          row.appendChild(name);
+          list.appendChild(row);
+        });
+    }
   }
 
   function nextFnState(s) {
