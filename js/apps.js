@@ -49,6 +49,12 @@
     return out;
   }
 
+  function nextFnState(s) {
+    if (s === "primary") return "evaluating";
+    if (s === "evaluating") return "available";
+    return "primary";
+  }
+
   // ------------------------------------------------
   // PUBLIC ENTRY: APPS PAGE
   // ------------------------------------------------
@@ -59,6 +65,7 @@
     const appsSorted = [...(state.apps || [])].sort(byNameWithZapierFirst);
 
     container.innerHTML = `
+      <!-- Applications -->
       <section class="apps-section">
         <div class="section-header">
           <h1>Applications</h1>
@@ -73,6 +80,7 @@
         <div id="appsListContainer"></div>
       </section>
 
+      <!-- Functions -->
       <section class="apps-section">
         <div class="section-header">
           <h2>Functions</h2>
@@ -92,6 +100,7 @@
         <div id="functionsCards" class="functions-grid"></div>
       </section>
 
+      <!-- Integrations -->
       <section class="apps-section">
         <div class="section-header">
           <h2>Integrations</h2>
@@ -111,14 +120,21 @@
       </section>
     `;
 
+    // view toggles
     wireAppsViewToggle();
     wireIntegrationsViewToggle();
 
+    // Add Application
     const addAppBtn = document.getElementById("addNewAppBtn");
     if (addAppBtn) {
-      addAppBtn.onclick = () => OL.openAppModalNew && OL.openAppModalNew();
+      addAppBtn.onclick = () => {
+        if (typeof OL.openAppModalNew === "function") {
+          OL.openAppModalNew();
+        }
+      };
     }
 
+    // Add Function
     const addFnBtn = document.getElementById("addNewFunctionBtn");
     if (addFnBtn) {
       addFnBtn.onclick = () => {
@@ -129,8 +145,8 @@
           id: OL.utils.uid(),
           name
         });
-        OL.persist();
-        OL.renderApps();
+        OL.persist && OL.persist();
+        OL.renderApps && OL.renderApps();
       };
     }
 
@@ -169,43 +185,39 @@
   // DELETE APPLICATION
   // ------------------------------------------------
   function deleteApplication(appId) {
-    const app = state.apps.find(a => a.id === appId);
+    const app = (state.apps || []).find(a => a.id === appId);
     if (!app) return;
 
     const hasFunctions = (app.functions || []).length > 0;
     const hasIntegrations = (app.integrations || []).length > 0;
 
-    let msg = `Delete "${app.name}"?`;
+    let msg = `Delete "${app.name || "this app"}"?`;
     if (hasFunctions || hasIntegrations) {
       msg += `\n\nThis app is currently mapped to${
         hasFunctions ? ` ${app.functions.length} function(s)` : ""
       }${
         hasIntegrations ? ` and ${app.integrations.length} integration(s)` : ""
-      }.\n\nDeleting will remove ALL mappings.`;
+      }.\n\nDeleting will remove ALL mappings on this app.`;
     }
 
     if (!confirm(msg)) return;
 
-    state.apps = state.apps.filter(a => a.id !== appId);
+    // Remove the app itself
+    state.apps = (state.apps || []).filter(a => a.id !== appId);
 
-    state.apps.forEach(a => {
+    // Remove integrations on other apps that point to this app
+    (state.apps || []).forEach(a => {
       if (a.integrations) {
         a.integrations = a.integrations.filter(i => i.appId !== appId);
       }
     });
 
-    state.apps.forEach(a => {
-      if (a.functions) {
-        a.functions = a.functions.filter(f => f.id !== appId);
-      }
-    });
-
-    OL.persist();
-    OL.renderApps();
+    OL.persist && OL.persist();
+    OL.renderApps && OL.renderApps();
   }
 
   // ------------------------------------------------
-  // APPS LIST
+  // APPS LIST (DETAILS + GRID)
   // ------------------------------------------------
   function renderAppsList(appsSorted) {
     const container = document.getElementById("appsListContainer");
@@ -214,13 +226,19 @@
     const mode = state.appsViewMode || "details";
     container.innerHTML = "";
 
+    // GRID MODE
     if (mode === "grid") {
       const grid = document.createElement("div");
       grid.className = "apps-grid";
 
       appsSorted.forEach(app => {
+        const appStatus = (app.status || "").toLowerCase();
+        let statusClass = "";
+        if (appStatus === "evaluating") statusClass = " app-card-evaluating";
+        else if (appStatus === "deprecated") statusClass = " app-card-deprecated";
+
         const card = document.createElement("div");
-        card.className = "app-card";
+        card.className = "app-card" + statusClass;
         card.dataset.id = app.id;
 
         card.innerHTML = `
@@ -228,16 +246,26 @@
           <div class="app-card-header">
             ${OL.appIconHTML(app)}
             <div class="app-card-title-block">
-              <div class="app-card-title">${esc(app.name || "")}</div>
+              <div class="app-card-title-row">
+                <div class="app-card-title">${esc(app.name || "")}</div>
+              </div>
             </div>
           </div>
         `;
 
-        card.onclick = () => OL.openAppModal(app.id);
-        card.querySelector(".app-delete").onclick = (e) => {
-          e.stopPropagation();
-          deleteApplication(app.id);
+        card.onclick = () => {
+          if (typeof OL.openAppModal === "function") {
+            OL.openAppModal(app.id);
+          }
         };
+
+        const delBtn = card.querySelector(".app-delete");
+        if (delBtn) {
+          delBtn.onclick = (e) => {
+            e.stopPropagation();
+            deleteApplication(app.id);
+          };
+        }
 
         grid.appendChild(card);
       });
@@ -246,8 +274,66 @@
       return;
     }
 
-    // details view…
-    // (intentionally omitted from this response block for brevity — identical except includes delete handling)
+    // DETAILS MODE
+    const list = document.createElement("div");
+    list.className = "apps-list";
+
+    appsSorted.forEach(app => {
+      const appStatus = (app.status || "").toLowerCase();
+      let statusClass = "";
+      if (appStatus === "evaluating") statusClass = " app-card-evaluating";
+      else if (appStatus === "deprecated") statusClass = " app-card-deprecated";
+
+      const fnCount = countFunctionsUsingApp(app.id);
+      const intCounts = countIntegrationsForApp(app.id);
+      const totalInts = intCounts.direct + intCounts.zapier + intCounts.both;
+
+      let statusLabelHTML = "";
+      if (appStatus === "evaluating") {
+        statusLabelHTML = `<span class="app-card-status app-status-evaluating">Evaluating</span>`;
+      } else if (appStatus === "deprecated") {
+        statusLabelHTML = `<span class="app-card-status app-status-deprecated">Deprecated</span>`;
+      }
+
+      const card = document.createElement("div");
+      card.className = "app-card" + statusClass;
+      card.dataset.id = app.id;
+
+      card.innerHTML = `
+        <div class="app-delete">&times;</div>
+        <div class="app-card-header">
+          ${OL.appIconHTML(app)}
+          <div class="app-card-title-block">
+            <div class="app-card-title-row">
+              <div class="app-card-title">${esc(app.name || "")}</div>
+              ${statusLabelHTML}
+            </div>
+            <div class="app-card-meta">
+              <span>${fnCount} function${fnCount === 1 ? "" : "s"}</span>
+              <span>${totalInts} integration${totalInts === 1 ? "" : "s"}</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+      card.onclick = () => {
+        if (typeof OL.openAppModal === "function") {
+          OL.openAppModal(app.id);
+        }
+      };
+
+      const delBtn = card.querySelector(".app-delete");
+      if (delBtn) {
+        delBtn.onclick = (e) => {
+          e.stopPropagation();
+          deleteApplication(app.id);
+        };
+      }
+
+      list.appendChild(card);
+    });
+
+    container.appendChild(list);
   }
 
   // ------------------------------------------------
@@ -261,24 +347,26 @@
       (a.functions || []).some(f => f.id === fnId)
     );
 
-    let msg = `Delete function "${fn.name}"?`;
+    let msg = `Delete function "${fn.name || fnId}"?`;
 
     if (appsUsing.length > 0) {
       msg += `\n\nThis function is currently used by:`;
-      appsUsing.forEach(a => msg += `\n - ${a.name}`);
-      msg += `\n\nDeleting will REMOVE ALL mappings.`;
+      appsUsing.forEach(a => {
+        msg += `\n - ${a.name}`;
+      });
+      msg += `\n\nDeleting will REMOVE ALL mappings to this function.`;
     }
 
     if (!confirm(msg)) return;
 
     state.functions = (state.functions || []).filter(f => f.id !== fnId);
 
-    state.apps.forEach(a => {
+    (state.apps || []).forEach(a => {
       a.functions = (a.functions || []).filter(f => f.id !== fnId);
     });
 
-    OL.persist();
-    OL.renderApps();
+    OL.persist && OL.persist();
+    OL.renderApps && OL.renderApps();
   }
 
   // ------------------------------------------------
@@ -330,19 +418,21 @@
         </div>
       `;
 
-      card.querySelector(".fn-delete").onclick = (e) => {
-        e.stopPropagation();
-        deleteFunction(fnId);
-      };
+      const deleteBtn = card.querySelector(".fn-delete");
+      if (deleteBtn) {
+        deleteBtn.onclick = (e) => {
+          e.stopPropagation();
+          deleteFunction(fnId);
+        };
+      }
 
       const list = card.querySelector(".function-apps-list");
 
       const orderedAssignments = appAssignments.slice().sort((a, b) => {
-        const getRank = s => s === "primary"
-          ? 1
-          : s === "evaluating"
-          ? 2
-          : 3;
+        const getRank = s =>
+          s === "primary" ? 1 :
+          s === "evaluating" ? 2 :
+          3;
         return getRank(a.assignment.status) - getRank(b.assignment.status);
       });
 
@@ -359,7 +449,7 @@
         pill.onclick = (e) => {
           e.stopPropagation();
           assignment.status = nextFnState(assignment.status);
-          OL.persist();
+          OL.persist && OL.persist();
           renderFunctionCards();
         };
 
@@ -367,28 +457,26 @@
           e.preventDefault();
           e.stopPropagation();
           app.functions = (app.functions || []).filter(f => f !== assignment);
-          OL.persist();
+          OL.persist && OL.persist();
           renderFunctionCards();
         };
 
         list.appendChild(pill);
       });
 
-      card.querySelector(".function-card-header").onclick = () => {
-        if (typeof OL.openFunctionModal === "function") {
-          OL.openFunctionModal(fnId);
-        }
-      };
+      const header = card.querySelector(".function-card-header");
+      if (header) {
+        header.onclick = () => {
+          if (typeof OL.openFunctionModal === "function") {
+            OL.openFunctionModal(fnId);
+          }
+        };
+      }
 
       box.appendChild(card);
     }
   }
 
-  function nextFnState(s) {
-    if (s === "primary") return "evaluating";
-    if (s === "evaluating") return "available";
-    return "primary";
-  }
   // ------------------------------------------------
   // INTEGRATIONS CARDS
   // ------------------------------------------------
@@ -401,12 +489,10 @@
     if (!appA.integrations) appA.integrations = [];
     if (!appB.integrations) appB.integrations = [];
 
-    // Add record on A
     if (!appA.integrations.some(i => i.appId === appBId)) {
       appA.integrations.push({ appId: appBId, type });
     }
 
-    // Add record on B
     if (!appB.integrations.some(i => i.appId === appAId)) {
       appB.integrations.push({ appId: appAId, type });
     }
@@ -441,7 +527,7 @@
   function buildIntegrationPairs() {
     const apps = state.apps || [];
     const zap = getZapierApp();
-    const pairs = new Map(); // key: "aId|bId" (sorted), value: record
+    const pairs = new Map();
 
     function pairKey(aId, bId) {
       return aId < bId ? `${aId}|${bId}` : `${bId}|${aId}`;
@@ -465,7 +551,6 @@
       else rec.zapier++;
     }
 
-    // Manual integrations defined on each app
     apps.forEach(app => {
       (app.integrations || []).forEach(int => {
         const otherId = int.appId;
@@ -475,7 +560,6 @@
       });
     });
 
-    // Zapier-mediated pairs (if Zapier app present)
     if (zap) {
       const zapId = zap.id;
       const zapClients = apps.filter(a =>
@@ -493,7 +577,6 @@
           const key = pairKey(a.id, b.id);
           const existing = pairs.get(key);
           if (existing) {
-            // If direct already exists, mark as both
             if (existing.direct > 0 && existing.zapier === 0 && existing.both === 0) {
               existing.both++;
               existing.direct = 0;
@@ -551,7 +634,6 @@
 
     const total = directCount + zapCount + bothCount;
 
-    // Arrow block (visual only, no flip logic here)
     let arrowBlock = "";
     if (viewMode === "flip") {
       arrowBlock = `
@@ -603,7 +685,6 @@
       </div>
     `;
 
-    // Entire card opens the capabilities modal
     card.addEventListener("click", () => {
       if (typeof OL.openIntegrationModal === "function") {
         OL.openIntegrationModal(sourceApp.id, targetApp.id);
