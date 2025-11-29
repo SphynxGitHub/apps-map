@@ -544,13 +544,8 @@
         <div class="integration-arrows flip-compressed">
           <div class="arrow-row">
             <span class="arrow-app">${esc(sourceApp.name)}</span>
-            <span class="arrow-symbol">&#8594;</span>
+            <span class="arrow-symbol">&#8646;</span>
             <span class="arrow-app">${esc(targetApp.name)}</span>
-          </div>
-          <div class="arrow-row">
-            <span class="arrow-app">${esc(targetApp.name)}</span>
-            <span class="arrow-symbol">&#8594;</span>
-            <span class="arrow-app">${esc(sourceApp.name)}</span>
           </div>
         </div>
       `;
