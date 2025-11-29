@@ -543,8 +543,10 @@
       arrowBlock = `
         <div class="integration-arrows flip-compressed">
           <span class="arrow-app">${esc(sourceApp.name)}</span>
-          <span class="arrow-right">&#8594;</span>
-          <span class="arrow-left">&#8592;</span>
+          <span class="arrow-stack">
+            <span class="arrow-right">&#8594;</span>
+            <span class="arrow-left">&#8592;</span>
+          </span>
           <span class="arrow-app">${esc(targetApp.name)}</span>
         </div>
       `;
