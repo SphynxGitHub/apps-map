@@ -150,6 +150,18 @@
       });
     });
   }
+  // wire function card click -> open function modal
+  filtered.forEach(group => {
+    const fnId = group.fn.id;
+    const cardEl = listEl.querySelector(`.fn-card[data-fn-id="${fnId}"]`);
+    if (!cardEl) return;
+    cardEl.onclick = () => {
+      if (typeof OL.openFunctionModal === "function") {
+        OL.openFunctionModal(fnId);
+      }
+    };
+  });
+
 
   function renderFunctionCard(group) {
     const fn = group.fn;
@@ -217,11 +229,125 @@
     app.functions = (app.functions || []).filter(f => f.id !== fnId);
   }
 
-  // ------------------------------------------------------------
-  // Public exports
-  // ------------------------------------------------------------
-  OL.renderFunctionsView = renderFunctionsView;
-  // alias in case routing calls `renderFunctions`
-  OL.renderFunctions = renderFunctionsView;
+ // ------------------------------------------------------------
+// Public exports
+// ------------------------------------------------------------
+OL.renderFunctionsView = renderFunctionsView;
+// alias in case routing calls `renderFunctions`
+OL.renderFunctions = renderFunctionsView;
+
+// ------------------------------------------------------------
+// Function Modal (restored)
+// ------------------------------------------------------------
+function statusClassForFn(status) {
+  if (status === "primary") return "fnAppPill-primary";
+  if (status === "evaluating") return "fnAppPill-evaluating";
+  return "fnAppPill-available";
+}
+
+OL.openFunctionModal = function(fnId) {
+  const groups = buildFunctionIndex();
+  const group = groups.find(g => g.fn && g.fn.id === fnId);
+  if (!group) return;
+
+  const fn = group.fn;
+  const appsLinked = group.apps || [];
+
+  const appsHtml = appsLinked.length
+    ? appsLinked.map(link => {
+        const app = link.app;
+        const status = link.status || "available";
+        return `
+          <span class="pill fnAppPill ${statusClassForFn(status)}"
+                data-app-id="${app.id}"
+                data-fn-id="${fn.id}">
+            ${esc(app.name || "")}
+          </span>
+        `;
+      }).join("")
+    : `<span class="pill pill-empty">No apps mapped</span>`;
+
+  const notesValue = fn.notes || "";
+
+  const modalHtml = `
+    <div class="modal-head">
+      <div class="modal-title-text" contenteditable="true" id="fnModalTitle">
+        ${esc(fn.name || "")}
+      </div>
+    </div>
+    <div class="modal-body">
+      <label class="modal-section-label">Used in Apps</label>
+      <div id="fnModalApps">${appsHtml}</div>
+
+      <label class="modal-section-label">Notes</label>
+      <textarea id="fnModalNotes" class="modal-textarea">${esc(notesValue)}</textarea>
+    </div>
+  `;
+
+  if (typeof OL.openModal !== "function") {
+    console.error("openFunctionModal: OL.openModal is not available");
+    return;
+  }
+
+  OL.openModal({ contentHTML: modalHtml });
+
+  // Title editing
+  const titleEl = document.getElementById("fnModalTitle");
+  if (titleEl) {
+    titleEl.addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        titleEl.blur();
+      }
+    });
+    titleEl.addEventListener("blur", () => {
+      const newName = titleEl.textContent.trim();
+      if (!newName) return;
+      fn.name = newName;
+      if (typeof OL.persist === "function") OL.persist();
+      if (typeof OL.renderFunctions === "function") OL.renderFunctions();
+      if (typeof OL.renderApps === "function") OL.renderApps();
+    });
+  }
+
+  // Notes editing
+  const notesEl = document.getElementById("fnModalNotes");
+  if (notesEl) {
+    notesEl.addEventListener("input", () => {
+      fn.notes = notesEl.value;
+      if (typeof OL.persist === "function") OL.persist();
+    });
+  }
+
+  // App pills inside modal – click to cycle status, right-click to unassign
+  const appsWrap = document.getElementById("fnModalApps");
+  if (appsWrap) {
+    appsLinked.forEach(link => {
+      const selector = `.fnAppPill[data-fn-id="${fn.id}"][data-app-id="${link.app.id}"]`;
+      const pillEl = appsWrap.querySelector(selector);
+      if (!pillEl) return;
+
+      pillEl.addEventListener("click", e => {
+        e.stopPropagation();
+        cycleAssignmentStatus(link.app, fn.id);
+        if (typeof OL.persist === "function") OL.persist();
+        // refresh both views so everything stays in sync
+        if (typeof OL.renderFunctions === "function") OL.renderFunctions();
+        if (typeof OL.renderApps === "function") OL.renderApps();
+        // also refresh this modal
+        OL.openFunctionModal(fn.id);
+      });
+
+      pillEl.addEventListener("contextmenu", e => {
+        e.preventDefault();
+        removeAssignment(link.app, fn.id);
+        if (typeof OL.persist === "function") OL.persist();
+        if (typeof OL.renderFunctions === "function") OL.renderFunctions();
+        if (typeof OL.renderApps === "function") OL.renderApps();
+        OL.openFunctionModal(fn.id);
+      });
+    });
+  }
+};
 
 })();
