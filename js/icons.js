@@ -10,23 +10,26 @@
   // ============================================================
   // APP ICON HTML RENDERING
   // ============================================================
-  OL.appIconHTML = function(obj) {
-    // obj may be an app or function — same schema
+   OL.appIconHTML = function(obj) {
+    const icon = obj.icon;
   
-    const icon = obj.icon || null;
+    // 1. If icon is a string URL
+    if (typeof icon === "string" && icon.startsWith("http")) {
+      return `<img src="${icon}" class="icon-img">`;
+    }
+  
+    // 2. If icon is a base64-encoded string
+    if (typeof icon === "string" && icon.startsWith("data:image")) {
+      return `<img src="${icon}" class="icon-img">`;
+    }
+  
+    // 3. If icon is an object with a url property
+    if (icon && typeof icon === "object" && typeof icon.url === "string") {
+      return `<img src="${icon.url}" class="icon-img">`;
+    }
+  
+    // 4. Fallback initials
     const name = obj.name || "";
-  
-    // If explicit icon URL
-    if (icon && typeof icon === "string" && icon.startsWith("http")) {
-      return `<img src="${icon}" class="icon-img">`;
-    }
-  
-    // If base64-encoded or blob
-    if (icon && icon.startsWith("data:image")) {
-      return `<img src="${icon}" class="icon-img">`;
-    }
-  
-    // Default internal initials
     const letters = name
       .split(" ")
       .map(w => w[0])
