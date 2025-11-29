@@ -234,6 +234,8 @@
     el.onclick = (evt) => {
       evt.stopPropagation();
       OL.openIconPicker = function(obj, type="app") {
+        // icon picker logic
+      };
     };
   }
 
