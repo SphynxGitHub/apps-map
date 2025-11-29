@@ -81,14 +81,22 @@
       <section class="apps-section">
         <div class="section-header">
           <h2>Functions</h2>
-          <div class="apps-legend">
-            <span><strong>Status:</strong></span>
-            <span class="legend-pill status-primary">Primary</span>
-            <span class="legend-pill status-available">Available</span>
-            <span class="legend-pill status-evaluating">Evaluating</span>
-            <span class="legend-hint">Click to cycle • Right-click to remove</span>
+      
+          <div style="display:flex; align-items:center; gap:12px;">
+      
+            <button class="btn small" id="addNewFunctionBtn">+ Add Function</button>
+      
+            <div class="apps-legend">
+              <span><strong>Status:</strong></span>
+              <span class="legend-pill status-primary">Primary</span>
+              <span class="legend-pill status-available">Available</span>
+              <span class="legend-pill status-evaluating">Evaluating</span>
+              <span class="legend-hint">Click to cycle • Right-click to remove</span>
+            </div>
+      
           </div>
         </div>
+      
         <div id="functionsCards" class="functions-grid"></div>
       </section>
 
@@ -118,7 +126,19 @@
 
     const addBtn = document.getElementById("addNewAppBtn");
     if (addBtn) {
-      addBtn.onclick = () => OL.openAppModalNew && OL.openAppModalNew();
+      addFnBtn.onclick = () => {
+        const name = (prompt("Name this function:") || "").trim();
+        if (!name) return;
+    
+        state.functions = state.functions || [];
+        state.functions.push({
+          id: OL.utils.uid(),
+          name
+        });
+    
+        OL.persist && OL.persist();
+        renderFunctionCards();
+      };
     }
 
     // Render subsections
