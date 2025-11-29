@@ -985,24 +985,31 @@ textarea{min-height:90px}
 .integration-arrows.flip-mode .arrow-row:nth-child(2) .arrow-symbol{
   color:#4b5563;
 }
-/* compressed flip arrow */
-.integration-arrows.flip-compressed .arrow-row {
-  display: flex;
-  gap: 4px;
- align-items: center;
+.integration-arrows.flip-compressed {
+  position: relative;
+  display: inline-flex;
+  width: 12px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
 }
 
-.integration-arrows.flip-compressed .arrow-symbol {
-  font-size: 12px;
-  font-weight: 700;
-  color: #38bdf8;
-}
+.integration-arrows.flip-compressed .arrow-right,
 .integration-arrows.flip-compressed .arrow-left {
-  color: #4b5563; /* grey */
+  position: absolute;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .integration-arrows.flip-compressed .arrow-right {
-  color: #38bdf8; /* blue */
+  top: -1px;
+  color: #38bdf8; /* BLUE */
+}
+
+.integration-arrows.flip-compressed .arrow-left {
+  bottom: -1px;
+  color: #4b5563; /* GREY */
 }
 
 .integration-card-body {
