@@ -126,7 +126,7 @@
 
     const addBtn = document.getElementById("addNewAppBtn");
     if (addBtn) {
-      addFnBtn.onclick = () => {
+      addBtn.onclick = () => {
         const name = (prompt("Name this function:") || "").trim();
         if (!name) return;
     
@@ -138,6 +138,29 @@
     
         OL.persist && OL.persist();
         renderFunctionCards();
+      };
+    }
+    const addFnBtn = document.getElementById("addNewFunctionBtn");
+    if (addFnBtn) {
+      addFnBtn.onclick = () => {
+        const name = (prompt("Name this function:") || "").trim();
+        if (!name) return;
+    
+        const newFn = {
+          id: OL.utils.uid(),
+          name,
+          notes: ""
+        };
+    
+        state.functions = state.functions || [];
+        state.functions.push(newFn);
+    
+        OL.persist && OL.persist();
+        renderFunctionCards();
+    
+        if (typeof OL.openFunctionModal === "function") {
+          OL.openFunctionModal(newFn.id);
+        }
       };
     }
 
