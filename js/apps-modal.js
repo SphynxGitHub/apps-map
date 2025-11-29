@@ -319,67 +319,132 @@
     const wrap = document.getElementById("modalAppFunctions");
     wrap.innerHTML = "";
   
-    // SEARCH INPUT
-    const search = document.createElement("input");
-    search.type = "text";
-    search.className = "modal-search";
-    search.placeholder = "Search functions…";
-    wrap.appendChild(search);
+    // EXISTING PILLS BLOCK
+    const pillsWrap = document.createElement("div");
+    pillsWrap.className = "fn-pill-wrap";
+    wrap.appendChild(pillsWrap);
   
-    // LIST CONTAINER
-    const list = document.createElement("div");
-    list.className = "modal-checklist";
-    wrap.appendChild(list);
+    // Populate pills
+    renderPills();
   
-    // RENDER
-    render();
+    // ADD FUNCTION button
+    const addBtn = document.getElementById("modalAddFunction");
+    addBtn.onclick = () => {
+      addBtn.style.display = "none";
+      showSelectorUI();
+    };
   
-    search.oninput = () => render();
+    function renderPills() {
+      pillsWrap.innerHTML = "";
   
-    function render() {
-      list.innerHTML = "";
-      const term = search.value.toLowerCase();
+      // Generate one pill per assigned fn
+      app.functions.forEach(fn => {
+        const meta = OL.state.functions.find(f => f.id === fn.id);
+        const pill = document.createElement("span");
+        pill.className = `pill fn status-${fn.status || "available"}`;
+        pill.textContent = meta ? meta.name : "(unknown)";
   
-      OL.state.functions
-        .filter(fn => fn.name.toLowerCase().includes(term))
-        .forEach(fn => {
-          const assigned = app.functions.some(f => f.id === fn.id);
+        pill.onclick = () => {
+          fn.status = nextFnState(fn.status);
+          OL.persist();
+          bindFunctions(app);
+        };
   
-          const row = document.createElement("label");
-          row.className = "modal-checkrow";
+        pill.oncontextmenu = (e) => {
+          e.preventDefault();
+          app.functions = app.functions.filter(f => f !== fn);
+          OL.persist();
+          bindFunctions(app);
+        };
   
-          const cb = document.createElement("input");
-          cb.type = "checkbox";
-          cb.checked = assigned;
+        pillsWrap.appendChild(pill);
+      });
+    }
   
-          cb.onchange = () => {
-            if (cb.checked) {
-              // Auto-assign
-              const existing = OL.state.apps
-                .flatMap(a => (a.functions || []).map(f => ({ appId: a.id, fnId: f.id })))
-                .filter(x => x.fnId === fn.id);
+    function showSelectorUI() {
+      // CREATE SELECTOR BOX
+      const selBox = document.createElement("div");
+      selBox.className = "modal-select-box";
+      wrap.appendChild(selBox);
   
-              const status = existing.length === 0
-                ? "primary"
-                : "available";
+      // SEARCH INPUT
+      const search = document.createElement("input");
+      search.type = "text";
+      search.className = "modal-search";
+      search.placeholder = "Search functions…";
+      selBox.appendChild(search);
   
-              app.functions.push({ id: fn.id, status });
-            } else {
-              app.functions = app.functions.filter(f => f.id !== fn.id);
-            }
+      // CHECKBOX LIST
+      const list = document.createElement("div");
+      list.className = "modal-checklist";
+      selBox.appendChild(list);
   
-            OL.persist();
-            bindFunctions(app);
-            OL.renderApps?.();
-          };
+      // DONE BUTTON
+      const done = document.createElement("button");
+      done.className = "btn small";
+      done.textContent = "Done";
+      done.style.marginTop = "6px";
+      selBox.appendChild(done);
   
-          const name = document.createElement("span");
-          name.textContent = fn.name;
+      done.onclick = () => {
+        wrap.removeChild(selBox);
+        addBtn.style.display = "";
+        renderPills();
+      };
   
-          row.appendChild(cb);
-          row.appendChild(name);
-          list.appendChild(row);
-        });
+      search.oninput = () => renderOptions();
+      renderOptions();
+  
+      function renderOptions() {
+        const term = search.value.toLowerCase();
+        list.innerHTML = "";
+  
+        OL.state.functions
+          .filter(fn => fn.name.toLowerCase().includes(term))
+          .forEach(fn => {
+            const assigned = app.functions.some(f => f.id === fn.id);
+  
+            const row = document.createElement("label");
+            row.className = "modal-checkrow";
+  
+            const cb = document.createElement("input");
+            cb.type = "checkbox";
+            cb.checked = assigned;
+  
+            cb.onchange = () => {
+              if (cb.checked) {
+                addFunctionAssignment(fn.id);
+              } else {
+                removeFunctionAssignment(fn.id);
+              }
+              OL.persist();
+              renderPills();
+            };
+  
+            const name = document.createElement("span");
+            name.textContent = fn.name;
+  
+            row.appendChild(cb);
+            row.appendChild(name);
+            list.appendChild(row);
+          });
+      }
+  
+      function addFunctionAssignment(fnId) {
+        const existingAssignments = OL.state.apps
+          .flatMap(a => (a.functions || []).map(f => ({ appId: a.id, fnId: f.id })))
+          .filter(x => x.fnId === fnId);
+  
+        const status = existingAssignments.length === 0
+          ? "primary"
+          : "available";
+  
+        app.functions.push({ id: fnId, status });
+      }
+  
+      function removeFunctionAssignment(fnId) {
+        app.functions = app.functions.filter(f => f.id !== fnId);
+      }
     }
   }
 
