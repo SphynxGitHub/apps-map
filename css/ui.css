@@ -1005,6 +1005,7 @@ textarea{min-height:90px}
 .integration-arrows.flip-compressed .arrow-right {
   top: -1px;
   color: #38bdf8; /* BLUE */
+  margin-bottom: 1px;
 }
 
 .integration-arrows.flip-compressed .arrow-left {
