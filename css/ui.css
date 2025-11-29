@@ -958,6 +958,17 @@ textarea{min-height:90px}
 .integration-arrows.flip-mode .arrow-row:nth-child(2) .arrow-symbol{
   color:#4b5563;
 }
+/* compressed flip arrow */
+.integration-arrows.flip-compressed .arrow-row {
+  display: flex;
+  gap: 4px;
+}
+
+.integration-arrows.flip-compressed .arrow-symbol {
+  font-size: 12px;
+  font-weight: 700;
+  color: #38bdf8;
+}
 
 .integration-card-body {
   padding: 6px 10px 8px;
