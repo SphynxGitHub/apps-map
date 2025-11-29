@@ -327,7 +327,7 @@
       editIconBtn.onclick = (e) => {
         e.stopPropagation();
         if (OL.openIconPicker) {
-          OL.openIconPicker(fn, "function");
+          OL.openIconPicker(editIconBtn, fn);
         }
       };
     }
