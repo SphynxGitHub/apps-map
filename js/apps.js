@@ -542,12 +542,8 @@
     if (viewMode === "flip") {
       arrowBlock = `
         <div class="integration-arrows flip-compressed">
-          <div class="arrow-row">
-            <span class="arrow-app">${esc(sourceApp.name)}</span>
-            <span class="arrow-symbol arrow-right">&#8594;</span>
-            <span class="arrow-symbol arrow-left">&#8592;</span>
-            <span class="arrow-app">${esc(targetApp.name)}</span>
-          </div>
+          <span class="arrow-right">&#8594;</span>
+          <span class="arrow-left">&#8592;</span>
         </div>
       `;
     } else if (viewMode === "single") {
