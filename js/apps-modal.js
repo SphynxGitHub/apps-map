@@ -222,20 +222,17 @@
     const el = document.getElementById("modalAppIcon");
     el.innerHTML = "";
     el.appendChild(buildIconNode(app));
-
-    // expose a helper so icons.js can refresh just the icon
+  
     OL.refreshCurrentAppModalIcon = function() {
       const n = document.getElementById("modalAppIcon");
       if (!n) return;
       n.innerHTML = "";
       n.appendChild(buildIconNode(app));
     };
-
+  
     el.onclick = (evt) => {
       evt.stopPropagation();
-      OL.openIconPicker = function(obj, type="app") {
-        // icon picker logic
-      };
+      OL.openIconPicker(app, "app");
     };
   }
 
