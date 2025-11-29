@@ -101,28 +101,28 @@
   function renderFunctionsList() {
     const listEl = document.getElementById("functionsList");
     if (!listEl) return;
-
+  
     const groups = buildFunctionIndex();
-
+  
     // get selected app filter if available
     let selectedAppIds = [];
     if (OL.appFilterUI && typeof OL.appFilterUI.getSelectedAppIds === "function") {
       selectedAppIds = OL.appFilterUI.getSelectedAppIds() || [];
     }
-
+  
     const filtered = groups.filter(group => {
       if (!selectedAppIds.length) return true;
       return group.apps.some(link => selectedAppIds.includes(link.app.id));
     });
-
+  
     if (!filtered.length) {
       listEl.innerHTML = `<p class="muted">No functions match the current filters.</p>`;
       return;
     }
-
+  
     const html = filtered.map(group => renderFunctionCard(group)).join("");
     listEl.innerHTML = html;
-
+  
     // wire pills (click = cycle state, right-click = remove)
     filtered.forEach(group => {
       const fnId = group.fn.id;
@@ -130,16 +130,15 @@
         const selector = `.fnAppsWrap .fnAppPill[data-fn-id="${fnId}"][data-app-id="${link.app.id}"]`;
         const pillEl = listEl.querySelector(selector);
         if (!pillEl) return;
-
+  
         pillEl.onclick = (e) => {
           e.stopPropagation();
           cycleAssignmentStatus(link.app, fnId);
           persist();
           renderFunctionsList();
-          // also refresh apps grid so colors stay in sync
           if (OL.renderApps) OL.renderApps();
         };
-
+  
         pillEl.oncontextmenu = (e) => {
           e.preventDefault();
           removeAssignment(link.app, fnId);
@@ -351,3 +350,32 @@ OL.openFunctionModal = function(fnId) {
 };
 
 })();
+
+OL.openFunctionModal = function(fnId) {
+  const fn = (OL.state.functions || []).find(f => f.id === fnId);
+  if (!fn) return;
+
+  const html = `
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-title-text">${esc(fn.name || "")}</div>
+      </div>
+      <div class="modal-body">
+        <label>Description</label>
+        <div>${esc(fn.description || "No description yet")}</div>
+
+        <label>Used by apps</label>
+        <div>
+          ${(OL.state.apps || []).filter(a => 
+              (a.functions || []).find(f => f.id === fnId)
+            ).map(a => `<div>${esc(a.name)}</div>`).join("")}
+        </div>
+
+      </div>
+    </div>
+  `;
+
+  OL.openModal({
+    contentHTML: html
+  });
+};
