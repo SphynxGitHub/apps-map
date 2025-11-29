@@ -256,13 +256,6 @@
   // Function Modal
   // ------------------------------------------------------------
   OL.openFunctionModal = function(fnId) {
-    const assignBtn = document.getElementById("fnShowAppSelector");
-    if (assignBtn) {
-      assignBtn.onclick = (e) => {
-        e.stopPropagation();
-        showAddAppsSelector();
-      };
-    }
 
     const groups = buildFunctionIndex();
     const group = groups.find(g => g.fn.id === fnId);
@@ -335,6 +328,14 @@
     `;
 
     OL.openModal({ contentHTML: modalHtml });
+
+    const assignBtn = document.getElementById("fnShowAppSelector");
+    if (assignBtn) {
+      assignBtn.onclick = (e) => {
+        e.stopPropagation();
+        showAddAppsSelector();
+      };
+    }
 
     // Title edit
     const titleEl = document.getElementById("fnModalTitle");
