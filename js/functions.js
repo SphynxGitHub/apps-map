@@ -186,93 +186,147 @@
     app.functions = (app.functions || []).filter(f => f.id !== fnId);
   }
 
-  // ------------------------------------------------------------
-  // CLEAN + CORRECT MODAL
-  // ------------------------------------------------------------
+ // ------------------------------------------------------------------
+  // Function Modal (upgraded for 2-way reflection & assignment control)
+  // ------------------------------------------------------------------
   OL.openFunctionModal = function(fnId) {
-    const group = buildFunctionIndex().find(g => g.fn.id === fnId);
+    const groups = buildFunctionIndex();
+    const group = groups.find(g => g.fn && g.fn.id === fnId);
     if (!group) return;
+  
     const fn = group.fn;
-
-    const appsHtml = group.apps.length
-      ? group.apps.map(link => functionAppPillHTML(link)).join("")
+    const appsLinked = group.apps || [];
+  
+    const allApps = (OL.state.apps || []).slice().sort((a, b) =>
+      (a.name || "").localeCompare(b.name || "")
+    );
+  
+    const linkedAppIds = new Set(appsLinked.map(x => x.app.id));
+  
+    // Build dropdown list of apps NOT yet assigned
+    const appOptions = allApps
+      .filter(a => !linkedAppIds.has(a.id))
+      .map(a => `<option value="${esc(a.id)}">${esc(a.name || "")}</option>`)
+      .join("");
+  
+    const appsHtml = appsLinked.length
+      ? appsLinked
+          .map(link => {
+            const app = link.app;
+            const status = link.status || "available";
+            return `
+              <span class="pill fnAppPill ${statusClassForFn(status)}"
+                    data-fn-id="${fn.id}"
+                    data-app-id="${app.id}">
+                ${esc(app.name || "")}
+              </span>
+            `;
+          })
+          .join("")
       : `<span class="pill pill-empty">No apps mapped</span>`;
-
-    const notesValue = fn.notes || "";
-
+  
     const modalHtml = `
-      <div class="modal-head">
-        <div class="modal-title-text" contenteditable="true" id="fnModalTitle">
-          ${esc(fn.name || "")}
+      <div class="modal">
+        <div class="modal-head">
+          <div class="modal-title-text" contenteditable="true" id="fnModalTitle">
+            ${esc(fn.name || "")}
+          </div>
+        </div>
+  
+        <div class="modal-body">
+  
+          <label class="modal-section-label">Used in Apps</label>
+          <div id="fnModalApps">${appsHtml}</div>
+  
+          <div class="row" style="margin-top:6px; gap:6px;">
+            <select id="fnAddAppSelect">
+              <option value="">— Select App —</option>
+              ${appOptions}
+            </select>
+            <button class="btn small" id="fnAddAppButton">+ Add</button>
+          </div>
+  
+          <div class="row" style="margin-top:10px; gap:10px; font-size:11px; color:#9ca3af;">
+            <span class="pill fnAppPill-primary">Primary</span>
+            <span class="pill fnAppPill-available">Available</span>
+            <span class="pill fnAppPill-evaluating">Evaluating</span>
+          </div>
+  
+          <label class="modal-section-label" style="margin-top:12px;">Notes</label>
+          <textarea id="fnModalNotes" class="modal-textarea">${esc(fn.notes || "")}</textarea>
+  
         </div>
       </div>
-      <div class="modal-body">
-        <label class="modal-section-label">Used in Apps</label>
-        <div id="fnModalApps">${appsHtml}</div>
-
-        <label class="modal-section-label">Notes</label>
-        <textarea id="fnModalNotes" class="modal-textarea">${esc(notesValue)}</textarea>
-      </div>
     `;
-
+  
     OL.openModal({ contentHTML: modalHtml });
-
-    wireModalEvents(fnId);
-  };
-
-  function wireModalEvents(fnId){
-    const fn = (state.functions || []).find(f => f.id === fnId);
-
+  
+    // =======================
+    //  Title editing
+    // =======================
     const titleEl = document.getElementById("fnModalTitle");
-    titleEl?.addEventListener("blur", () => {
-      const newName = titleEl.textContent.trim();
-      if (!newName) return;
-      fn.name = newName;
-      persist();
-      renderFunctionsList();
-      OL.renderApps?.();
+    titleEl.addEventListener("blur", () => {
+      fn.name = titleEl.textContent.trim();
+      OL.persist();
+      OL.renderFunctions();
+      OL.renderApps();
     });
-
+  
+    // =======================
+    //  Notes editing
+    // =======================
     const notesEl = document.getElementById("fnModalNotes");
-    notesEl?.addEventListener("input",() => {
+    notesEl.addEventListener("input", () => {
       fn.notes = notesEl.value;
-      persist();
+      OL.persist();
     });
-
-    const appsWrap = document.getElementById("fnModalApps");
-    if (!appsWrap) return;
-
-    buildFunctionIndex()
-      .find(g => g.fn.id === fnId)
-      .apps.forEach(link => {
-        const pill = appsWrap.querySelector(
-          `.fnAppPill[data-fn-id="${fnId}"][data-app-id="${link.app.id}"]`
-        );
-
-        pill?.addEventListener("click", e => {
-          e.stopPropagation();
-          cycleAssignmentStatus(link.app, fnId);
-          persist();
-          renderFunctionsList();
-          OL.renderApps?.();
-          OL.openFunctionModal(fnId);
-        });
-
-        pill?.addEventListener("contextmenu", e => {
-          e.preventDefault();
-          removeAssignment(link.app, fnId);
-          persist();
-          renderFunctionsList();
-          OL.renderApps?.();
-          OL.openFunctionModal(fnId);
-        });
-      });
-  }
-
-  // ------------------------------------------------------------
-  // Export
-  // ------------------------------------------------------------
-  OL.renderFunctionsView = renderFunctionsView;
-  OL.renderFunctions = renderFunctionsView;
-
-})();
+  
+    // =======================
+    //  Add App
+    // =======================
+    document.getElementById("fnAddAppButton").onclick = () => {
+      const select = document.getElementById("fnAddAppSelect");
+      const appId = select.value;
+      if (!appId) return;
+  
+      const app = OL.state.apps.find(a => a.id === appId);
+      if (!app) return;
+  
+      // Assign function to app properly
+      app.functions = app.functions || [];
+      if (!app.functions.find(f => f.id === fn.id)) {
+        app.functions.push({ id: fn.id, status: "available" });
+      }
+  
+      OL.persist();
+      OL.renderFunctions();
+      OL.renderApps();
+      OL.openFunctionModal(fnId);
+    };
+  
+    // =======================
+    //  Cycle or Remove
+    // =======================
+    appsLinked.forEach(link => {
+      const pillEl = document.querySelector(
+        `.fnAppPill[data-fn-id="${fn.id}"][data-app-id="${link.app.id}"]`
+      );
+  
+      pillEl.onclick = () => {
+        cycleAssignmentStatus(link.app, fn.id);
+        OL.persist();
+        OL.renderFunctions();
+        OL.renderApps();
+        OL.openFunctionModal(fnId);
+      };
+  
+      pillEl.oncontextmenu = (e) => {
+        e.preventDefault();
+        removeAssignment(link.app, fn.id);
+        OL.persist();
+        OL.renderFunctions();
+        OL.renderApps();
+        OL.openFunctionModal(fnId);
+      };
+    });
+  };
