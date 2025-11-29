@@ -140,6 +140,32 @@
   };
 
   // ------------------------------------------------
+  // APPS VIEW TOGGLE
+  // ------------------------------------------------
+  function wireAppsViewToggle() {
+    const viewMode = state.appsViewMode || "details";
+    state.appsViewMode = viewMode;
+
+    const toggle = document.getElementById("appsViewToggle");
+    if (!toggle) return;
+
+    toggle.querySelectorAll("button").forEach(btn => {
+      const v = btn.dataset.view;
+      if (!v) return;
+
+      if (v === viewMode) btn.classList.add("active");
+      else btn.classList.remove("active");
+
+      btn.onclick = () => {
+        state.appsViewMode = v;
+        OL.persist && OL.persist();
+        wireAppsViewToggle();
+        renderAppsList([...(state.apps || [])].sort(byNameWithZapierFirst));
+      };
+    });
+  }
+
+  // ------------------------------------------------
   // DELETE APPLICATION
   // ------------------------------------------------
   function deleteApplication(appId) {
