@@ -401,6 +401,7 @@
           row.appendChild(document.createTextNode(" " + (app.name || "")));
     
           cb.onchange = () => {
+            linkedIds.add(app.id);
             if (cb.checked) {
               const existingAssignments = state.apps
                 .flatMap(a => (a.functions || []).map(f => f.id))
@@ -408,13 +409,17 @@
           
               const status = existingAssignments.length === 0 ? "primary" : "available";
           
-              app.functions.push({ id: fnId, status });
+              const targetApp = state.apps.find(a => a.id === app.id);
+              targetApp.functions = targetApp.functions || [];
+              targetApp.functions.push({ id: fnId, status });
+
             } else {
               removeAssignment(app, fnId);
             }
-          
             persist();
-            OL.openFunctionModal(fnId);
+            renderFunctionsList();
+            if (OL.renderApps) OL.renderApps();
+
           };
     
           listDiv.appendChild(row);
