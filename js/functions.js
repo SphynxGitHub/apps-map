@@ -235,14 +235,12 @@
           </div>
           <div class="modal-body">
 
-            <div class="row" style="align-items:center; gap:10px;">
-              <label class="modal-section-label">Apps Used</label>
-              <div class="row" style="gap:6px; font-size:11px;">
-                <span class="pill fnAppPill-primary">Primary</span>
-                <span class="pill fnAppPill-available">Available</span>
-                <span class="pill fnAppPill-evaluating">Evaluating</span>
-              </div>
-            </div>
+          <div class="int-modal-legend" style="margin-top:6px;">
+            <span class="int-modal-legend-label">Status</span>
+            <span><span class="integration-type-dot primary"></span>Primary</span>
+            <span><span class="integration-type-dot evaluating"></span>Evaluating</span>
+            <span><span class="integration-type-dot available"></span>Available</span>
+          </div>
 
             <div id="fnModalApps">${appsHtml}</div>
 
