@@ -242,8 +242,8 @@
         card.dataset.id = app.id;
 
         card.innerHTML = `
+        <div class="app-card-header">
           <div class="app-delete">&times;</div>
-          <div class="app-card-header">
             ${OL.appIconHTML(app)}
             <div class="app-card-title-block">
               <div class="app-card-title-row">
@@ -300,8 +300,8 @@
       card.dataset.id = app.id;
 
       card.innerHTML = `
+      <div class="app-card-header">
         <div class="app-delete">&times;</div>
-        <div class="app-card-header">
           ${OL.appIconHTML(app)}
           <div class="app-card-title-block">
             <div class="app-card-title-row">
@@ -407,8 +407,8 @@
       card.dataset.fnId = fn.id;
 
       card.innerHTML = `
+      <div class="function-card-header">
         <div class="fn-delete">&times;</div>
-        <div class="function-card-header">
           <div class="function-icon">${(fn.name || "?").slice(0, 2)}</div>
           <div class="function-title">${esc(fn.name || fnId)}</div>
         </div>
