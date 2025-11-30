@@ -534,7 +534,7 @@ textarea{min-height:90px}
 .pill {
   display: inline-block;
   padding: 4px 9px;
-  border-radius: 8px;
+  border-radius: 999px;
   font-size: 12px;
   background: var(--soft);
   cursor: pointer;
