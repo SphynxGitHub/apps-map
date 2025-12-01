@@ -214,7 +214,14 @@
       .map(fref => {
         const fnObj = state.functions.find(f => f.id === fref.id);
         if (!fnObj) return "";
-        return `<span class="pill fn">${esc(fnObj.name)}</span>`;
+        const status = fref.status || "available";
+        return `
+          <span 
+            class="pill fn status-${status}" 
+            data-status="${status}">
+            ${esc(fnObj.name)}
+          </span>
+        `;
       }).join("");
   }
 
