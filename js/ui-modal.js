@@ -38,6 +38,7 @@
   // CRITICAL FIX — GLOBAL CLICK INTERCEPTION PROTECTION
   // ============================================================
   document.addEventListener("click", e => {
+    if (window._activeIconPicker) return;  // don’t navigate during icon picking
     const header = e.target.closest(".card-header-left");
     if (!header) return;
   
@@ -141,6 +142,11 @@
   
     activeCloseHandler = null;
     window.removeEventListener("keydown", escClose);
+  
+    // Global UI refresh
+    if (typeof OL.refreshAllUI === "function") {
+      OL.refreshAllUI();
+    }
   }
 
   function escClose(e){
