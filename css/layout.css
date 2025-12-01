@@ -71,8 +71,12 @@ a {
 
 .section-header.row {
   display: flex;
-  justify-content: space-between;
+  gap: 12px;
   align-items: center;
+}
+
+.spacer {
+  flex-grow:1;
 }
 
 .pill-key {
