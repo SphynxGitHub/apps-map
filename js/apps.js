@@ -75,7 +75,7 @@
             </div>
           </div>
         </div>
-        <div id="appsCards"></div>
+        <div id="appsCards" class="cards-grid"></div>
       </section>
 
       <section class="apps-section">
