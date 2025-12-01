@@ -241,7 +241,6 @@
       <button
         type="button"
         class="pill"
-        data-status="${normalized}"
         data-fn-id="${fnId}"
         data-app-id="${app.id}"
         data-status="${normalized}">
@@ -274,20 +273,23 @@
       );
 
     const appsHtml = appsSorted.length
-      ? appsSorted.map(link => `
-          <button
-            type="button"
-            class="pill"
-            data-status="${normalized}"
-            data-app-id="${link.app.id}"
-            data-fn-id="${fn.id}">
-            ${
-              typeof OL.appLabelHTML === "function"
-                ? OL.appLabelHTML(link.app)
-                : `<span class="pill-label">${esc(link.app.name || "")}</span>`
-            }
-          </button>
-        `).join("")
+      ? appsSorted.map(link => {
+          const normalized = normalizeStatus(link.status);
+          return `
+            <button
+              type="button"
+              class="pill"
+              data-status="${normalized}"
+              data-app-id="${link.app.id}"
+              data-fn-id="${fn.id}">
+              ${
+                typeof OL.appLabelHTML === "function"
+                  ? OL.appLabelHTML(link.app)
+                  : `<span class="pill-label">${esc(link.app.name || "")}</span>`
+              }
+            </button>
+          `;
+        }).join("")
       : `<span class="pill pill-empty">No apps mapped</span>`;
 
     const modalHtml = `
