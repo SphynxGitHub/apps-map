@@ -56,30 +56,32 @@ a {
 }
 
 .section-actions {
-  padding: 6px 0 12px 0;
+    padding: 6px 0 12px 0;
 }
 
 .section-actions .btn {
-  margin-top: 3px;
+    margin-top: 3px;
 }
 
 .section-header {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
 }
 
 .header-right {
-  display:flex;
-  flex-direction:row;
-  align-items:center;
-  gap:12px;
+    display:flex;
+    flex-direction:row;
+    align-items:center;
+    gap:12px;
 }
 
 .pill-key-help {
-  font-size:11px;
-  opacity:0.7;
-  white-space:nowrap;
+    margin-top: 4px;
+    padding-left: 0;
+    font-size:11px;
+    opacity:0.7;
+    white-space:nowrap;
 }
 
 #modal-layer {
@@ -102,8 +104,8 @@ a {
 }
 
 .integrations-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
 }
