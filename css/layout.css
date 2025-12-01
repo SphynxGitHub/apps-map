@@ -74,22 +74,6 @@ a {
     pointer-events: auto;
 }
 
-.pill-key {
-  display: flex;
-  gap: 18px;
-  font-size: 11px;
-  opacity: .7;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.pill-key-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-
 .integrations-list {
   display: flex;
   flex-wrap: wrap;
