@@ -47,3 +47,10 @@ a {
     padding:16px;
     overflow:auto;
 }
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  width: 100%;
+}
