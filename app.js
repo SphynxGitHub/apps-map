@@ -702,51 +702,52 @@
     openAppModal(app.id);
   }
 
-  function renderAppCard(app) {
-    const d = document.createElement('div');
-    d.className = 'card';
-    d.style.cursor = 'pointer';
-
-    const iconHTML = appIconHTML(app);
-
-    if (state.appsViewMode === 'details') {
-      d.innerHTML = `
-        <div class="row">
-          <div style="font-size:20px">${iconHTML}</div>
-          <div style="font-weight:600">${esc(app.name)}</div>
-        </div>
-        <div class="muted" style="margin:6px 0">${esc(app.notes || '')}</div>
-        <label>Functions</label>
-        <div class="row" style="flex-wrap:wrap; gap:4px">
-          ${
-            (app.functions || []).map(fn => (
-              `<span class="pill" style="color:${FN_LEVEL_COLORS.available}">${esc(fn)}</span>`
-            )).join('')
-          }
-        </div>
-        <label style="margin-top:10px">Integrations</label>
-        <div class="row" style="margin-top:4px; flex-wrap:wrap; gap:6px">
-          ${renderAppIntegrationsIcons(app)}
-        </div>
-      `;
-    } else {
-      d.innerHTML = `
-        <div class="row">
-          <div style="font-size:22px">${iconHTML}</div>
-          <div>${esc(app.name)}</div>
-        </div>
-        <div class="row" style="flex-wrap:wrap; margin-top:6px; gap:4px;">
-          ${
-            (app.functions || []).map(fn => (
-              `<span class="pill" style="color:${FN_LEVEL_COLORS.available}; font-size:11px">${esc(fn)}</span>`
-            )).join('')
-          }
+  function renderAppCard(app, mode = state.appViewMode || "details") {
+    const iconHtml = utils.renderAppIcon(app);
+  
+    // ICON MODE — minimal
+    if (mode === "icon") {
+      return `
+        <div class="app-card app-card-icon">
+          <div class="app-card-header">
+            <div class="function-icon">${iconHtml}</div>
+            <div class="app-card-title">${esc(app.name)}</div>
+          </div>
         </div>
       `;
     }
-
-    d.onclick = () => openAppModal(app.id);
-    return d;
+  
+    // DETAILS MODE — full layout
+    return `
+      <div class="app-card app-card-details">
+        <div class="app-card-header">
+          <div class="function-icon">${iconHtml}</div>
+          <div>
+            <div class="function-title">${esc(app.name)}</div>
+            <div class="app-card-meta">${esc(app.category || "")}</div>
+          </div>
+        </div>
+  
+        <div class="app-card-body">
+          
+          <div class="function-apps-label">Status</div>
+          <div class="app-card-status ${mapAppStatusClass(app.status)}">
+            ${esc(app.status)}
+          </div>
+  
+          <div class="function-apps-label">Used in Functions</div>
+          <div class="function-apps-list">
+            ${renderAppFunctions(app)}
+          </div>
+  
+          <div class="function-apps-label">Notes</div>
+          <div class="modal-notes-display">
+            ${esc(app.notes || "")}
+          </div>
+  
+        </div>
+      </div>
+    `;
   }
 
   function renderAppIntegrationsIcons(app) {
