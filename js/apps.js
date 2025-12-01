@@ -217,8 +217,14 @@
   function renderAppFunctions(app) {
     return (state.functions || [])
       .filter(fn => (fn.apps || []).includes(app.id))
-      .map(fn => `<span class="pill">${esc(fn.name)}</span>`)
-      .join("");
+      .map(fn => `
+        <span 
+          class="pill fn" 
+          data-status="${fn.status || 'available'}"
+        >
+          ${esc(fn.name)}
+        </span>
+      `).join("");
   }
 
   function renderAppIntegrations(app) {
