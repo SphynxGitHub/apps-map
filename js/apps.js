@@ -89,13 +89,13 @@
       <section class="apps-section">
         <div class="section-header">
           <h1>Applications</h1>
-          <div class="view-toggle">
-            <button onclick="OL.setAppViewMode('icon')" class="${state.appViewMode === 'icon' ? 'active' : ''}">Icon</button>
-            <button onclick="OL.setAppViewMode('details')" class="${state.appViewMode === 'details' ? 'active' : ''}">Details</button>
-          </div>
         </div>
         <div class="section-actions">
           <button class="btn small" id="addNewAppBtn">+ Add Application</button>
+        </div>
+        <div class="view-toggle">
+          <button onclick="OL.setAppViewMode('icon')" class="${state.appViewMode === 'icon' ? 'active' : ''}">Icon</button>
+          <button onclick="OL.setAppViewMode('details')" class="${state.appViewMode === 'details' ? 'active' : ''}">Details</button>
         </div>
         <div id="appsCards" class="cards-grid"></div>
       </section>
@@ -107,12 +107,14 @@
             <span class="pill fn" data-status="primary">Primary</span>
             <span class="pill fn" data-status="evaluating">Evaluating</span>
             <span class="pill fn" data-status="available">Available</span>
-            <span class="pill-key-help">Click to cycle status; Right-click to delete</span>
           </div>
         </div>
         <div class="section-actions">
-            <button class="btn small" id="addNewFunctionBtn">+ Add Function</button>
-          </div>
+          <button class="btn small" id="addNewFunctionBtn">+ Add Function</button>
+        </div>
+        <div class="view-toggle">            
+          <span class="pill-key-help">Click to cycle status; Right-click to delete</span>
+        </div>
         <div id="functionsCards" class="cards-grid"></div>
       </section>
 
@@ -124,6 +126,10 @@
             <span class="pill fn" data-status="direct">Direct</span>
             <span class="pill fn" data-status="both">Both</span>
           </div>
+        </div>
+        <div class="view-toggle">
+          <button onclick="OL.setAppViewMode('flip')" class="${state.appViewMode === 'flip' ? 'active' : ''}">Flip</button>
+          <button onclick="OL.setAppViewMode('one-direction')" class="${state.appViewMode === 'one-direction' ? 'active' : ''}">One Direction</button>
         </div>
         <div id="integrationsCards" class="cards-grid"></div>
       </section>
