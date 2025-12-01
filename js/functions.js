@@ -167,7 +167,7 @@
         };
       }
 
-      const pills = card.querySelectorAll(".app-pill");
+      const pills = card.querySelectorAll(".pill");
       pills.forEach(pill => {
         pill.onclick = (e) => {
           e.stopPropagation();
@@ -245,7 +245,7 @@
     return `
       <button
         type="button"
-        class="app-pill ${statusClassForFn(normalized)}"
+        class="pill ${statusClassForFn(normalized)}"
         data-fn-id="${fnId}"
         data-app-id="${app.id}"
         data-status="${normalized}">
@@ -281,7 +281,7 @@
       ? appsSorted.map(link => `
           <button
             type="button"
-            class="app-pill ${statusClassForFn(link.status)}"
+            class="pill ${statusClassForFn(link.status)}"
             data-app-id="${link.app.id}"
             data-fn-id="${fn.id}">
             ${
@@ -375,7 +375,7 @@
     // Cycle / remove inside modal
     const appsWrap = document.getElementById("fnModalApps");
     if (appsWrap) {
-      const pills = appsWrap.querySelectorAll(".app-pill");
+      const pills = appsWrap.querySelectorAll(".pill");
       pills.forEach(pill => {
         pill.onclick = (e) => {
           e.stopPropagation();
@@ -509,7 +509,7 @@
     // Only allow cycling if we are in the Functions view
     if (!inFunctionsView) return;
   
-    const pill = e.target.closest(".app-pill, .fnAppPill");
+    const pill = e.target.closest(".pill");
     if (!pill) return;
   
     e.stopPropagation();
