@@ -58,6 +58,10 @@
   // PUBLIC — open modal with HTML content
   // ============================================================
   OL.openModal = function({ width="620px", contentHTML="", onClose=null }) {
+    if (!contentHTML) {
+      console.warn("Blocked attempt to open modal with no content");
+      return;
+    }
     ensureModalLayer();
     modalLayer.innerHTML = "";
 
@@ -136,5 +140,5 @@
   function escClose(e){
     if (e.key === "Escape") closeModal();
   }
-
+console.log("OL.openModal called with:", contentHTML);
 })();
