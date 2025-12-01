@@ -46,3 +46,27 @@
   font-weight:700;
   font-size:14px;
 }
+
+.icon-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  backdrop-filter: blur(5px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-picker {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  pointer-events: auto;
+}
+
+.icon-option {
+  pointer-events:auto;
+  cursor:pointer;
+}
