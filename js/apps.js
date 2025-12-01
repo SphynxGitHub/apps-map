@@ -108,12 +108,20 @@
 
     if (mode === "icon") {
       return `
-        <div class="card card-icon" data-app-id="${app.id}">
-          <div class="card-header card-header-left">
-            <div class="card-icon">${iconHtml}</div>
-            <div class="card-title">${esc(app.name || "")}</div>
-          </div>
-        </div>`;
+        <div class="card-section">
+        <div class="card-section-title">Integrations</div>
+      
+        <div class="card-section-content pill-key">
+          <div class="pill-key-item"><span class="flip-arrow key-ex">→<span class="arrow down grey">←</span></span> Flip</div>
+          <div class="pill-key-item"><span class="arrow">→</span> One Direction</div>
+          <div class="pill-key-item"><span class="arrow">←</span> Reverse Direction</div>
+          <div class="pill-key-item"><span class="arrow">↔</span> Bidirectional</div>
+        </div>
+      
+        <div class="card-section-content integrations-list">
+          ${renderAppIntegrations(app)}
+        </div>
+      </div>
     }
   
     return `
@@ -306,3 +314,30 @@
   }
 
 })();
+document.addEventListener("click", e => {
+  const arrow = e.target.closest(".arrow");
+  if (!arrow) return;
+
+  const pill = e.target.closest(".integration-pill");
+  if (!pill) return;
+
+  const card = pill.closest(".card");
+  if (!card) return;
+
+  const appIdA = card.dataset.appId;
+  const appIdB = pill.dataset.intId;
+
+  const rec = OL.state.integrations.find(i =>
+    (i.appA === appIdA && i.appB === appIdB) ||
+    (i.appA === appIdB && i.appB === appIdA)
+  );
+  if (!rec) return;
+
+  const order = ["flip", "AtoB", "BtoA", "both"];
+  let i = order.indexOf(rec.direction);
+  i = (i + 1) % order.length;
+  rec.direction = order[i];
+
+  OL.persist && OL.persist();
+  OL.renderApps();
+});
