@@ -87,14 +87,14 @@
 
     container.innerHTML = `
     <section class="apps-section">
-      <div class="section-header">
+      <div class="section-header-row">
         <h2>Applications</h2>
-        <div class="header-right">
+        <div class="section-actions">
           <button class="btn small" id="addNewAppBtn">+ Add Application</button>
-          <div class="view-toggle">
-            <button onclick="OL.setAppViewMode('icon')" class="${state.appViewMode === 'icon' ? 'active' : ''}">Icon</button>
-            <button onclick="OL.setAppViewMode('details')" class="${state.appViewMode === 'details' ? 'active' : ''}">Details</button>
-          </div>
+        </div>
+        <div class="view-toggle">
+          <button onclick="OL.setAppViewMode('icon')" class="${state.appViewMode === 'icon' ? 'active' : ''}">Icon</button>
+          <button onclick="OL.setAppViewMode('details')" class="${state.appViewMode === 'details' ? 'active' : ''}">Details</button>
         </div>
       </div>
       <div id="appsCards" class="cards-grid"></div>
