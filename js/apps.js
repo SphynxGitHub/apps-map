@@ -103,14 +103,15 @@
       <section class="apps-section">
         <div class="section-header">
           <h2>Functions</h2>
-          <div class="pill-key">
-            <div class="pill-key-item"><span class="pill fn" data-status="primary">●</span> Primary</div>
-            <div class="pill-key-item"><span class="pill fn" data-status="evaluating">●</span> Evaluating</div>
-            <div class="pill-key-item"><span class="pill fn" data-status="available">●</span> Available</div>
+          <div class="pill-key functions-key">
+            <span class="pill fn" data-status="primary">Primary</span>
+            <span class="pill fn" data-status="evaluating">Evaluating</span>
+            <span class="pill fn" data-status="available">Available</span>
+            <span class="pill-key-help">Click to cycle status; Right-click to delete</span>
           </div>
-          <div class="right-section">
-            <button class="btn small" id="addNewFunctionBtn">+ Add Function</button>
-          </div>
+        </div>
+        <div class="right-section">
+          <button class="btn small" id="addNewFunctionBtn">+ Add Function</button>
         </div>
         <div id="functionsCards" class="cards-grid"></div>
       </section>
@@ -118,10 +119,10 @@
       <section class="apps-section">
         <div class="section-header">
           <h2>Integrations</h2>
-          <div class="pill-key">
-            <div class="pill-key-item"><span class="pill fn" data-status="zapier">●</span> Zapier</div>
-            <div class="pill-key-item"><span class="pill fn" data-status="direct">●</span> Direct</div>
-            <div class="pill-key-item"><span class="pill fn" data-status="both">●</span> Both</div>
+          <div class="pill-key integrations-key">
+            <span class="pill fn" data-status="zapier">Zapier</span>
+            <span class="pill fn" data-status="direct">Direct</span>
+            <span class="pill fn" data-status="both">Both</span>
           </div>
         </div>
         <div id="integrationsCards" class="cards-grid"></div>
