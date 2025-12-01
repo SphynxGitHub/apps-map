@@ -1,0 +1,65 @@
+.integration-arrows {
+  font-size:11px;
+}
+
+.integration-arrows .arrow-row {
+  display:flex;
+  align-items:center;
+  gap:4px;
+}
+
+.integration-arrows .arrow-app {
+  color:#e5e7eb;
+}
+
+.integration-arrows .arrow-symbol {
+  color:#38bdf8;
+}
+
+/* Flip view: first row active */
+.integration-arrows.flip-mode .arrow-row:nth-child(1) .arrow-symbol {
+  color:#38bdf8;
+}
+.integration-arrows.flip-mode .arrow-row:nth-child(2) .arrow-symbol {
+  color:#4b5563;
+}
+
+/* Compact stacks of arrows in table view */
+.integration-arrows.flip-compressed {
+  display:flex;
+  align-items:center;
+  justify-content:left;
+  gap:6px;
+}
+
+.integration-arrows.flip-compressed .arrow-app {
+  color:#e5e7eb;
+  font-size:12px;
+}
+
+.integration-arrows.flip-compressed .arrow-stack {
+  position:relative;
+  width:14px;
+  height:17px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:left;
+}
+
+.integration-arrows.flip-compressed .arrow-right,
+.integration-arrows.flip-compressed .arrow-left {
+  position:absolute;
+  font-size:14px;
+  font-weight:900;
+  line-height:1;
+}
+
+.integration-arrows.flip-compressed .arrow-right {
+  top:-1px;
+  color:#38bdf8;
+}
+
+.integration-arrows.flip-compressed .arrow-left {
+  bottom:-1px;
+  color:#4b5563;
+}
