@@ -1,0 +1,46 @@
+.modal-title-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  outline:none;
+  padding:4px 6px;
+  border-radius:8px;
+  cursor:text;
+  min-width:200px;
+}
+
+.modal-title-text.editing {
+  background:rgba(148,163,184,0.1);
+  border:1px solid rgba(148,163,184,0.4);
+}
+
+.modal-search {
+  width:100%;
+  padding:6px 8px;
+  margin-bottom:6px;
+}
+
+.fn-pill-wrap {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-bottom:8px;
+}
+
+.modal-select-box {
+  margin-top:6px;
+  padding:6px;
+  border:1px solid var(--line);
+  border-radius:6px;
+  background:rgba(255,255,255,0.04);
+}
+
+.modal-section-label {
+  margin-top:8px;
+  margin-bottom:2px;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:0.08em;
+  color:#9ca3af;
+  font-weight:600;
+}
