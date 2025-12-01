@@ -1,0 +1,29 @@
+.app-card {
+  border-radius:12px;
+  border:1px solid #1f2937;
+  background:#020617;
+  padding:10px 10px 8px;
+  position:relative;
+}
+
+.app-card-header {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:6px;
+}
+
+.app-card-title-block {
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+
+.app-card-title-row {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:6px;
+}
+
+.app-card-titl
