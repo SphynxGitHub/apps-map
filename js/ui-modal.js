@@ -128,4 +128,14 @@
   function escClose(e){
     if (e.key === "Escape") closeModal();
   }
+
+  // ============================================================
+  // SECURITY: Ignore all clicks if icon picker is active
+  // ============================================================
+  document.addEventListener("click", e => {
+    if (window._activeIconPicker) {
+      e.stopPropagation();
+      return;
+    }
+  });
 })();
