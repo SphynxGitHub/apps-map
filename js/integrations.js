@@ -484,7 +484,7 @@
     }
 
     container.innerHTML = apps.map(app => `
-      <div class="card" data-app-id="${esc(app.id)}">
+      <div class="card" data-int-id="${esc(app.id)}">
         <div class="card-header">
           <div class="card-header-left">
             <div class="card-icon">${OL.appIconHTML(app)}</div>
