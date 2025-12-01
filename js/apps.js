@@ -89,13 +89,13 @@
       <section class="apps-section">
         <div class="section-header">
           <h1>Applications</h1>
-          <div class="right-section">
-            <button class="btn small" id="addNewAppBtn">+ Add Application</button>
-            <div class="view-toggle">
-              <button onclick="OL.setAppViewMode('icon')" class="${state.appViewMode === 'icon' ? 'active' : ''}">Icon</button>
-              <button onclick="OL.setAppViewMode('details')" class="${state.appViewMode === 'details' ? 'active' : ''}">Details</button>
-            </div>
+          <div class="view-toggle">
+            <button onclick="OL.setAppViewMode('icon')" class="${state.appViewMode === 'icon' ? 'active' : ''}">Icon</button>
+            <button onclick="OL.setAppViewMode('details')" class="${state.appViewMode === 'details' ? 'active' : ''}">Details</button>
           </div>
+        </div>
+        <div class="section-actions">
+          <button class="btn small" id="addNewAppBtn">+ Add Application</button>
         </div>
         <div id="appsCards" class="cards-grid"></div>
       </section>
@@ -110,9 +110,9 @@
             <span class="pill-key-help">Click to cycle status; Right-click to delete</span>
           </div>
         </div>
-        <div class="right-section">
-          <button class="btn small" id="addNewFunctionBtn">+ Add Function</button>
-        </div>
+        <div class="section-actions">
+            <button class="btn small" id="addNewFunctionBtn">+ Add Function</button>
+          </div>
         <div id="functionsCards" class="cards-grid"></div>
       </section>
 
