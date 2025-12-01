@@ -3,25 +3,26 @@
   padding:4px 9px;
   border-radius:999px;
   font-size:12px;
-  background:var(--soft);
   cursor:pointer;
-  border:1px solid transparent;
+  background:transparent !important;
+  border:1px solid #666;
+  color:#666;
 }
 
 .pill.fn[data-status="primary"] {
   border: 1px solid #38bdf8;
-  color:#0c2530;
+  color:#38bdf8;
 }
 
 .pill.fn[data-status="evaluating"] {
-  border: 1px solid #facc15;
+  border: 1px solid #6b4f00;
   color:#6b4f00;
 }
 
 .pill.fn[data-status="available"],
 .pill.fn:not([data-status]) {
   border: 1px solid #1f2937;
-  color:#e5e7eb;
+  color:#1f2937;
 }
 
 .pill.fn[data-status="direct"] {
