@@ -544,10 +544,18 @@
     OL.renderFunctions?.();
     OL.renderApps?.();
   });
+  
+  // ------------------------------------------------------------
+  // Exports
+  // ------------------------------------------------------------
   OL.buildFunctionIndex = buildFunctionIndex;
   OL.renderFunctionCard = renderFunctionCard;
+  OL.renderFunctionCards = OL.renderFunctionCards;   // already defined
+  OL.renderFunctionsView = renderFunctionsView;
+  OL.renderFunctions = renderFunctionsView;
   OL.normalizeStatus = normalizeStatus;
   OL.cycleAssignmentStatus = cycleAssignmentStatus;
   OL.removeAssignment = removeAssignment;
+  OL.showAddAppsSelector = showAddAppsSelector;
 
 })();
