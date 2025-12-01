@@ -356,7 +356,8 @@
       editIconBtn.onclick = (e) => {
         e.stopPropagation();
         if (OL.openIconPicker) {
-          OL.openIconPicker(editIconBtn, fn);
+         const realObj = OL.state.functions.find(f => f.id === fnObj.id);
+          OL.openIconPicker(iconBtn, realObj);
         }
       };
     }
