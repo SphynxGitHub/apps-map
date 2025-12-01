@@ -86,14 +86,14 @@
           </div>
         </div>
 
-        <div id="functionsCards" class="functions-grid"></div>
+        <div id="functionsCards" class="cards-grid"></div>
       </section>
 
       <section class="apps-section">
         <div class="section-header">
           <h2>Integrations</h2>
         </div>
-        <div id="integrationsCards" class="integrations-grid"></div>
+        <div id="integrationsCards" class="cards-grid"></div>
       </section>
     `;
 
