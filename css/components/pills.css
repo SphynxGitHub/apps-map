@@ -11,38 +11,38 @@
   color:inherit;
 }
 
-.card .pill.fn[data-status] {
+.card .pill[data-status] {
   color: currentColor !important;
 }
 
-.pill.fn[data-status="primary"] {
+.pill[data-status="primary"] {
   border: 1px solid #38bdf8 !important;
   color:#38bdf8 !important;
 }
 
-.pill.fn[data-status="evaluating"] {
+.pill[data-status="evaluating"] {
   border: 1px solid #fce411 !important;
   color:#fce411 !important;
 }
 
-.pill.fn[data-status="available"],
-.pill.fn:not([data-status]) {
+.pill[data-status="available"],
+.pill:not([data-status]) {
   border: 1px solid #888888 !important;
   color:#888888 !important;
 }
 
-.pill.fn[data-status="direct"] {
+.pill[data-status="direct"] {
   border: 1px solid #11fc87 !important;
   color:#11fc87 !important;
 }
 
-.pill.fn[data-status="zapier"] {
+.pill[data-status="zapier"] {
   border: 1px solid #fca211 !important;
   color:#fca211 !important;
 }
 
-.pill.fn[data-status="both"],
-.pill.fn:not([data-status]) {
+.pill[data-status="both"],
+.pill:not([data-status]) {
   border: 1px solid #c11cdb !important;
   color:#c11cdb !important;
 }
