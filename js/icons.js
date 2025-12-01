@@ -38,20 +38,19 @@
   // ============================================================
   // ICON PICKER UI
   // ============================================================
-  OL.openIconPicker = function(targetEl, obj) {
-    // close any existing picker first
-    OL.closeIconPicker();
-
+  OL.openIconPicker = function(targetEl, app) {
+    OL.closeIconPicker(); // zap old instance
+  
+    // Create overlay
+    const overlay = document.createElement("div");
+    overlay.className = "icon-picker-overlay";
+  
+    // Create picker
     const picker = document.createElement("div");
     picker.className = "icon-picker";
-
-    // position near the icon (viewport coords)
-    const rect = targetEl.getBoundingClientRect();
-    picker.style.position = "fixed";
-    picker.style.top = (rect.bottom + 4) + "px";
-    picker.style.left = rect.left + "px";
-    picker.style.zIndex = 10002;
-
+    overlay.appendChild(picker);
+  
+    // Insert HTML
     picker.innerHTML = `
       <div class="picker-section">
         <div class="picker-title">Emoji</div>
@@ -60,114 +59,92 @@
             .map(e => `<span class="picker-option emoji">${e}</span>`).join("")}
         </div>
       </div>
-
       <div class="picker-section">
         <div class="picker-title">Auto-Letter</div>
         <button id="autoIconReset" class="btn small">Reset</button>
       </div>
-
       <div class="picker-section">
         <div class="picker-title">From URL</div>
-        <div class="picker-row picker-row-url">
+        <div class="picker-row">
           <input type="text" id="iconUrlInput" placeholder="Paste image URL…">
           <button id="iconUrlApply" class="btn small">Use</button>
         </div>
       </div>
-
       <div class="picker-section">
         <div class="picker-title">Upload</div>
         <input type="file" accept="image/*" id="uploadIconInput">
       </div>
-
       <div class="picker-section">
         <button id="removeIconBtn" class="btn small warn">Remove Icon</button>
       </div>
     `;
-
-    document.body.appendChild(picker);
-    window._activeIconPicker = picker;
-
-    // ============================================================
-    // HANDLERS
-    // ============================================================
-
-    // Emoji click
+  
+    document.body.appendChild(overlay);
+    window._activeIconPicker = overlay;
+  
+    // Handle click outside
+    overlay.onclick = (e) => {
+      if (e.target === overlay) OL.closeIconPicker();
+    };
+  
+    // Emoji handlers
     picker.querySelectorAll(".picker-option.emoji").forEach(el => {
       el.onclick = (ev) => {
         ev.stopPropagation();
-        obj.icon = { type: "emoji", value: el.textContent };
+        app.icon = { type: "emoji", value: el.textContent };
         OL.persist();
         OL.refreshCurrentAppModalIcon?.();
         OL.renderApps?.();
+        OL.closeIconPicker();
       };
     });
-
-    // Auto reset → back to letter icon
-    const resetBtn = picker.querySelector("#autoIconReset");
-    if (resetBtn) {
-      resetBtn.onclick = (ev) => {
-        ev.stopPropagation();
-        obj.icon = null;
-        OL.persist();
-        OL.refreshCurrentAppModalIcon?.();
-        OL.renderApps?.();
-      };
-    }
-
-    // URL mapping
-    const urlInput = picker.querySelector("#iconUrlInput");
-    const urlApply = picker.querySelector("#iconUrlApply");
-    if (urlInput && urlApply) {
-      urlApply.onclick = (ev) => {
-        ev.stopPropagation();
-        const url = (urlInput.value || "").trim();
-        if (!url) return;
-        obj.icon = { type: "img", url };
-        OL.persist();
-        OL.refreshCurrentAppModalIcon?.();
-        OL.renderApps?.();
-      };
-    }
-
-    // Upload file
-    const uploadInput = picker.querySelector("#uploadIconInput");
-    if (uploadInput) {
-      uploadInput.onchange = async (ev) => {
-        ev.stopPropagation();
-        const file = ev.target.files[0];
-        if (!file) return;
-        const url = await fileToBase64(file);
-        obj.icon = { type: "img", url };
-        OL.persist();
-        OL.refreshCurrentAppModalIcon?.();
-        OL.renderApps?.();
-      };
-    }
-
-    // Remove icon
-    const removeBtn = picker.querySelector("#removeIconBtn");
-    if (removeBtn) {
-      removeBtn.onclick = (ev) => {
-        ev.stopPropagation();
-        obj.icon = null;
-        OL.persist();
-        OL.refreshCurrentAppModalIcon?.();
-        OL.renderApps?.();
-      };
-    }
-
-    // close on outside click
-    setTimeout(() => {
-      document.addEventListener("click", closeIfOutside, { once: true });
-    }, 50);
-
-    function closeIfOutside(e) {
-      if (!window._activeIconPicker) return;
-      if (!window._activeIconPicker.contains(e.target) && e.target !== targetEl) {
-        OL.closeIconPicker();
-      }
-    }
+  
+    // Reset
+    picker.querySelector("#autoIconReset").onclick = (ev) => {
+      ev.stopPropagation();
+      app.icon = null;
+      OL.persist();
+      OL.refreshCurrentAppModalIcon?.();
+      OL.renderApps?.();
+      OL.closeIconPicker();
+    };
+  
+    // URL
+    picker.querySelector("#iconUrlApply").onclick = (ev) => {
+      ev.stopPropagation();
+      const url = picker.querySelector("#iconUrlInput").value.trim();
+      if (!url) return;
+      app.icon = { type: "img", url };
+      OL.persist();
+      OL.refreshCurrentAppModalIcon?.();
+      OL.renderApps?.();
+      OL.closeIconPicker();
+    };
+  
+    // Upload
+    picker.querySelector("#uploadIconInput").onchange = async (ev) => {
+      ev.stopPropagation();
+      const file = ev.target.files[0];
+      if (!file) return;
+      const url = await fileToBase64(file);
+      app.icon = { type: "img", url };
+      OL.persist();
+      OL.refreshCurrentAppModalIcon?.();
+      OL.renderApps?.();
+      OL.closeIconPicker();
+    };
+  
+    // Remove Icon
+    picker.querySelector("#removeIconBtn").onclick = (ev) => {
+      ev.stopPropagation();
+      app.icon = null;
+      OL.persist();
+      OL.refreshCurrentAppModalIcon?.();
+      OL.renderApps?.();
+      OL.closeIconPicker();
+    };
   };
+
 
   OL.closeIconPicker = function() {
     if (window._activeIconPicker) {
