@@ -83,33 +83,18 @@
       if (e.target === overlay) OL.closeIconPicker();
     };
 
-    /**********************
-     * Emoji selection
-     **********************/
-    picker.querySelectorAll(".picker-option.emoji").forEach(el => {
-      el.onclick = (ev) => {
-        ev.stopPropagation();
-        obj.icon = { type: "emoji", value: el.textContent };
-        OL.persist();
-        OL.refreshAllUI?.();
-        OL.closeIconPicker();
-      };
-    });
-
-    /**********************
-     * Reset to inherit
-     **********************/
+    // Reset
     picker.querySelector("#autoIconReset").onclick = (ev) => {
       ev.stopPropagation();
       obj.icon = null;
       OL.persist();
       OL.refreshAllUI?.();
+      OL.refreshCurrentAppModalIcon?.();
+      OL.refreshCurrentFunctionModalIcon?.(obj);
       OL.closeIconPicker();
     };
-
-    /**********************
-     * URL input
-     **********************/
+    
+    // URL
     picker.querySelector("#iconUrlApply").onclick = (ev) => {
       ev.stopPropagation();
       const url = picker.querySelector("#iconUrlInput").value.trim();
@@ -117,12 +102,12 @@
       obj.icon = { type: "img", url };
       OL.persist();
       OL.refreshAllUI?.();
+      OL.refreshCurrentAppModalIcon?.();
+      OL.refreshCurrentFunctionModalIcon?.(obj);
       OL.closeIconPicker();
     };
-
-    /**********************
-     * Upload file
-     **********************/
+    
+    // Upload
     picker.querySelector("#uploadIconInput").onchange = async (ev) => {
       ev.stopPropagation();
       const file = ev.target.files[0];
@@ -131,19 +116,22 @@
       obj.icon = { type: "img", url };
       OL.persist();
       OL.refreshAllUI?.();
+      OL.refreshCurrentAppModalIcon?.();
+      OL.refreshCurrentFunctionModalIcon?.(obj);
       OL.closeIconPicker();
     };
-
-    /**********************
-     * Remove icon
-     **********************/
+    
+    // Remove
     picker.querySelector("#removeIconBtn").onclick = (ev) => {
       ev.stopPropagation();
       obj.icon = null;
       OL.persist();
       OL.refreshAllUI?.();
+      OL.refreshCurrentAppModalIcon?.();
+      OL.refreshCurrentFunctionModalIcon?.(obj);
       OL.closeIconPicker();
     };
+
   };
 
   OL.closeIconPicker = function() {
