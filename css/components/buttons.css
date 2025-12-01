@@ -22,3 +22,25 @@
 .btn.ghost {
   background:transparent;
 }
+
+.view-toggle {
+  display: inline-flex;
+  border-radius: 999px;
+  background: #020617;
+  border: 1px solid #1f2937;
+  overflow: hidden;
+}
+
+.view-toggle button {
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.view-toggle button.active {
+  background: #111827;
+  color: #e5e7eb;
+}
