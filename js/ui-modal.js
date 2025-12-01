@@ -137,5 +137,4 @@
   function escClose(e){
     if (e.key === "Escape") closeModal();
   }
-console.log("OL.openModal called with:", contentHTML);
 })();
