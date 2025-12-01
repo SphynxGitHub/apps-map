@@ -110,7 +110,7 @@
       addBtn.onclick = () => {
         const name = (prompt("Name this function:") || "").trim();
         if (!name) return;
-        const newFn = { id: uid(), name };
+        const newFn = { id: uid(), name, icon: null, notes: "" };
         state.functions = state.functions || [];
         state.functions.push(newFn);
         persist();
@@ -255,6 +255,13 @@
     const groups = buildFunctionIndex();
     container.innerHTML = groups.map(renderFunctionCard).join("");
   };
+  
+  OL.refreshCurrentFunctionModalIcon = function() {
+    const btn = document.getElementById("fnEditIconBtn");
+    if (!btn) return;
+    if (fn.icon?.type === "emoji") btn.textContent = fn.icon.value;
+    else btn.textContent = "🖼️";
+  };
 
   // ------------------------------------------------------------
   // Function Modal
@@ -338,6 +345,7 @@
         e.stopPropagation();
         if (OL.openIconPicker) {
           OL.openIconPicker(editIconBtn, fn);
+          OL.refreshCurrentFunctionModalIcon(fn);
         }
       };
     }
