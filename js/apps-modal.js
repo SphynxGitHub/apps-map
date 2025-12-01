@@ -233,7 +233,7 @@
   
     el.onclick = (evt) => {
       evt.stopPropagation();
-      OL.openIconPicker(app.id);
+      OL.openIconPicker(el, app);
     };
   }
 
