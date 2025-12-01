@@ -39,12 +39,25 @@
   // ============================================================
 
   document.addEventListener("click", e => {
+    const card = e.target.closest(".card");
+    if (!card) return;
+
+    // ignore clicks on buttons, pills, or dropdowns
+    if (e.target.closest("button, .pill, select, input")) return;
+
   
-    // if clicking inside modal → do nothing
-    if (e.target.closest(".modalBox")) return;
-  
-    // otherwise allow normal UI behaviors
-  }, false);
+    if (card.dataset.fnId) {
+      OL.openFunctionModal(card.dataset.fnId);
+    }
+    else if (card.dataset.intId) {
+      const [appA, appB] = card.dataset.intId.split(",");
+      OL.openIntegrationModal(appA, appB);
+    }
+    else if (card.dataset.appId) {
+      OL.openAppModal(card.dataset.appId);
+    }
+  });
+
 
 
   // ============================================================
