@@ -35,30 +35,6 @@
   }
 
   // ============================================================
-  // CRITICAL FIX — GLOBAL CLICK INTERCEPTION PROTECTION
-  // ============================================================
-  document.addEventListener("click", e => {
-    if (window._activeIconPicker) return;  // don’t navigate during icon picking
-    const header = e.target.closest(".card-header-left");
-    if (!header) return;
-  
-    const card = header.closest(".card");
-    if (!card) return;
-  
-    if (card.dataset.fnId) {
-      OL.openFunctionModal(card.dataset.fnId);
-    }
-    else if (card.dataset.intId) {
-      const appA = card.dataset.appId;
-      const appB = card.dataset.intId;
-      OL.openIntegrationModal(appA, appB);
-    }
-    else if (card.dataset.appId) {
-      OL.openAppModal(card.dataset.appId);
-    }
-  });
-
-  // ============================================================
   // PUBLIC — open modal with HTML content
   // ============================================================
   OL.openModal = function(options = {}) {
