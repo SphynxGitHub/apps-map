@@ -7,50 +7,47 @@
 
   const OL = window.OL;
 
-  // ============================================================
-  // APP ICON HTML RENDERING
-  // ============================================================
-  OL.appIconHTML = function(obj) {
-    const icon = obj.icon;
-  
-    // explicit emoji
+  /************************************************************
+   * UNIFIED ICON RESOLUTION WITH INHERITANCE
+   ************************************************************/
+  OL.appIconHTML = function(obj, parentApp=null) {
+    const icon = obj.icon || parentApp?.icon;
+
     if (icon && icon.type === "emoji") {
       return `<div class="icon-emoji">${icon.value}</div>`;
     }
-  
-    // explicit image
+
     if (icon && icon.type === "img") {
       return `<img src="${icon.url}" class="icon-img">`;
     }
-  
-    // auto initials
-    const name = obj.name || "";
+
+    const name = obj.name || parentApp?.name || "";
     const letters = name
       .split(" ")
       .map(w => w[0])
       .join("")
       .substring(0, 2)
       .toUpperCase();
-  
+
     return `<div class="icon-fallback">${letters}</div>`;
   };
 
-  // ============================================================
-  // ICON PICKER UI
-  // ============================================================
+  /************************************************************
+   * ICON PICKER
+   * Now accepts only:
+   *  - target element
+   *  - reference to the actual object being modified
+   ************************************************************/
   OL.openIconPicker = function(targetEl, obj) {
-    OL.closeIconPicker(); // zap old instance
-  
-    // Create overlay
+    OL.closeIconPicker();
+
     const overlay = document.createElement("div");
     overlay.className = "icon-picker-overlay";
-  
-    // Create picker
+
     const picker = document.createElement("div");
     picker.className = "icon-picker";
     overlay.appendChild(picker);
-  
-    // Insert HTML
+
     picker.innerHTML = `
       <div class="picker-section">
         <div class="picker-title">Emoji</div>
@@ -60,7 +57,7 @@
         </div>
       </div>
       <div class="picker-section">
-        <div class="picker-title">Auto-Letter</div>
+        <div class="picker-title">Auto-Letter (inherit)</div>
         <button id="autoIconReset" class="btn small">Reset</button>
       </div>
       <div class="picker-section">
@@ -78,77 +75,76 @@
         <button id="removeIconBtn" class="btn small warn">Remove Icon</button>
       </div>
     `;
-  
+
     document.body.appendChild(overlay);
     window._activeIconPicker = overlay;
-  
-    // Handle click outside
+
     overlay.onclick = (e) => {
       if (e.target === overlay) OL.closeIconPicker();
     };
-  
-    // Emoji handlers
+
+    /**********************
+     * Emoji selection
+     **********************/
     picker.querySelectorAll(".picker-option.emoji").forEach(el => {
       el.onclick = (ev) => {
         ev.stopPropagation();
-        app.icon = { type: "emoji", value: el.textContent };
+        obj.icon = { type: "emoji", value: el.textContent };
         OL.persist();
-        OL.refreshCurrentAppModalIcon?.();
-        OL.refreshCurrentFunctionModalIcon?.(obj);
-        OL.renderApps?.();
+        OL.refreshAllUI?.();
         OL.closeIconPicker();
       };
     });
-  
-    // Reset
+
+    /**********************
+     * Reset to inherit
+     **********************/
     picker.querySelector("#autoIconReset").onclick = (ev) => {
       ev.stopPropagation();
-      app.icon = null;
+      obj.icon = null;
       OL.persist();
-      OL.refreshCurrentAppModalIcon?.();
-      OL.refreshCurrentFunctionModalIcon?.(obj);
-      OL.renderApps?.();
+      OL.refreshAllUI?.();
       OL.closeIconPicker();
     };
-  
-    // URL
+
+    /**********************
+     * URL input
+     **********************/
     picker.querySelector("#iconUrlApply").onclick = (ev) => {
       ev.stopPropagation();
       const url = picker.querySelector("#iconUrlInput").value.trim();
       if (!url) return;
-      app.icon = { type: "img", url };
+      obj.icon = { type: "img", url };
       OL.persist();
-      OL.refreshCurrentAppModalIcon?.();
-      OL.renderApps?.();
+      OL.refreshAllUI?.();
       OL.closeIconPicker();
     };
-  
-    // Upload
+
+    /**********************
+     * Upload file
+     **********************/
     picker.querySelector("#uploadIconInput").onchange = async (ev) => {
       ev.stopPropagation();
       const file = ev.target.files[0];
       if (!file) return;
       const url = await fileToBase64(file);
-      app.icon = { type: "img", url };
+      obj.icon = { type: "img", url };
       OL.persist();
-      OL.refreshCurrentAppModalIcon?.();
-      OL.refreshCurrentFunctionModalIcon?.(obj);
-      OL.renderApps?.();
+      OL.refreshAllUI?.();
       OL.closeIconPicker();
     };
-  
-    // Remove Icon
+
+    /**********************
+     * Remove icon
+     **********************/
     picker.querySelector("#removeIconBtn").onclick = (ev) => {
       ev.stopPropagation();
-      app.icon = null;
+      obj.icon = null;
       OL.persist();
-      OL.refreshCurrentAppModalIcon?.();
-      OL.refreshCurrentFunctionModalIcon?.(obj);
-      OL.renderApps?.();
+      OL.refreshAllUI?.();
       OL.closeIconPicker();
     };
   };
-
 
   OL.closeIconPicker = function() {
     if (window._activeIconPicker) {
