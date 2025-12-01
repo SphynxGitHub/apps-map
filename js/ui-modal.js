@@ -99,6 +99,7 @@
 
     modal.appendChild(body);
     modalLayer.appendChild(modal);
+    modalLayer.style.display = "flex";
     modalLayer.classList.add("modal-active");
 
     return modal;
