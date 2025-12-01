@@ -1,4 +1,4 @@
-;(() => {
+(() => {
   if (!window.OL) {
     console.error("apps.js: OL core missing");
     return;
@@ -8,30 +8,35 @@
   const { state } = OL;
   const { esc } = OL.utils;
 
-  // ------------------------------------------------
-  // HELPERS
-  // ------------------------------------------------
-
+  /* =====================================================
+        SORT — with Zapier priority
+  ====================================================== */
   function byNameWithZapierFirst(a, b) {
     const an = (a.name || "").toLowerCase();
     const bn = (b.name || "").toLowerCase();
-    const az = an === "zapier";
-    const bz = bn === "zapier";
-    if (az && !bz) return -1;
-    if (bz && !az) return 1;
+    if (an === "zapier" && bn !== "zapier") return -1;
+    if (bn === "zapier" && an !== "zapier") return 1;
     return an.localeCompare(bn);
   }
 
-  function getZapierApp() {
-    return (state.apps || []).find(
-      a => (a.name || "").toLowerCase() === "zapier"
-    ) || null;
+  /* =====================================================
+        APP VIEW MODE — details | icon
+  ====================================================== */
+  state.appViewMode = state.appViewMode || "details";
+  function setAppViewMode(mode) {
+    state.appViewMode = mode;
+    OL.persist && OL.persist();
+    OL.renderApps();
   }
+  OL.setAppViewMode = setAppViewMode;
 
+  /* =====================================================
+        COUNT HELPERS
+  ====================================================== */
   function countFunctionsUsingApp(appId) {
-    const app = (state.apps || []).find(a => a.id === appId);
-    if (!app || !Array.isArray(app.functions)) return 0;
-    return app.functions.length;
+    return (state.functions || [])
+      .filter(fn => (fn.apps || []).includes(appId))
+      .length;
   }
 
   function countIntegrationsForApp(appId) {
@@ -49,15 +54,9 @@
     return out;
   }
 
-  function nextFnState(s) {
-    if (s === "primary") return "evaluating";
-    if (s === "evaluating") return "available";
-    return "primary";
-  }
-
-  // ------------------------------------------------
-  // PUBLIC ENTRY: APPS PAGE
-  // ------------------------------------------------
+  /* =====================================================
+        PUBLIC ENTRY
+  ====================================================== */
   OL.renderApps = function renderApps() {
     const container = document.getElementById("view-apps");
     if (!container) return;
@@ -65,22 +64,20 @@
     const appsSorted = [...(state.apps || [])].sort(byNameWithZapierFirst);
 
     container.innerHTML = `
-      <!-- Applications -->
       <section class="apps-section">
         <div class="section-header">
           <h1>Applications</h1>
           <div class="right-section">
             <button class="btn small" id="addNewAppBtn">+ Add Application</button>
-            <div class="view-toggle" id="appsViewToggle">
-              <button data-view="details">Details</button>
-              <button data-view="grid">Icons</button>
+            <div class="view-toggle">
+              <button onclick="OL.setAppViewMode('icon')" class="${state.appViewMode === 'icon' ? 'active' : ''}">Icon</button>
+              <button onclick="OL.setAppViewMode('details')" class="${state.appViewMode === 'details' ? 'active' : ''}">Details</button>
             </div>
           </div>
         </div>
-        <div id="appsListContainer"></div>
+        <div id="appsCards"></div>
       </section>
 
-      <!-- Functions -->
       <section class="apps-section">
         <div class="section-header">
           <h2>Functions</h2>
@@ -89,608 +86,137 @@
           </div>
         </div>
 
-        <div class="apps-legend fn-legend">
-          <span><strong>Status:</strong></span>
-          <span class="legend-pill status-primary">Primary</span>
-          <span class="legend-pill status-evaluating">Evaluating</span>
-          <span class="legend-pill status-available">Available</span>
-          <span class="legend-hint">Click to cycle • Right-click to remove</span>
-        </div>
-
         <div id="functionsCards" class="functions-grid"></div>
       </section>
 
-      <!-- Integrations -->
       <section class="apps-section">
         <div class="section-header">
           <h2>Integrations</h2>
-          <div class="view-toggle" id="integrationsViewToggle">
-            <button data-mode="flip">Flip</button>
-            <button data-mode="single">One-Direction</button>
-            <button data-mode="both">Bi-Directional</button>
-          </div>
-        </div>
-        <div class="apps-legend">
-          <span><strong>Integration Type:</strong></span>
-          <span class="legend-pill int-direct">Direct</span>
-          <span class="legend-pill int-zapier">Zapier</span>
-          <span class="legend-pill int-both">Both</span>
         </div>
         <div id="integrationsCards" class="integrations-grid"></div>
       </section>
     `;
 
-    // view toggles
-    wireAppsViewToggle();
-    wireIntegrationsViewToggle();
+    document.getElementById("addNewAppBtn").onclick = () => OL.openAppModalNew && OL.openAppModalNew();
 
-    // Add Application
-    const addAppBtn = document.getElementById("addNewAppBtn");
-    if (addAppBtn) {
-      addAppBtn.onclick = () => {
-        if (typeof OL.openAppModalNew === "function") {
-          OL.openAppModalNew();
-        }
-      };
-    }
-
-    // Add Function
-    const addFnBtn = document.getElementById("addNewFunctionBtn");
-    if (addFnBtn) {
-      addFnBtn.onclick = () => {
-        const name = (prompt("Name this function:") || "").trim();
-        if (!name) return;
-        state.functions = state.functions || [];
-        state.functions.push({
-          id: OL.utils.uid(),
-          name
-        });
-        OL.persist && OL.persist();
-        OL.renderApps && OL.renderApps();
-      };
-    }
-
-    renderAppsList(appsSorted);
+    renderAppCards(appsSorted);
     renderFunctionCards();
     renderIntegrationCards();
   };
 
-  // ------------------------------------------------
-  // APPS VIEW TOGGLE
-  // ------------------------------------------------
-  function wireAppsViewToggle() {
-    const viewMode = state.appsViewMode || "details";
-    state.appsViewMode = viewMode;
+  /* =====================================================
+        APP CARDS
+  ====================================================== */
+  function renderAppCards(appsSorted) {
+    const container = document.getElementById("appsCards");
+    if (!container) return;
+    container.innerHTML = "";
 
-    const toggle = document.getElementById("appsViewToggle");
-    if (!toggle) return;
-
-    toggle.querySelectorAll("button").forEach(btn => {
-      const v = btn.dataset.view;
-      if (!v) return;
-
-      if (v === viewMode) btn.classList.add("active");
-      else btn.classList.remove("active");
-
-      btn.onclick = () => {
-        state.appsViewMode = v;
-        OL.persist && OL.persist();
-        wireAppsViewToggle();
-        renderAppsList([...(state.apps || [])].sort(byNameWithZapierFirst));
-      };
+    appsSorted.forEach(app => {
+      container.insertAdjacentHTML("beforeend", renderAppCard(app, state.appViewMode));
     });
   }
 
-  // ------------------------------------------------
-  // DELETE APPLICATION
-  // ------------------------------------------------
-  function deleteApplication(appId) {
+  function renderAppCard(app, mode = "details") {
+    const iconHtml = OL.appIconHTML(app);
+    const appStatus = (app.status || "").toLowerCase();
+    const fnCount = countFunctionsUsingApp(app.id);
+    const intCounts = countIntegrationsForApp(app.id);
+    const totalInts = intCounts.direct + intCounts.zapier + intCounts.both;
+
+    const statusClass =
+      appStatus === "evaluating" ? "app-status-evaluating"
+      : appStatus === "deprecated" ? "app-status-deprecated"
+      : "";
+
+    if (mode === "icon") {
+      return `
+      <div class="app-card app-card-icon" data-id="${app.id}">
+        <div class="app-card-header">
+          <div class="function-icon">${iconHtml}</div>
+          <div class="app-card-title">${esc(app.name || "")}</div>
+        </div>
+      </div>`;
+    }
+
+    return `
+    <div class="app-card app-card-details" data-id="${app.id}">
+      <div class="app-card-header">
+        <div class="function-icon">${iconHtml}</div>
+        <div>
+          <div class="app-card-title">${esc(app.name || "")}</div>
+          <div class="app-card-meta">${fnCount} functions · ${totalInts} integrations</div>
+        </div>
+        <div class="delete-app" onclick="OL.deleteApp('${app.id}')">✕</div>
+      </div>
+
+      <div class="app-card-body">
+
+        <div class="function-apps-label">STATUS</div>
+        <div class="app-card-status ${statusClass}">
+          ${esc(app.status || "Available")}
+        </div>
+
+        <div class="function-apps-label">FUNCTIONS USED</div>
+        <div class="function-apps-list">${renderAppFunctions(app)}</div>
+
+        <div class="function-apps-label">NOTES</div>
+        <div class="modal-notes-display ${!app.notes ? "muted" : ""}">
+          ${esc(app.notes || "No notes")}
+        </div>
+
+      </div>
+    </div>`;
+  }
+
+  function renderAppFunctions(app) {
+    return (state.functions || [])
+      .filter(fn => (fn.apps || []).includes(app.id))
+      .map(fn => `<div class="pill fn">${esc(fn.name)}</div>`)
+      .join("");
+  }
+
+  /* =====================================================
+        DELETE APP
+  ====================================================== */
+  OL.deleteApp = function (appId) {
     const app = (state.apps || []).find(a => a.id === appId);
     if (!app) return;
 
-    const hasFunctions = (app.functions || []).length > 0;
-    const hasIntegrations = (app.integrations || []).length > 0;
+    if (!confirm(`Delete "${app.name || "this app"}"?`)) return;
 
-    let msg = `Delete "${app.name || "this app"}"?`;
-    if (hasFunctions || hasIntegrations) {
-      msg += `\n\nThis app is currently mapped to${
-        hasFunctions ? ` ${app.functions.length} function(s)` : ""
-      }${
-        hasIntegrations ? ` and ${app.integrations.length} integration(s)` : ""
-      }.\n\nDeleting will remove ALL mappings on this app.`;
-    }
-
-    if (!confirm(msg)) return;
-
-    // Remove the app itself
+    // remove app itself
     state.apps = (state.apps || []).filter(a => a.id !== appId);
 
-    // Remove integrations on other apps that point to this app
-    (state.apps || []).forEach(a => {
-      if (a.integrations) {
-        a.integrations = a.integrations.filter(i => i.appId !== appId);
-      }
-    });
-
-    OL.persist && OL.persist();
-    OL.renderApps && OL.renderApps();
-  }
-
-  // ------------------------------------------------
-  // APPS LIST (DETAILS + GRID)
-  // ------------------------------------------------
-  function renderAppsList(appsSorted) {
-    const container = document.getElementById("appsListContainer");
-    if (!container) return;
-
-    const mode = state.appsViewMode || "details";
-    container.innerHTML = "";
-
-    // GRID MODE
-    if (mode === "grid") {
-      const grid = document.createElement("div");
-      grid.className = "apps-grid";
-
-      appsSorted.forEach(app => {
-        const appStatus = (app.status || "").toLowerCase();
-        let statusClass = "";
-        if (appStatus === "evaluating") statusClass = " app-card-evaluating";
-        else if (appStatus === "deprecated") statusClass = " app-card-deprecated";
-
-        const card = document.createElement("div");
-        card.className = "app-card" + statusClass;
-        card.dataset.id = app.id;
-
-        card.innerHTML = `
-        <div class="app-card-header">
-          <div class="app-delete">&times;</div>
-            ${OL.appIconHTML(app)}
-            <div class="app-card-title-block">
-              <div class="app-card-title-row">
-                <div class="app-card-title">${esc(app.name || "")}</div>
-              </div>
-            </div>
-          </div>
-        `;
-
-        card.onclick = () => {
-          if (typeof OL.openAppModal === "function") {
-            OL.openAppModal(app.id);
-          }
-        };
-
-        const delBtn = card.querySelector(".app-delete");
-        if (delBtn) {
-          delBtn.onclick = (e) => {
-            e.stopPropagation();
-            deleteApplication(app.id);
-          };
-        }
-
-        grid.appendChild(card);
-      });
-
-      container.appendChild(grid);
-      return;
-    }
-
-    // DETAILS MODE
-    const list = document.createElement("div");
-    list.className = "apps-list";
-
-    appsSorted.forEach(app => {
-      const appStatus = (app.status || "").toLowerCase();
-      let statusClass = "";
-      if (appStatus === "evaluating") statusClass = " app-card-evaluating";
-      else if (appStatus === "deprecated") statusClass = " app-card-deprecated";
-
-      const fnCount = countFunctionsUsingApp(app.id);
-      const intCounts = countIntegrationsForApp(app.id);
-      const totalInts = intCounts.direct + intCounts.zapier + intCounts.both;
-
-      let statusLabelHTML = "";
-      if (appStatus === "evaluating") {
-        statusLabelHTML = `<span class="app-card-status app-status-evaluating">Evaluating</span>`;
-      } else if (appStatus === "deprecated") {
-        statusLabelHTML = `<span class="app-card-status app-status-deprecated">Deprecated</span>`;
-      }
-
-      const card = document.createElement("div");
-      card.className = "app-card" + statusClass;
-      card.dataset.id = app.id;
-
-      card.innerHTML = `
-      <div class="app-card-header">
-        <div class="app-delete">&times;</div>
-          ${OL.appIconHTML(app)}
-          <div class="app-card-title-block">
-            <div class="app-card-title-row">
-              <div class="app-card-title">${esc(app.name || "")}</div>
-              ${statusLabelHTML}
-            </div>
-            <div class="app-card-meta">
-              <span>${fnCount} function${fnCount === 1 ? "" : "s"}</span>
-              <span>${totalInts} integration${totalInts === 1 ? "" : "s"}</span>
-            </div>
-          </div>
-        </div>
-      `;
-
-      card.onclick = () => {
-        if (typeof OL.openAppModal === "function") {
-          OL.openAppModal(app.id);
-        }
-      };
-
-      const delBtn = card.querySelector(".app-delete");
-      if (delBtn) {
-        delBtn.onclick = (e) => {
-          e.stopPropagation();
-          deleteApplication(app.id);
-        };
-      }
-
-      list.appendChild(card);
-    });
-
-    container.appendChild(list);
-  }
-
-  // ------------------------------------------------
-  // DELETE FUNCTION
-  // ------------------------------------------------
-  function deleteFunction(fnId) {
-    const fn = (state.functions || []).find(f => f.id === fnId);
-    if (!fn) return;
-
-    const appsUsing = (state.apps || []).filter(a =>
-      (a.functions || []).some(f => f.id === fnId)
-    );
-
-    let msg = `Delete function "${fn.name || fnId}"?`;
-
-    if (appsUsing.length > 0) {
-      msg += `\n\nThis function is currently used by:`;
-      appsUsing.forEach(a => {
-        msg += `\n - ${a.name}`;
-      });
-      msg += `\n\nDeleting will REMOVE ALL mappings to this function.`;
-    }
-
-    if (!confirm(msg)) return;
-
-    state.functions = (state.functions || []).filter(f => f.id !== fnId);
-
-    (state.apps || []).forEach(a => {
-      a.functions = (a.functions || []).filter(f => f.id !== fnId);
-    });
-
-    OL.persist && OL.persist();
-    OL.renderApps && OL.renderApps();
-  }
-
-  // ------------------------------------------------
-  // FUNCTION CARDS
-  // ------------------------------------------------
-  function renderFunctionCards() {
-    const box = document.getElementById("functionsCards");
-    if (!box) return;
-    box.innerHTML = "";
-
-    const apps = state.apps || [];
-    const fnMeta = new Map();
-    const byFnId = new Map();
-
+    // wipe references
     (state.functions || []).forEach(fn => {
-      if (fn && fn.id) fnMeta.set(fn.id, fn);
+      if (fn.apps) fn.apps = fn.apps.filter(a => a !== appId);
     });
-
-    apps.forEach(app => {
-      (app.functions || []).forEach(assign => {
-        const fnId = assign.id;
-        if (!fnId) return;
-        if (!byFnId.has(fnId)) byFnId.set(fnId, []);
-        byFnId.get(fnId).push({ app, assignment: assign });
-      });
-    });
-
-    if (!byFnId.size) {
-      box.innerHTML = `<div class="empty-hint">No functions mapped yet.</div>`;
-      return;
-    }
-
-    for (const [fnId, appAssignments] of byFnId.entries()) {
-      const fn = fnMeta.get(fnId) || { id: fnId, name: "(Unnamed function)" };
-
-      const card = document.createElement("div");
-      card.className = "function-card";
-      card.dataset.fnId = fn.id;
-
-      card.innerHTML = `
-      <div class="function-card-header">
-        <div class="fn-delete">&times;</div>
-          <div class="function-icon">${(fn.name || "?").slice(0, 2)}</div>
-          <div class="function-title">${esc(fn.name || fnId)}</div>
-        </div>
-        <div class="function-card-body">
-          <div class="function-apps-label">Apps</div>
-          <div class="function-apps-list"></div>
-        </div>
-      `;
-
-      const deleteBtn = card.querySelector(".fn-delete");
-      if (deleteBtn) {
-        deleteBtn.onclick = (e) => {
-          e.stopPropagation();
-          deleteFunction(fnId);
-        };
-      }
-
-      const list = card.querySelector(".function-apps-list");
-
-      const orderedAssignments = appAssignments.slice().sort((a, b) => {
-        const getRank = s =>
-          s === "primary" ? 1 :
-          s === "evaluating" ? 2 :
-          3;
-        return getRank(a.assignment.status) - getRank(b.assignment.status);
-      });
-
-      orderedAssignments.forEach(({ app, assignment }) => {
-        const pill = document.createElement("button");
-        pill.type = "button";
-        pill.className = "app-pill";
-        pill.dataset.status = assignment.status || "available";
-        pill.innerHTML = `
-          <span class="pill-icon">${OL.appIconHTML(app)}</span>
-          <span class="pill-label">${esc(app.name || "")}</span>
-        `;
-
-        pill.onclick = (e) => {
-          e.stopPropagation();
-          assignment.status = nextFnState(assignment.status);
-          OL.persist && OL.persist();
-          renderFunctionCards();
-        };
-
-        pill.oncontextmenu = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          app.functions = (app.functions || []).filter(f => f !== assignment);
-          OL.persist && OL.persist();
-          renderFunctionCards();
-        };
-
-        list.appendChild(pill);
-      });
-
-      const header = card.querySelector(".function-card-header");
-      if (header) {
-        header.onclick = () => {
-          if (typeof OL.openFunctionModal === "function") {
-            OL.openFunctionModal(fnId);
-          }
-        };
-      }
-
-      box.appendChild(card);
-    }
-  }
-
-  // ------------------------------------------------
-  // INTEGRATIONS CARDS
-  // ------------------------------------------------
-
-  OL.assignIntegration = function(appAId, appBId, type) {
-    const appA = OL.state.apps.find(a => a.id === appAId);
-    const appB = OL.state.apps.find(a => a.id === appBId);
-    if (!appA || !appB) return;
-
-    if (!appA.integrations) appA.integrations = [];
-    if (!appB.integrations) appB.integrations = [];
-
-    if (!appA.integrations.some(i => i.appId === appBId)) {
-      appA.integrations.push({ appId: appBId, type });
-    }
-
-    if (!appB.integrations.some(i => i.appId === appAId)) {
-      appB.integrations.push({ appId: appAId, type });
-    }
 
     OL.persist && OL.persist();
     OL.renderApps && OL.renderApps();
   };
 
-  function wireIntegrationsViewToggle() {
-    const mode = state.integrationsViewMode || "flip";
-    state.integrationsViewMode = mode;
-
-    const toggle = document.getElementById("integrationsViewToggle");
-    if (!toggle) return;
-
-    toggle.querySelectorAll("button").forEach(btn => {
-      const v = btn.dataset.mode;
-      if (!v) return;
-
-      if (v === mode) btn.classList.add("active");
-      else btn.classList.remove("active");
-
-      btn.onclick = () => {
-        state.integrationsViewMode = v;
-        OL.persist && OL.persist();
-        wireIntegrationsViewToggle();
-        renderIntegrationCards();
-      };
-    });
-  }
-
-  function buildIntegrationPairs() {
-    const apps = state.apps || [];
-    const zap = getZapierApp();
-    const pairs = new Map();
-
-    function pairKey(aId, bId) {
-      return aId < bId ? `${aId}|${bId}` : `${bId}|${aId}`;
-    }
-
-    function bumpPair(aId, bId, type) {
-      const key = pairKey(aId, bId);
-      let rec = pairs.get(key);
-      if (!rec) {
-        rec = {
-          appAId: aId < bId ? aId : bId,
-          appBId: aId < bId ? bId : aId,
-          direct: 0,
-          zapier: 0,
-          both: 0
-        };
-        pairs.set(key, rec);
-      }
-      if (type === "both") rec.both++;
-      else if (type === "direct") rec.direct++;
-      else rec.zapier++;
-    }
-
-    apps.forEach(app => {
-      (app.integrations || []).forEach(int => {
-        const otherId = int.appId;
-        const type = int.type || "zapier";
-        if (!otherId) return;
-        bumpPair(app.id, otherId, type);
-      });
-    });
-
-    if (zap) {
-      const zapId = zap.id;
-      const zapClients = apps.filter(a =>
-        (a.integrations || []).some(
-          int =>
-            int.appId === zapId &&
-            (int.type === "zapier" || int.type === "both")
-        )
-      );
-
-      for (let i = 0; i < zapClients.length; i++) {
-        for (let j = i + 1; j < zapClients.length; j++) {
-          const a = zapClients[i];
-          const b = zapClients[j];
-          const key = pairKey(a.id, b.id);
-          const existing = pairs.get(key);
-          if (existing) {
-            if (existing.direct > 0 && existing.zapier === 0 && existing.both === 0) {
-              existing.both++;
-              existing.direct = 0;
-            } else if (existing.both > 0) {
-              // already both
-            } else {
-              existing.zapier++;
-            }
-          } else {
-            bumpPair(a.id, b.id, "zapier");
-          }
-        }
-      }
-    }
-
-    return Array.from(pairs.values());
-  }
-
-  function renderIntegrationCards() {
-    const box = document.getElementById("integrationsCards");
-    if (!box) return;
-    box.innerHTML = "";
-
-    const pairs = buildIntegrationPairs();
-    if (!pairs.length) {
-      box.innerHTML = `<div class="empty-hint">No integrations mapped yet.</div>`;
+  /* =====================================================
+        FUNCTION CARDS
+  ====================================================== */
+  function renderFunctionCards() {
+    if (typeof OL.renderFunctionCards === "function") {
+      OL.renderFunctionCards();
       return;
     }
-
-    const appsById = new Map((state.apps || []).map(a => [a.id, a]));
-    const mode = state.integrationsViewMode || "flip";
-
-    pairs.forEach(rec => {
-      const appA = appsById.get(rec.appAId);
-      const appB = appsById.get(rec.appBId);
-      if (!appA || !appB) return;
-
-      const card = buildIntegrationCard(appA, appB, rec, mode);
-      box.appendChild(card);
-    });
   }
 
-  function buildIntegrationCard(sourceApp, targetApp, rec, viewMode) {
-    const card = document.createElement("div");
-    card.className = "integration-card";
-
-    const directCount = rec.direct;
-    const zapCount    = rec.zapier;
-    const bothCount   = rec.both;
-
-    let intClass = "";
-    if (bothCount > 0) intClass = "int-both";
-    else if (directCount > 0) intClass = "int-direct";
-    else if (zapCount > 0) intClass = "int-zapier";
-
-    const total = directCount + zapCount + bothCount;
-
-    let arrowBlock = "";
-    if (viewMode === "flip") {
-      arrowBlock = `
-        <div class="integration-arrows flip-compressed">
-          <span class="arrow-app">${esc(sourceApp.name)}</span>
-          <span class="arrow-stack">
-            <span class="arrow-right">&#8594;</span>
-            <span class="arrow-left">&#8592;</span>
-          </span>
-          <span class="arrow-app">${esc(targetApp.name)}</span>
-        </div>
-      `;
-    } else if (viewMode === "single") {
-      arrowBlock = `
-        <div class="integration-arrows single-mode">
-          <span class="arrow-app">${esc(sourceApp.name)}</span>
-          <span class="arrow-symbol">&#8594;</span>
-          <span class="arrow-app">${esc(targetApp.name)}</span>
-        </div>
-      `;
-    } else {
-      arrowBlock = `
-        <div class="integration-arrows both-mode">
-          <div class="arrow-row">
-            <span class="arrow-app">${esc(sourceApp.name)}</span>
-            <span class="arrow-symbol">&#8594;</span>
-            <span class="arrow-app">${esc(targetApp.name)}</span>
-          </div>
-          <div class="arrow-row">
-            <span class="arrow-app">${esc(targetApp.name)}</span>
-            <span class="arrow-symbol">&#8594;</span>
-            <span class="arrow-app">${esc(sourceApp.name)}</span>
-          </div>
-        </div>
-      `;
+  /* =====================================================
+        INTEGRATION CARDS
+  ====================================================== */
+  function renderIntegrationCards() {
+    if (typeof OL.renderIntegrationCards === "function") {
+      OL.renderIntegrationCards();
+      return;
     }
-
-    card.innerHTML = `
-      <div class="integration-card-header ${intClass}">
-        ${arrowBlock}
-      </div>
-      <div class="integration-card-body">
-        <div class="integration-summary">
-          <span>Direct: ${directCount}</span>
-          <span>Zapier: ${zapCount}</span>
-          <span>Both: ${bothCount}</span>
-          <span>· Total: ${total}</span>
-        </div>
-      </div>
-    `;
-
-    card.addEventListener("click", () => {
-      if (typeof OL.openIntegrationModal === "function") {
-        OL.openIntegrationModal(sourceApp.id, targetApp.id);
-      }
-    });
-
-    return card;
   }
+
+  OL.renderAppCard = renderAppCard;
+
 })();
