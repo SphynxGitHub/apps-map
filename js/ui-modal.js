@@ -82,7 +82,8 @@
 
     // close behavior: click outside
     modalLayer.onclick = (e) => {
-      if (e.target === modalLayer) closeModal();
+      const modal = modalLayer.querySelector(".modalBox");
+      if (!modal.contains(e.target)) closeModal();
     };
 
     // close behavior: ESC key
@@ -122,15 +123,12 @@
 
   function closeModal(){
     if (!modalLayer) return;
-
-    if (typeof activeCloseHandler === "function") {
-      try { activeCloseHandler(); } catch(e) {}
-    }
-
+  
+    modalLayer.classList.remove("modal-active");
     modalLayer.style.display = "none";
     modalLayer.innerHTML = "";
+  
     activeCloseHandler = null;
-
     window.removeEventListener("keydown", escClose);
   }
 
