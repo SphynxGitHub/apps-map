@@ -57,7 +57,11 @@
   // ============================================================
   // PUBLIC — open modal with HTML content
   // ============================================================
-  OL.openModal = function({ width="620px", contentHTML="", onClose=null }) {
+  OL.openModal = function(options = {}) {
+    const width = options.width || "620px";
+    const contentHTML = options.contentHTML || "";
+    const onClose = options.onClose || null;
+
     if (!contentHTML) {
       console.warn("Blocked attempt to open modal with no content");
       return;
