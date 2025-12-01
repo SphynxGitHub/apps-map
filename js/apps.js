@@ -123,56 +123,66 @@
     const fnCount = countFunctionsUsingApp(app.id);
     const intCounts = countIntegrationsForApp(app.id);
     const totalInts = intCounts.direct + intCounts.zapier + intCounts.both;
-
-    const statusClass =
-      appStatus === "evaluating" ? "app-status-evaluating"
-      : appStatus === "deprecated" ? "app-status-deprecated"
-      : "";
-
+  
     if (mode === "icon") {
       return `
-      <div class="app-card app-card-icon" data-id="${app.id}">
-        <div class="app-card-header">
-          <div class="function-icon">${iconHtml}</div>
-          <div class="app-card-title">${esc(app.name || "")}</div>
+        <div class="card card-icon" data-app-id="${app.id}">
+          <div class="card-header">
+            <div class="card-header-left">
+              <div class="card-icon">${iconHtml}</div>
+              <div class="card-title">${esc(app.name || "")}</div>
+            </div>
+          </div>
+        </div>`;
+    }
+  
+    return `
+      <div class="card card-details" data-app-id="${app.id}">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-icon">${iconHtml}</div>
+            <div class="card-title">${esc(app.name || "")}</div>
+          </div>
+          <div class="card-close" onclick="OL.deleteApp('${app.id}')">×</div>
+        </div>
+  
+        <div class="card-body">
+          
+          <div class="card-section">
+            <div class="card-section-title">Status</div>
+            <div class="card-section-content">
+              <span class="pill">${esc(app.status || "Available")}</span>
+            </div>
+          </div>
+  
+          <div class="card-section">
+            <div class="card-section-title">Functions</div>
+            <div class="card-section-content">
+              ${renderAppFunctions(app)}
+            </div>
+          </div>
+  
+          <div class="card-section">
+            <div class="card-section-title">Notes</div>
+            <div class="card-section-content">
+              <div class="modal-notes-display ${!app.notes ? "muted" : ""}">
+                ${esc(app.notes || "No notes")}
+              </div>
+            </div>
+          </div>
+  
         </div>
       </div>`;
-    }
-
-    return `
-    <div class="app-card app-card-details" data-id="${app.id}">
-      <div class="app-card-header">
-        <div class="function-icon">${iconHtml}</div>
-        <div>
-          <div class="app-card-title">${esc(app.name || "")}</div>
-          <div class="app-card-meta">${fnCount} functions · ${totalInts} integrations</div>
-        </div>
-        <div class="delete-app" onclick="OL.deleteApp('${app.id}')">✕</div>
-      </div>
-
-      <div class="app-card-body">
-
-        <div class="function-apps-label">STATUS</div>
-        <div class="app-card-status ${statusClass}">
-          ${esc(app.status || "Available")}
-        </div>
-
-        <div class="function-apps-label">FUNCTIONS USED</div>
-        <div class="function-apps-list">${renderAppFunctions(app)}</div>
-
-        <div class="function-apps-label">NOTES</div>
-        <div class="modal-notes-display ${!app.notes ? "muted" : ""}">
-          ${esc(app.notes || "No notes")}
-        </div>
-
-      </div>
-    </div>`;
   }
 
   function renderAppFunctions(app) {
     return (state.functions || [])
       .filter(fn => (fn.apps || []).includes(app.id))
-      .map(fn => `<div class="pill fn">${esc(fn.name)}</div>`)
+      .map(fn => `
+        <button class="pill" data-fn-id="${fn.id}">
+          ${esc(fn.name)}
+        </button>
+      `)
       .join("");
   }
 
