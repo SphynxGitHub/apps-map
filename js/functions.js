@@ -104,7 +104,7 @@
           </div>
         </div>
       </div>
-      <div id="functionsList" class="functions-grid" style="margin-top:8px;"></div>
+      <div id="functionsList" class="cards-grid" style="margin-top:8px;"></div>
     `;
 
     root.innerHTML = "";
@@ -145,11 +145,11 @@
     // Wire up card header click (open modal) and pills (cycle/remove)
     groups.forEach(group => {
       const fnId = group.fn.id;
-      const card = listEl.querySelector(`.function-card[data-fn-id="${fnId}"]`);
+      const card = listEl.querySelector(`.card[data-fn-id="${fnId}"]`);
       if (!card) return;
 
-      const header = card.querySelector(".function-card-header");
-      const body   = card.querySelector(".function-card-body");
+      const header = card.querySelector(".card-header");
+      const body   = card.querySelector(".card-body");
 
       // Only clicking the header opens the modal
       if (header) {
@@ -213,21 +213,25 @@
       : `<span class="pill pill-empty">No apps mapped</span>`;
 
     return `
-      <div class="function-card" data-fn-id="${fn.id}">
-        <div class="function-card-header">
-          <div class="function-icon"> ${OL.appIconHTML(fn)}</div>
-          <div>
-            <div class="function-title">${esc(fn.name || "")}</div>
-            <div class="function-apps-label">Apps</div>
+      <div class="card" data-fn-id="${fn.id}">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-icon">${OL.appIconHTML(fn)}</div>
+            <div class="card-title">${esc(fn.name || "")}</div>
           </div>
+          <div class="card-close" data-close-fn="${fn.id}">×</div>
         </div>
-        <div class="function-card-body">
-          <div class="function-apps-list">
-            ${appsHTML}
+        <div class="card-body">
+          <div class="card-section">
+            <div class="card-section-title">Apps</div>
+            <div class="card-section-content">
+              ${appsHTML}
+            </div>
           </div>
         </div>
       </div>
     `;
+
   }
 
   function functionAppPillHTML(link) {
@@ -500,7 +504,7 @@
   // Global pill handler — works on both layouts
   // ============================================================
   document.addEventListener("click", function(e) {
-    const inFunctionsView = document.querySelector(".function-card") !== null;
+    const inFunctionsView = document.querySelector(".card") !== null;
   
     // Only allow cycling if we are in the Functions view
     if (!inFunctionsView) return;
@@ -510,7 +514,7 @@
   
     e.stopPropagation();
   
-    const card = pill.closest(".function-card, .fn-card");
+    const card = pill.closest(".card, .card");
     if (!card) return;
   
     const fnId = card.getAttribute("data-fn-id");
