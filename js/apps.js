@@ -89,58 +89,76 @@
     <section class="apps-section">
       <div class="section-header-row">
         <h2>Applications</h2>
+    
+        <div class="spacer"></div>
+    
         <div class="view-toggle">
           <button onclick="OL.setAppViewMode('icon')" class="${state.appViewMode === 'icon' ? 'active' : ''}">Icon</button>
           <button onclick="OL.setAppViewMode('details')" class="${state.appViewMode === 'details' ? 'active' : ''}">Details</button>
         </div>
-        <div class="section-actions">
-          <button class="btn small" id="addNewAppBtn">+ Add Application</button>
-        </div>
       </div>
+    
+      <div class="section-actions">
+        <button class="btn small" id="addNewAppBtn">+ Add Application</button>
+      </div>
+    
       <div id="appsCards" class="cards-grid"></div>
     </section>
-  
+    
+    
     <section class="apps-section functions">
-      <div class="section-header row">
+      <div class="section-header-row">
         <h2>Functions</h2>
-        <div class="header-right">
-          <div class="pill-key">
-            <span class="pill" data-status="primary">Primary</span>
-            <span class="pill" data-status="evaluating">Evaluating</span>
-            <span class="pill" data-status="available">Available</span>
-          </div>
-          <div class="pill-key-help-row">
-            <span class="pill-key-help">Click to cycle status; right-click to delete</span>
-          </div>
+    
+        <div class="spacer"></div>
+    
+        <div class="pill-key">
+          <span class="pill" data-status="primary">Primary</span>
+          <span class="pill" data-status="evaluating">Evaluating</span>
+          <span class="pill" data-status="available">Available</span>
         </div>
+    
+        <div class="view-toggle-placeholder"></div>
       </div>
+    
+      <div class="pill-key-help-row">
+        <span class="pill-key-help">Click to cycle status; right-click to delete</span>
+      </div>
+    
       <div class="section-actions">
         <button class="btn small" id="addNewFunctionBtn">+ Add Function</button>
       </div>
+    
       <div id="functionsCards" class="cards-grid"></div>
     </section>
     
+    
     <section class="apps-section">
-      <div class="section-header row">
+      <div class="section-header-row">
         <h2>Integrations</h2>
-        <div class="view-toggle">
-            <button onclick="OL.setAppViewMode('flip')" class="${state.appViewMode === 'flip' ? 'active' : ''}">Flip</button>
-            <button onclick="OL.setAppViewMode('one-direction')" class="${state.appViewMode === 'one-direction' ? 'active' : ''}">One Direction</button>
+    
+        <div class="spacer"></div>
+    
+        <div class="pill-key">
+          <span class="pill" data-status="direct">Direct</span>
+          <span class="pill" data-status="zapier">Zapier</span>
+          <span class="pill" data-status="both">Both</span>
         </div>
-        <div class="header-right">
-          <div class="pill-key">
-            <span class="pill" data-status="direct">Direct</span>
-            <span class="pill" data-status="zapier">Zapier</span>
-            <span class="pill" data-status="both">Both</span>
-          </div>
-          <div class="pill-key-help-row">
-            <span class="pill-key-help">Arrows indicate relationship direction; click to flip</span>
-          </div>
+    
+        <div class="view-toggle">
+          <button onclick="OL.setAppViewMode('flip')" class="${state.appViewMode === 'flip' ? 'active' : ''}">Flip</button>
+          <button onclick="OL.setAppViewMode('one-direction')" class="${state.appViewMode === 'one-direction' ? 'active' : ''}">One Direction</button>
         </div>
       </div>
+    
+      <div class="pill-key-help-row">
+        <span class="pill-key-help">Arrows indicate relationship direction; click to flip</span>
+      </div>
+    
       <div id="integrationsCards" class="cards-grid"></div>
     </section>
     `;
+
 
     document.getElementById("addNewAppBtn").onclick = () => OL.openAppModalNew && OL.openAppModalNew();
 
