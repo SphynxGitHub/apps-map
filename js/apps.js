@@ -86,54 +86,54 @@
     const appsSorted = [...(state.apps || [])].sort(byNameWithZapierFirst);
 
     container.innerHTML = `
-      <section class="apps-section">
-        <div class="section-header">
-          <h1>Applications</h1>
-        </div>
-        <div class="section-actions">
+    <section class="apps-section">
+      <div class="section-header">
+        <h1>Applications</h1>
+        <div class="header-right">
           <button class="btn small" id="addNewAppBtn">+ Add Application</button>
+          <div class="view-toggle">
+            <button onclick="OL.setAppViewMode('icon')" class="${state.appViewMode === 'icon' ? 'active' : ''}">Icon</button>
+            <button onclick="OL.setAppViewMode('details')" class="${state.appViewMode === 'details' ? 'active' : ''}">Details</button>
+          </div>
         </div>
-        <div class="view-toggle">
-          <button onclick="OL.setAppViewMode('icon')" class="${state.appViewMode === 'icon' ? 'active' : ''}">Icon</button>
-          <button onclick="OL.setAppViewMode('details')" class="${state.appViewMode === 'details' ? 'active' : ''}">Details</button>
-        </div>
-        <div id="appsCards" class="cards-grid"></div>
-      </section>
-
-      <section class="apps-section">
-        <div class="section-header">
-          <h2>Functions</h2>
+      </div>
+      <div id="appsCards" class="cards-grid"></div>
+    </section>
+  
+    <section class="apps-section">
+      <div class="section-header">
+        <h2>Functions</h2>
+        <div class="header-right">
           <div class="pill-key functions-key">
             <span class="pill fn" data-status="primary">Primary</span>
             <span class="pill fn" data-status="evaluating">Evaluating</span>
             <span class="pill fn" data-status="available">Available</span>
           </div>
-        </div>
-        <div class="section-actions">
+          <div class="pill-key-help">Click to cycle; Right-click to delete</div>
           <button class="btn small" id="addNewFunctionBtn">+ Add Function</button>
         </div>
-        <div class="functions-key">            
-          <span class="pill-key-help">Click to cycle status; Right-click to delete</span>
-        </div>
-        <div id="functionsCards" class="cards-grid"></div>
-      </section>
-
-      <section class="apps-section">
-        <div class="section-header">
-          <h2>Integrations</h2>
+      </div>
+      <div id="functionsCards" class="cards-grid"></div>
+    </section>
+  
+    <section class="apps-section">
+      <div class="section-header">
+        <h2>Integrations</h2>
+        <div class="header-right">
           <div class="pill-key integrations-key">
             <span class="pill fn" data-status="direct">Direct</span>
             <span class="pill fn" data-status="zapier">Zapier</span>
             <span class="pill fn" data-status="both">Both</span>
           </div>
+          <div class="view-toggle">
+            <button onclick="OL.setAppViewMode('flip')" class="${state.appViewMode === 'flip' ? 'active' : ''}">Flip</button>
+            <button onclick="OL.setAppViewMode('one-direction')" class="${state.appViewMode === 'one-direction' ? 'active' : ''}">One Direction</button>
+          </div>
         </div>
-        <div class="view-toggle">
-          <button onclick="OL.setAppViewMode('flip')" class="${state.appViewMode === 'flip' ? 'active' : ''}">Flip</button>
-          <button onclick="OL.setAppViewMode('one-direction')" class="${state.appViewMode === 'one-direction' ? 'active' : ''}">One Direction</button>
-        </div>
-        <div id="integrationsCards" class="cards-grid"></div>
-      </section>
-    `;
+      </div>
+      <div id="integrationsCards" class="cards-grid"></div>
+    </section>
+  `;
 
     document.getElementById("addNewAppBtn").onclick = () => OL.openAppModalNew && OL.openAppModalNew();
 
