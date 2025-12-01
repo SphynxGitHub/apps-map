@@ -256,7 +256,7 @@
     container.innerHTML = groups.map(renderFunctionCard).join("");
   };
   
-  OL.refreshCurrentFunctionModalIcon = function() {
+  OL.refreshCurrentFunctionModalIcon = function(fnObj) {
     const btn = document.getElementById("fnEditIconBtn");
     if (!btn) return;
     if (fn.icon?.type === "emoji") btn.textContent = fn.icon.value;
