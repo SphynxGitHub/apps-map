@@ -1,0 +1,14 @@
+#modalAppFunctions .modal-section-label {
+  margin-top:8px;
+  margin-bottom:4px;
+}
+
+#modalAppFunctions .fn-pill-wrap {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+
+#modalAppFunctions .modal-textarea {
+  min-height:80px;
+}
