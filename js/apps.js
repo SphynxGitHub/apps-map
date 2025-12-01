@@ -188,13 +188,6 @@
       <div class="card-body">
 
         <div class="card-section">
-          <div class="card-section-title">Status</div>
-          <div class="card-section-content">
-            <span class="pill">${esc(app.status || "Available")}</span>
-          </div>
-        </div>
-
-        <div class="card-section">
           <div class="card-section-title">Functions</div>
           <div class="card-section-content">
             ${renderAppFunctions(app)}
