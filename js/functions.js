@@ -259,8 +259,12 @@
   OL.refreshCurrentFunctionModalIcon = function(fnObj) {
     const btn = document.getElementById("fnEditIconBtn");
     if (!btn) return;
-    if (fn.icon?.type === "emoji") btn.textContent = fn.icon.value;
-    else btn.textContent = "🖼️";
+  
+    if (fnObj?.icon?.type === "emoji") {
+      btn.textContent = fnObj.icon.value;
+    } else {
+      btn.textContent = "🖼️";
+    }
   };
 
   // ------------------------------------------------------------
