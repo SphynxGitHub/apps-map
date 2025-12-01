@@ -109,20 +109,19 @@
     closeModal();
   };
 
-  function closeModal(){
+   function closeModal(){
     if (!modalLayer) return;
-  
+    
     modalLayer.classList.remove("modal-active");
     modalLayer.style.display = "none";
     modalLayer.innerHTML = "";
-  
+    
     activeCloseHandler = null;
     window.removeEventListener("keydown", escClose);
   
-    // Global UI refresh
-    if (typeof OL.refreshAllUI === "function") {
-      OL.refreshAllUI();
-    }
+    // No global UI refresh here.
+    // Individual actions (icon change, status change, etc.)
+    // are responsible for calling OL.refreshAllUI() themselves.
   }
 
   function escClose(e){
