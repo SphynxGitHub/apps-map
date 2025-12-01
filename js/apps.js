@@ -108,8 +108,8 @@
           </div>
           <div class="pill-key">
             <span class="pill key-primary">Primary</span>
-            <span class="pill key-secondary">Secondary</span>
-            <span class="pill key-internal">Internal</span>
+            <span class="pill key-evaluating">Evaluating</span>
+            <span class="pill key-available">Available</span>
           </div>
 
         </div>
