@@ -7,7 +7,7 @@
   font-size:12px;
   cursor:pointer;
   background:transparent !important;
-  border:1px solid #666;
+  border:1px solid inherit;
   color:inherit;
 }
 .pill.fn[data-status="primary"] {
