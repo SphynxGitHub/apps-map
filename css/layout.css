@@ -69,6 +69,24 @@ a {
     align-items:center;
 }
 
+.section-header.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pill-key {
+  display: flex;
+  gap: 6px;
+}
+
+.pill-key-help-row {
+  margin-top: 4px;
+  padding-left: 0;
+  font-size: 11px;
+  opacity: .6;
+}
+
 .header-right {
     display:flex;
     flex-direction:row;
