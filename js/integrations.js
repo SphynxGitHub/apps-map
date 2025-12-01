@@ -469,5 +469,60 @@
       swap.addEventListener("click", evt => evt.stopPropagation());
     }
   };
+  // ============================================================
+  // INTEGRATIONS GRID FOR /Apps VIEW
+  // ============================================================
+  OL.renderIntegrationCards = function () {
+    const container = document.getElementById("integrationsCards");
+    if (!container) return;
 
+    const apps = getApps().slice().sort(byName);
+
+    if (!apps.length) {
+      container.innerHTML = `<p class="muted">No applications found.</p>`;
+      return;
+    }
+
+    container.innerHTML = apps.map(app => `
+      <div class="card" data-app-id="${esc(app.id)}">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-icon">${OL.appIconHTML(app)}</div>
+            <div class="card-title">${esc(app.name || "")}</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-section">
+            <div class="card-section-title">Capabilities</div>
+            <div class="card-section-content">
+              <button type="button" class="btn small view-int-btn">
+                View triggers/searches/actions
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `).join("");
+
+    // Wire “View triggers/searches/actions” → integration modal
+    const allCards = container.querySelectorAll(".card");
+    allCards.forEach(card => {
+      const appId = card.getAttribute("data-app-id");
+      const btn = card.querySelector(".view-int-btn");
+      if (!btn) return;
+
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+
+        const appsList = getApps();
+        const appA = appsList.find(a => a.id === appId);
+        const appB = appsList.find(a => a.id !== appId) || appA;
+
+        if (!appA || !appB) return;
+
+        // Uses your existing OL.openIntegrationModal
+        OL.openIntegrationModal(appA.id, appB.id);
+      });
+    });
+  };
 })();
