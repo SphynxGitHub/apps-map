@@ -54,3 +54,16 @@ a {
   gap: 14px;
   width: 100%;
 }
+
+#modal-layer {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 99999;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
