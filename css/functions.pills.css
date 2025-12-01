@@ -1,0 +1,33 @@
+.app-pill {
+  border-radius:999px;
+  border:1px solid #4b5563;
+  background:#020617;
+  color:#e5e7eb;
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  font-size:11px;
+  padding:2px 6px 2px 2px;
+  cursor:pointer;
+}
+
+.app-pill[data-status="primary"] {
+  border-color:#38bdf8;
+}
+
+.app-pill[data-status="evaluating"] {
+  border-color:#facc15;
+}
+
+.app-pill .pill-icon {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.app-pill .pill-icon .app-icon-box.small {
+  width:18px;
+  height:18px;
+  border-radius:999px;
+  font-size:9px;
+}
