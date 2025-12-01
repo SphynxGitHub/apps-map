@@ -49,25 +49,27 @@ a {
 }
 
 .cards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 14px;
-  width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+    width: 100%;
 }
 
 #modal-layer {
-  position: fixed !important;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 99999;
-  background: rgba(0,0,0,0.4);
-  display: none !important;
-  align-items: center;
-  justify-content: center;
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 99999;
+    background: rgba(0,0,0,0.4);
+    display: none !important;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
 }
 
 #modal-layer.modal-active {
-  display: flex !important;
+    display: flex !important;
+    pointer-events: auto;
 }
