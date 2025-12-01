@@ -49,11 +49,6 @@
   // ------------------------------------------------------------
   // Status helpers
   // ------------------------------------------------------------
-  function statusClassForFn(status) {
-    if (status === "primary") return "fnAppPill-primary";
-    if (status === "evaluating") return "fnAppPill-evaluating";
-    return "fnAppPill-available";
-  }
 
   function normalizeStatus(s) {
     if (s === "primary" || s === "evaluating" || s === "available") return s;
@@ -245,7 +240,8 @@
     return `
       <button
         type="button"
-        class="pill ${statusClassForFn(normalized)}"
+        class="pill"
+        data-status="${normalized}"
         data-fn-id="${fnId}"
         data-app-id="${app.id}"
         data-status="${normalized}">
@@ -281,7 +277,8 @@
       ? appsSorted.map(link => `
           <button
             type="button"
-            class="pill ${statusClassForFn(link.status)}"
+            class="pill"
+            data-status="${normalized}"
             data-app-id="${link.app.id}"
             data-fn-id="${fn.id}">
             ${
@@ -310,7 +307,7 @@
             <span><span class="integration-type-dot available"></span>Available</span>
           </div>
 
-          <div id="fnModalApps" class="function-apps-list">
+          <div id="fnModalApps" class="card-section-content">
             ${appsHtml}
           </div>
 
@@ -504,7 +501,7 @@
   // Global pill handler — works on both layouts
   // ============================================================
   document.addEventListener("click", function(e) {
-    const inFunctionsView = document.querySelector(".card") !== null;
+    const inFunctionsView = location.hash.includes("functions");
   
     // Only allow cycling if we are in the Functions view
     if (!inFunctionsView) return;
@@ -514,7 +511,7 @@
   
     e.stopPropagation();
   
-    const card = pill.closest(".card, .card");
+    const card = pill.closest(".card");
     if (!card) return;
   
     const fnId = card.getAttribute("data-fn-id");
