@@ -7,39 +7,44 @@
   font-size:12px;
   cursor:pointer;
   background:transparent !important;
-  border:1px solid inherit;
+  border:1px solid transparent;
   color:inherit;
 }
+
+.card .pill.fn[data-status] {
+  color: currentColor !important;
+}
+
 .pill.fn[data-status="primary"] {
-  border: 1px solid #38bdf8;
-  color:#38bdf8;
+  border: 1px solid #38bdf8 !important;
+  color:#38bdf8 !important;
 }
 
 .pill.fn[data-status="evaluating"] {
-  border: 1px solid #fce411;
-  color:#fce411;
+  border: 1px solid #fce411 !important;
+  color:#fce411 !important;
 }
 
 .pill.fn[data-status="available"],
 .pill.fn:not([data-status]) {
-  border: 1px solid #888888;
-  color:#888888;
+  border: 1px solid #888888 !important;
+  color:#888888 !important;
 }
 
 .pill.fn[data-status="direct"] {
-  border: 1px solid #11fc87;
-  color:#11fc87;
+  border: 1px solid #11fc87 !important;
+  color:#11fc87 !important;
 }
 
 .pill.fn[data-status="zapier"] {
-  border: 1px solid #fca211;
-  color:#fca211;
+  border: 1px solid #fca211 !important;
+  color:#fca211 !important;
 }
 
 .pill.fn[data-status="both"],
 .pill.fn:not([data-status]) {
-  border: 1px solid #c11cdb;
-  color:#c11cdb;
+  border: 1px solid #c11cdb !important;
+  color:#c11cdb !important;
 }
 
 .pill-key {
