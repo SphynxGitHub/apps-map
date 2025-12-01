@@ -107,6 +107,15 @@
     appsViewMode: OL.store.get('appsViewMode', 'details'),
     integrationsViewMode: OL.store.get('integrationsViewMode', 'flip')
   };
+  
+  // ============================================================
+  // GLOBAL FULL UI REFRESH
+  // ============================================================
+  OL.refreshAllUI = function() {
+    if (typeof OL.renderApps === "function") OL.renderApps();
+    if (typeof OL.renderFunctions === "function") OL.renderFunctions();
+    if (typeof OL.renderIntegrationCards === "function") OL.renderIntegrationCards();
+  };
 
   // ============================================================
   // PERSIST
