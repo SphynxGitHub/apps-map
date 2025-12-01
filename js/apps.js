@@ -128,7 +128,7 @@
       return `
         <div class="card card-icon" data-app-id="${app.id}">
           <div class="card-header">
-            <div class="card-header-left">
+            <div class="card-header-left" onclick="OL.openAppModal('${app.id}')">
               <div class="card-icon">${iconHtml}</div>
               <div class="card-title">${esc(app.name || "")}</div>
             </div>
