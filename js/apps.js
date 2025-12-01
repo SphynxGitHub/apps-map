@@ -102,6 +102,7 @@
     renderAppCards(appsSorted);
     renderFunctionCards();
     renderIntegrationCards();
+    wireCardClickHandlers();
   };
 
   /* =====================================================
@@ -229,4 +230,32 @@
 
   OL.renderAppCard = renderAppCard;
 
+  /*=======================================================
+      CARD CLICK HANDLERS
+  ========================================================*/
+  function wireCardClickHandlers() {
+    document.querySelectorAll('.card[data-app-id] .card-header-left').forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        const id = el.closest('.card').dataset.appId;
+        OL.openAppModal(id);
+      };
+    });
+  
+    document.querySelectorAll('.card[data-fn-id] .card-header-left').forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        const id = el.closest('.card').dataset.fnId;
+        OL.openFunctionModal(id);
+      };
+    });
+  
+    document.querySelectorAll('.card[data-int-id] .card-header-left').forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        const id = el.closest('.card').dataset.intId;
+        OL.openIntegrationModal(id);
+      };
+    });
+  }
 })();
