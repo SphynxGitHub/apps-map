@@ -39,12 +39,12 @@
   // ============================================================
 
   document.addEventListener("click", e => {
-    const pill = e.target.closest(".pill");
-    if (pill) {
-      // allow pill clicks to work normally
-      return;
-    }
-  }, true);
+  
+    // if clicking inside modal → do nothing
+    if (e.target.closest(".modalBox")) return;
+  
+    // otherwise allow normal UI behaviors
+  }, false);
 
 
   // ============================================================
