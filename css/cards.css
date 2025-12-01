@@ -92,31 +92,3 @@
   flex-wrap:wrap;
   gap:6px;
 }
-
-/* Pills shared */
-.pill {
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding:4px 8px;
-  border-radius:999px;
-  background:#1f2937;
-  color:#e5e7eb;
-  font-size:11px;
-  cursor:pointer;
-  border:1px solid transparent;
-}
-
-.pill[data-status="primary"] {
-  background:#38bdf8;
-  color:#0c2530;
-}
-
-.pill[data-status="evaluating"] {
-  background:#facc15;
-  color:#6b4f00;
-}
-
-.pill[data-status="available"] {
-  background:#1f2937;
-}
