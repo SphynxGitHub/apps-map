@@ -122,8 +122,8 @@
         <div class="section-header">
           <h2>Integrations</h2>
           <div class="pill-key integrations-key">
-            <span class="pill fn" data-status="zapier">Zapier</span>
             <span class="pill fn" data-status="direct">Direct</span>
+            <span class="pill fn" data-status="zapier">Zapier</span>
             <span class="pill fn" data-status="both">Both</span>
           </div>
         </div>
