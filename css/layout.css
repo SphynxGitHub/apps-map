@@ -63,7 +63,7 @@ a {
   height: 100vh;
   z-index: 99999;
   background: rgba(0,0,0,0.4);
-  display: flex;
+  display: none !important;
   align-items: center;
   justify-content: center;
 }
