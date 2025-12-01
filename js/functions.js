@@ -30,7 +30,7 @@
         if (!fref || !fref.id) return;
 
         if (!map.has(fref.id)) {
-          const stub = { id: fref.id, name: fref.name || "(unnamed function)" };
+          const stub = { id: fref.id, name: fref.name || "(unnamed function)", icon: null };
           state.functions.push(stub);
           map.set(fref.id, { fn: stub, apps: [] });
         }
@@ -49,7 +49,6 @@
   // ------------------------------------------------------------
   // Status helpers
   // ------------------------------------------------------------
-
   function normalizeStatus(s) {
     if (s === "primary" || s === "evaluating" || s === "available") return s;
     return "available";
@@ -207,11 +206,17 @@
       ? appsSorted.map(link => functionAppPillHTML(link)).join("")
       : `<span class="pill pill-empty">No apps mapped</span>`;
 
+    // Choose a parent app for icon inheritance:
+    // 1) primary app if present
+    // 2) otherwise first mapped app
+    const primaryLink = group.apps.find(l => normalizeStatus(l.status) === "primary");
+    const parentApp = primaryLink?.app || (group.apps[0]?.app || null);
+
     return `
       <div class="card" data-fn-id="${fn.id}">
         <div class="card-header">
           <div class="card-header-left">
-            <div class="card-icon">${OL.appIconHTML(fn)}</div>
+            <div class="card-icon">${OL.appIconHTML(fn, parentApp)}</div>
             <div class="card-title">${esc(fn.name || "")}</div>
           </div>
           <div class="card-close" data-close-fn="${fn.id}">×</div>
@@ -226,7 +231,6 @@
         </div>
       </div>
     `;
-
   }
 
   function functionAppPillHTML(link) {
@@ -248,18 +252,19 @@
       </button>
     `;
   }
+
   OL.renderFunctionCards = function() {
     const container = document.getElementById("functionsCards");
     if (!container) return;
-  
+
     const groups = buildFunctionIndex();
     container.innerHTML = groups.map(renderFunctionCard).join("");
   };
-  
+
   OL.refreshCurrentFunctionModalIcon = function(fnObj) {
     const btn = document.getElementById("fnEditIconBtn");
     if (!btn) return;
-  
+
     if (fnObj?.icon?.type === "emoji") {
       btn.textContent = fnObj.icon.value;
     } else {
@@ -313,7 +318,7 @@
     const modalHtml = `
       <div class="modal">
         <div class="modal-head">
-        <button class="icon-edit-btn" id="fnEditIconBtn">🖼️</button>
+          <button class="icon-edit-btn" id="fnEditIconBtn">🖼️</button>
           <div class="modal-title-text" contenteditable="true" id="fnModalTitle">
             ${esc(fn.name || "")}
           </div>
@@ -345,11 +350,13 @@
 
     const editIconBtn = document.getElementById("fnEditIconBtn");
     if (editIconBtn) {
+      // Initialize the button label based on current function icon
+      OL.refreshCurrentFunctionModalIcon(fn);
+
       editIconBtn.onclick = (e) => {
         e.stopPropagation();
         if (OL.openIconPicker) {
           OL.openIconPicker(editIconBtn, fn);
-          OL.refreshCurrentFunctionModalIcon(fn);
         }
       };
     }
@@ -523,21 +530,21 @@
   // ============================================================
   document.addEventListener("click", function(e) {
     const inFunctionsView = location.hash.includes("functions");
-  
+
     // Only allow cycling if we are in the Functions view
     if (!inFunctionsView) return;
-  
+
     const pill = e.target.closest(".pill");
     if (!pill) return;
-  
+
     e.stopPropagation();
-  
+
     const card = pill.closest(".card");
     if (!card) return;
-  
+
     const fnId = card.getAttribute("data-fn-id");
     if (!fnId) return;
-  
+
     let appId = pill.getAttribute("data-app-id");
     if (!appId) {
       const appName = pill.querySelector(".pill-label")?.textContent?.trim();
@@ -546,17 +553,17 @@
       if (!app) return;
       appId = app.id;
     }
-  
+
     const app = state.apps.find(a => a.id === appId);
     if (!app) return;
-  
+
     cycleAssignmentStatus(app, fnId);
     persist();
-  
+
     OL.renderFunctions?.();
     OL.renderApps?.();
   });
-  
+
   // ------------------------------------------------------------
   // Exports
   // ------------------------------------------------------------
