@@ -38,7 +38,7 @@
   // ============================================================
   // ICON PICKER UI
   // ============================================================
-  OL.openIconPicker = function(targetEl, app) {
+  OL.openIconPicker = function(targetEl, obj) {
     OL.closeIconPicker(); // zap old instance
   
     // Create overlay
