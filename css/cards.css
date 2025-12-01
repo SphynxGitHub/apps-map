@@ -1,0 +1,116 @@
+/* =========================================
+   UNIFIED CARD SYSTEM
+========================================= */
+
+.card {
+  border-radius:12px;
+  border:1px solid #1f2937;
+  background:#020617;
+  padding:10px 10px 8px;
+  position:relative;
+  transition: border-color .12s ease, background .12s ease;
+}
+
+.card:hover {
+  border-color:#334155;
+  background:#0f172a;
+}
+
+/* HEADER */
+.card-header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:6px;
+}
+
+/* LEFT SIDE OF HEADER */
+.card-header-left {
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+/* Icon */
+.card-icon {
+  width:26px;
+  height:26px;
+  border-radius:8px;
+  background:#0f172a;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:11px;
+  font-weight:600;
+  flex-shrink:0;
+}
+
+/* Title */
+.card-title {
+  font-size:13px;
+  font-weight:600;
+}
+
+/* Close X */
+.card-close {
+  font-size:14px;
+  cursor:pointer;
+  opacity:0.6;
+  padding:2px;
+  flex-shrink:0;
+}
+.card-close:hover {
+  opacity:1;
+}
+
+/* BODY */
+.card-body {
+  padding-top:6px;
+}
+
+/* SECTION WITH LABEL */
+.card-section {
+  margin-bottom:10px;
+}
+
+.card-section-title {
+  font-size:11px;
+  color:#9ca3af;
+  margin-bottom:4px;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+
+.card-section-content {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+
+/* Pills shared */
+.pill {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 8px;
+  border-radius:999px;
+  background:#1f2937;
+  color:#e5e7eb;
+  font-size:11px;
+  cursor:pointer;
+  border:1px solid transparent;
+}
+
+.pill[data-status="primary"] {
+  background:#38bdf8;
+  color:#0c2530;
+}
+
+.pill[data-status="evaluating"] {
+  background:#facc15;
+  color:#6b4f00;
+}
+
+.pill[data-status="available"] {
+  background:#1f2937;
+}
