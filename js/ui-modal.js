@@ -79,7 +79,7 @@
     modal.style.background     = "var(--panel)";
     modal.style.border         = "1px solid var(--line)";
     modal.style.borderRadius   = "14px";
-    modal.style.display        = "flex";
+    modalLayer.classList.add("modal-active");
     modal.style.flexDirection  = "column";
     modal.style.overflow       = "hidden";
 
@@ -101,7 +101,7 @@
 
     modal.appendChild(body);
     modalLayer.appendChild(modal);
-    modalLayer.style.display = "flex";
+    modalLayer.classList.add("modal-active");
 
     return modal;
   };
