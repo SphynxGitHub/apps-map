@@ -106,6 +106,12 @@
           <div class="right-section">
             <button class="btn small" id="addNewFunctionBtn">+ Add Function</button>
           </div>
+          <div class="pill-key">
+            <span class="pill key-primary">Primary</span>
+            <span class="pill key-secondary">Secondary</span>
+            <span class="pill key-internal">Internal</span>
+          </div>
+
         </div>
         <div id="functionsCards" class="cards-grid"></div>
       </section>
@@ -113,6 +119,13 @@
       <section class="apps-section">
         <div class="section-header">
           <h2>Integrations</h2>
+          <div class = "right-section">
+          </div>
+          <div class="pill-key">
+            <span class="pill key-direct">Direct</span>
+            <span class="pill key-zapier">Zapier</span>
+            <span class="pill key-both">Both</span>
+          </div>
         </div>
         <div id="integrationsCards" class="cards-grid"></div>
       </section>
