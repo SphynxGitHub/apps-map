@@ -55,3 +55,28 @@
   gap: 4px;
   white-space: nowrap;
 }
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pill-key {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pill-key-help {
+  font-size: 11px;
+  opacity: .6;
+  margin-left: 10px;
+  user-select: none;
+  pointer-events: none;
+}
+
+.pill.fn {
+  cursor: pointer;
+}
+
