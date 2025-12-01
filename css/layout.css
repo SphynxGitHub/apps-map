@@ -55,6 +55,14 @@ a {
     width: 100%;
 }
 
+.section-actions {
+  padding: 6px 0 12px 0;
+}
+
+.section-actions .btn {
+  margin-top: 3px;
+}
+
 #modal-layer {
     position: fixed !important;
     top: 0;
@@ -80,4 +88,3 @@ a {
   gap: 6px;
   margin-top: 4px;
 }
-
