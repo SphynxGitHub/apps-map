@@ -11,6 +11,12 @@
   transition: border-color .12s ease, background .12s ease;
 }
 
+.card.card-icon {
+  min-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
 .card:hover {
   border-color:#334155;
   background:#0f172a;
