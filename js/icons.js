@@ -94,6 +94,7 @@
         app.icon = { type: "emoji", value: el.textContent };
         OL.persist();
         OL.refreshCurrentAppModalIcon?.();
+        OL.refreshCurrentFunctionModalIcon?.(obj);
         OL.renderApps?.();
         OL.closeIconPicker();
       };
@@ -105,6 +106,7 @@
       app.icon = null;
       OL.persist();
       OL.refreshCurrentAppModalIcon?.();
+      OL.refreshCurrentFunctionModalIcon?.(obj);
       OL.renderApps?.();
       OL.closeIconPicker();
     };
@@ -130,6 +132,7 @@
       app.icon = { type: "img", url };
       OL.persist();
       OL.refreshCurrentAppModalIcon?.();
+      OL.refreshCurrentFunctionModalIcon?.(obj);
       OL.renderApps?.();
       OL.closeIconPicker();
     };
@@ -140,6 +143,7 @@
       app.icon = null;
       OL.persist();
       OL.refreshCurrentAppModalIcon?.();
+      OL.refreshCurrentFunctionModalIcon?.(obj);
       OL.renderApps?.();
       OL.closeIconPicker();
     };
