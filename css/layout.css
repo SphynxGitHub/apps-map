@@ -67,3 +67,7 @@ a {
   align-items: center;
   justify-content: center;
 }
+
+#modal-layer.modal-active {
+  display: flex !important;
+}
