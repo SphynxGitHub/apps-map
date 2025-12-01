@@ -102,7 +102,6 @@
     renderAppCards(appsSorted);
     renderFunctionCards();
     renderIntegrationCards();
-    wireCardClickHandlers();
   };
 
   /* =====================================================
@@ -129,7 +128,7 @@
       return `
         <div class="card card-icon" data-app-id="${app.id}">
           <div class="card-header">
-            <div class="card-header-left" onclick="OL.openAppModal('${app.id}')">
+            <div class="card-header-left">
               <div class="card-icon">${iconHtml}</div>
               <div class="card-title">${esc(app.name || "")}</div>
             </div>
@@ -171,7 +170,13 @@
               </div>
             </div>
           </div>
-  
+
+          <div class="card-section">
+            <div class="card-section-title">Integrations</div>
+            <div class="card-section-content">
+              ${renderAppIntegrations(app)}
+            </div>
+          </div>
         </div>
       </div>`;
   }
@@ -186,6 +191,41 @@
       `)
       .join("");
   }
+  function renderAppIntegrations(app) {
+    if (!app.integrations || !app.integrations.length) {
+      return `<span class="pill muted">None</span>`;
+    }
+  
+    return app.integrations.map(int => {
+      const otherId = (int.appA === app.id) ? int.appB : int.appA;
+      return `
+        <span class="pill integration-pill" data-int-id="${otherId}">
+          ${esc(OL.getAppName(otherId))}
+          ${formatFlipArrow(int.direction)}
+        </span>
+      `;
+    }).join("");
+  }
+  
+  document.addEventListener("contextmenu", e => {
+    const pill = e.target.closest(".pill");
+    if (!pill) return;
+  
+    e.preventDefault();
+    const appIdA = pill.closest(".card").dataset.appId;
+    const appIdB = pill.dataset.intId;
+  
+    OL.removeIntegration(appIdA, appIdB);
+  });
+  
+  OL.removeIntegration = function(appIdA, appIdB) {
+    state.integrations = state.integrations.filter(i =>
+      !((i.appA === appIdA && i.appB === appIdB) ||
+        (i.appA === appIdB && i.appB === appIdA))
+    );
+    OL.persist && OL.persist();
+    OL.renderApps();
+  };
 
   /* =====================================================
         DELETE APP
@@ -230,6 +270,25 @@
 
   OL.renderAppCard = renderAppCard;
 
+  function formatFlipArrow(direction) {
+    if (direction === "flip") {
+      return `
+        <span class="flip-arrow">
+          <span class="arrow up">→</span>
+          <span class="arrow down grey">←</span>
+        </span>`;
+    }
+    if (direction === "AtoB") {
+      return `<span class="flip-arrow"><span class="arrow">→</span></span>`;
+    }
+    if (direction === "BtoA") {
+      return `<span class="flip-arrow"><span class="arrow">←</span></span>`;
+    }
+    if (direction === "both") {
+      return `<span class="flip-arrow"><span class="arrow">↔</span></span>`;
+    }
+  }
+
   /*=======================================================
       CARD CLICK HANDLERS
   ========================================================*/
@@ -250,12 +309,49 @@
       };
     });
   
-    document.querySelectorAll('.card[data-int-id] .card-header-left').forEach(el => {
+    document.querySelectorAll('#integrationsCards .card .card-header-left').forEach(el => {
       el.onclick = (e) => {
         e.stopPropagation();
-        const id = el.closest('.card').dataset.intId;
+        const id = el.closest('.card').dataset.appId;
         OL.openIntegrationModal(id);
       };
     });
   }
+  const _renderApps = OL.renderApps;
+  OL.renderApps = function() {
+    _renderApps();
+    wireCardClickHandlers();
+  };
+
+  /* =====================================================
+        EVENT: flip integration arrows
+  ===================================================== */
+  document.addEventListener("click", e => {
+    const arrow = e.target.closest(".arrow");
+    if (!arrow) return;
+  
+    const pill = e.target.closest(".integration-pill");
+    if (!pill) return;
+  
+    const card = pill.closest(".card");
+    if (!card) return;
+  
+    const appIdA = card.dataset.appId;
+    const appIdB = pill.dataset.intId;
+  
+    const rec = OL.state.integrations.find(i =>
+      (i.appA === appIdA && i.appB === appIdB) ||
+      (i.appA === appIdB && i.appB === appIdA)
+    );
+    if (!rec) return;
+  
+    const order = ["flip", "AtoB", "BtoA", "both"];
+    let i = order.indexOf(rec.direction);
+    i = (i + 1) % order.length;
+    rec.direction = order[i];
+  
+    OL.persist && OL.persist();
+    OL.renderApps();
+  });
+
 })();
