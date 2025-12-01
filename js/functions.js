@@ -248,6 +248,13 @@
       </button>
     `;
   }
+  OL.renderFunctionCards = function() {
+    const container = document.getElementById("functionsCards");
+    if (!container) return;
+  
+    const groups = buildFunctionIndex();
+    container.innerHTML = groups.map(renderFunctionCard).join("");
+  };
 
   // ------------------------------------------------------------
   // Function Modal
@@ -537,5 +544,10 @@
     OL.renderFunctions?.();
     OL.renderApps?.();
   });
+  OL.buildFunctionIndex = buildFunctionIndex;
+  OL.renderFunctionCard = renderFunctionCard;
+  OL.normalizeStatus = normalizeStatus;
+  OL.cycleAssignmentStatus = cycleAssignmentStatus;
+  OL.removeAssignment = removeAssignment;
 
 })();
