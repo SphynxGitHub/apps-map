@@ -121,8 +121,13 @@
     document.getElementById("addNewAppBtn").onclick = () => OL.openAppModalNew && OL.openAppModalNew();
 
     renderAppCards(appsSorted);
-    renderFunctionCards();
-    renderIntegrationCards();
+    if (OL.renderFunctionCards) {
+      OL.renderFunctionCards();
+    }
+    if (OL.renderIntegrationCards) {
+      OL.renderIntegrationCards();
+    }
+
     wireCardClickHandlers();
   };
 
