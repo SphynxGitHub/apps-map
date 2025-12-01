@@ -1,0 +1,25 @@
+.pill {
+  display:inline-block;
+  padding:4px 9px;
+  border-radius:999px;
+  font-size:12px;
+  background:var(--soft);
+  cursor:pointer;
+  border:1px solid transparent;
+}
+
+.pill.fn[data-status="primary"] {
+  background:#38bdf8;
+  color:#0c2530;
+}
+
+.pill.fn[data-status="evaluating"] {
+  background:#facc15;
+  color:#6b4f00;
+}
+
+.pill.fn[data-status="available"],
+.pill.fn:not([data-status]) {
+  background:#1f2937;
+  color:#e5e7eb;
+}
