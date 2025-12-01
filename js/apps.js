@@ -8,9 +8,9 @@
   const { state } = OL;
   const { esc } = OL.utils;
 
-  /* =====================================================
-        HELPERS
-  ====================================================== */
+  /////////////////////////////////////////////////////////////
+  // HELPERS
+  /////////////////////////////////////////////////////////////
   function getAppNameById(id) {
     const apps = state.apps || [];
     const a = apps.find(x => x.id === id);
@@ -25,33 +25,9 @@
     return an.localeCompare(bn);
   }
 
-  function countFunctionsUsingApp(appId) {
-    return (state.functions || [])
-      .filter(fn => (fn.apps || []).includes(appId))
-      .length;
-  }
-
-  function countIntegrationsForApp(appId) {
-    const out = { direct: 0, zapier: 0, both: 0 };
-    const ints = state.integrations || [];
-    ints.forEach(int => {
-      if (int.appA === appId || int.appB === appId) {
-        const t = int.type || "zapier";
-        if (t === "both") out.both++;
-        else if (t === "direct") out.direct++;
-        else out.zapier++;
-      }
-    });
-    return out;
-  }
-
   function formatFlipArrow(direction) {
     if (direction === "flip") {
-      return `
-      <span class="flip-arrow">
-        <span class="arrow up">→</span>
-        <span class="arrow down grey">←</span>
-      </span>`;
+      return `<span class="flip-arrow"><span class="arrow up">→</span><span class="arrow down grey">←</span></span>`;
     }
     if (direction === "AtoB") {
       return `<span class="flip-arrow"><span class="arrow">→</span></span>`;
@@ -65,20 +41,20 @@
     return "";
   }
 
-  /* =====================================================
-        APP VIEW MODE
-  ====================================================== */
+  /////////////////////////////////////////////////////////////
+  // VIEW MODE
+  /////////////////////////////////////////////////////////////
   state.appViewMode = state.appViewMode || "details";
 
   OL.setAppViewMode = function(mode) {
     state.appViewMode = mode;
-    OL.persist && OL.persist();
+    OL.persist?.();
     OL.renderApps();
   };
 
-  /* =====================================================
-        MAIN RENDER
-  ====================================================== */
+  /////////////////////////////////////////////////////////////
+  // MAIN RENDER
+  /////////////////////////////////////////////////////////////
   OL.renderApps = function renderApps() {
     const container = document.getElementById("view-apps");
     if (!container) return;
@@ -89,99 +65,93 @@
     <section class="apps-section">
       <div class="section-header-row">
         <h2>Applications</h2>
-    
+
         <div class="spacer"></div>
-    
+
         <div class="view-toggle">
           <button onclick="OL.setAppViewMode('icon')" class="${state.appViewMode === 'icon' ? 'active' : ''}">Icon</button>
           <button onclick="OL.setAppViewMode('details')" class="${state.appViewMode === 'details' ? 'active' : ''}">Details</button>
         </div>
       </div>
-    
+
       <div class="section-actions">
         <button class="btn small" id="addNewAppBtn">+ Add Application</button>
       </div>
-    
+
       <div id="appsCards" class="cards-grid"></div>
     </section>
-    
-    
+
     <section class="apps-section functions">
       <div class="section-header-row">
         <h2>Functions</h2>
-    
+
         <div class="spacer"></div>
-    
+
         <div class="pill-key">
           <span class="pill" data-status="primary">Primary</span>
           <span class="pill" data-status="evaluating">Evaluating</span>
           <span class="pill" data-status="available">Available</span>
         </div>
-    
+
         <div class="view-toggle-placeholder"></div>
       </div>
-    
+
       <div class="pill-key-help-row">
         <span class="pill-key-help">Click to cycle status; right-click to delete</span>
       </div>
-    
+
       <div class="section-actions">
         <button class="btn small" id="addNewFunctionBtn">+ Add Function</button>
       </div>
-    
+
       <div id="functionsCards" class="cards-grid"></div>
     </section>
-    
-    
+
     <section class="apps-section">
       <div class="section-header-row">
         <h2>Integrations</h2>
-    
+
         <div class="spacer"></div>
-    
+
         <div class="pill-key">
           <span class="pill" data-status="direct">Direct</span>
           <span class="pill" data-status="zapier">Zapier</span>
           <span class="pill" data-status="both">Both</span>
         </div>
-    
+
         <div class="view-toggle">
           <button onclick="OL.setAppViewMode('flip')" class="${state.appViewMode === 'flip' ? 'active' : ''}">Flip</button>
           <button onclick="OL.setAppViewMode('one-direction')" class="${state.appViewMode === 'one-direction' ? 'active' : ''}">One Direction</button>
         </div>
       </div>
-    
+
       <div class="pill-key-help-row">
         <span class="pill-key-help">Arrows indicate relationship direction; click to flip</span>
       </div>
-    
+
       <div id="integrationsCards" class="cards-grid"></div>
     </section>
     `;
 
-
-    document.getElementById("addNewAppBtn").onclick = () => OL.openAppModalNew && OL.openAppModalNew();
-
+    document.getElementById("addNewAppBtn").onclick = () => OL.openAppModalNew?.();
     renderAppCards(appsSorted);
-    if (OL.renderFunctionCards) {
-      OL.renderFunctionCards();
-    }
-    if (OL.renderIntegrationCards) {
-      OL.renderIntegrationCards();
-    }
+    OL.renderFunctionCards?.();
+    OL.renderIntegrationCards?.();
 
     wireCardClickHandlers();
   };
 
-  /* =====================================================
-        RENDER APP CARDS
-  ====================================================== */
+  /////////////////////////////////////////////////////////////
+  // APP CARD RENDERING
+  /////////////////////////////////////////////////////////////
   function renderAppCards(appsSorted) {
     const container = document.getElementById("appsCards");
     container.innerHTML = "";
-
     appsSorted.forEach(app => {
-      container.insertAdjacentHTML("beforeend", renderAppCard(app, state.appViewMode));
+      container.insertAdjacentHTML(
+        "beforeend",
+        renderAppCard(app, state.appViewMode)
+      );
     });
   }
 
@@ -240,16 +210,12 @@
   }
 
   function renderAppFunctions(app) {
-    return (state.functions || [])
-      .filter(fn => (fn.apps || []).includes(app.id))
-      .map(fn => `
-        <span 
-          class="pill fn" 
-          data-status="${fn.status || 'available'}"
-        >
-          ${esc(fn.name)}
-        </span>
-      `).join("");
+    return (app.functions || [])
+      .map(fref => {
+        const fnObj = state.functions.find(f => f.id === fref.id);
+        if (!fnObj) return "";
+        return `<span class="pill fn">${esc(fnObj.name)}</span>`;
+      }).join("");
   }
 
   function renderAppIntegrations(app) {
@@ -270,25 +236,26 @@
     }).join("");
   }
 
-  /* =====================================================
-        DELETE APP
-  ====================================================== */
-  OL.deleteApp = function (appId) {
+  /////////////////////////////////////////////////////////////
+  // DELETE APP
+  /////////////////////////////////////////////////////////////
+  OL.deleteApp = function(appId) {
     if (!confirm(`Delete "${getAppNameById(appId)}"?`)) return;
 
     state.apps = (state.apps || []).filter(a => a.id !== appId);
 
-    (state.functions || []).forEach(fn => {
-      if (fn.apps) fn.apps = fn.apps.filter(a => a !== appId);
+    // Remove function mappings to this app
+    (state.apps || []).forEach(a => {
+      a.functions = (a.functions || []).filter(f => f.id !== appId);
     });
 
-    OL.persist && OL.persist();
+    OL.persist?.();
     OL.renderApps();
   };
 
-  /* =====================================================
-        INTEGRATION FLIP
-  ====================================================== */
+  /////////////////////////////////////////////////////////////
+  // INTEGRATION FLIP
+  /////////////////////////////////////////////////////////////
   document.addEventListener("click", e => {
     const arrow = e.target.closest(".arrow");
     if (!arrow) return;
@@ -304,18 +271,19 @@
       (i.appA === appIdA && i.appB === appIdB) ||
       (i.appA === appIdB && i.appB === appIdA)
     );
+
     if (!rec) return;
 
     const order = ["flip", "AtoB", "BtoA", "both"];
     rec.direction = order[(order.indexOf(rec.direction) + 1) % order.length];
 
-    OL.persist && OL.persist();
+    OL.persist?.();
     OL.renderApps();
   });
 
-  /* =====================================================
-        RIGHT CLICK DELETE INTEGRATION
-  ====================================================== */
+  /////////////////////////////////////////////////////////////
+  // RIGHT CLICK REMOVE INTEGRATION
+  /////////////////////////////////////////////////////////////
   document.addEventListener("contextmenu", e => {
     const pill = e.target.closest(".integration-pill");
     if (!pill) return;
@@ -334,13 +302,13 @@
         (i.appA === appIdB && i.appB === appIdA))
     );
 
-    OL.persist && OL.persist();
+    OL.persist?.();
     OL.renderApps();
   });
 
-  /* =====================================================
-        CARD CLICK HANDLERS
-  ====================================================== */
+  /////////////////////////////////////////////////////////////
+  // CARD CLICK HANDLERS
+  /////////////////////////////////////////////////////////////
   function wireCardClickHandlers() {
     // APP card
     document.querySelectorAll('.card[data-app-id] .card-header-left').forEach(el => {
@@ -357,19 +325,11 @@
         OL.openFunctionModal(el.closest('.card').dataset.fnId);
       };
     });
-
-    // INT card — if they exist
-    document.querySelectorAll('#integrationsCards .card .card-header-left').forEach(el => {
-      el.onclick = (e) => {
-        e.stopPropagation();
-        OL.openIntegrationModal(el.closest('.card').dataset.appId);
-      };
-    });
   }
 
-  /* =====================================================
-        PATCH RENDER
-  ====================================================== */
+  /////////////////////////////////////////////////////////////
+  // PATCH RENDER
+  /////////////////////////////////////////////////////////////
   const __renderApps = OL.renderApps;
   OL.renderApps = function() {
     __renderApps();
