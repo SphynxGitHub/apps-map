@@ -192,38 +192,45 @@
   // ============================================================
   // ICON
   // ============================================================
-  function buildIconNode(app) {
+    function buildIconNode(app) {
     const wrap = document.createElement("div");
     wrap.className = "app-icon-inner";
-
+  
+    const icon = app.icon;
+  
     // explicit emoji
-    if (app.icon?.type === "emoji") {
-      wrap.textContent = app.icon.value;
+    if (icon?.type === "emoji") {
+      wrap.textContent = icon.value;
       return wrap;
     }
-
+  
     // explicit image
-    if (app.icon?.type === "img") {
+    if (icon?.type === "img") {
       const img = document.createElement("img");
-      img.src = app.icon.url;
+      img.src = icon.url;
       img.alt = "";
       wrap.appendChild(img);
       return wrap;
     }
-
-    // auto letter
-    const meta = OL.utils.buildLetterIconMeta(app.name);
-    wrap.style.background = meta.bg;
-    wrap.style.color = meta.fg;
-    wrap.textContent = meta.initials;
+  
+    // auto initials fallback
+    const letters = (app.name || "")
+      .split(" ")
+      .map(w => w[0])
+      .join("")
+      .substring(0, 2)
+      .toUpperCase();
+  
+    wrap.textContent = letters;
     return wrap;
   }
-
+  
   function bindIcon(app) {
     const el = document.getElementById("modalAppIcon");
     el.innerHTML = "";
     el.appendChild(buildIconNode(app));
   
+    // Used by icon picker after selection
     OL.refreshCurrentAppModalIcon = function() {
       const n = document.getElementById("modalAppIcon");
       if (!n) return;
@@ -236,7 +243,6 @@
       OL.openIconPicker(el, app);
     };
   }
-
   // ============================================================
   // NAME (click-to-edit)
   // ============================================================
