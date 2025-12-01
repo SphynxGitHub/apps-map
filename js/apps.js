@@ -112,7 +112,7 @@
         <div class="section-actions">
           <button class="btn small" id="addNewFunctionBtn">+ Add Function</button>
         </div>
-        <div class="view-toggle">            
+        <div class="functions-key">            
           <span class="pill-key-help">Click to cycle status; Right-click to delete</span>
         </div>
         <div id="functionsCards" class="cards-grid"></div>
