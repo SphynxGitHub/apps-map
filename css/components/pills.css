@@ -9,17 +9,49 @@
 }
 
 .pill.fn[data-status="primary"] {
-  background:#38bdf8;
+  border: 1px solid #38bdf8;
   color:#0c2530;
 }
 
 .pill.fn[data-status="evaluating"] {
-  background:#facc15;
+  border: 1px solid #facc15;
   color:#6b4f00;
 }
 
 .pill.fn[data-status="available"],
 .pill.fn:not([data-status]) {
-  background:#1f2937;
+  border: 1px solid #1f2937;
   color:#e5e7eb;
+}
+
+.pill.fn[data-status="direct"] {
+  border: 1px solid #11fc87;
+  color:#11fc87;
+}
+
+.pill.fn[data-status="zapier"] {
+  border: 1px solid #fca211;
+  color:#fca211;
+}
+
+.pill.fn[data-status="both"],
+.pill.fn:not([data-status]) {
+  border: 1px solid #c11cdb;
+  color:#c11cdb;
+}
+
+.pill-key {
+  display: flex;
+  gap: 18px;
+  font-size: 11px;
+  opacity: .7;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.pill-key-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
 }
