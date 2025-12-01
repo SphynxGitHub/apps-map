@@ -103,15 +103,14 @@
       <section class="apps-section">
         <div class="section-header">
           <h2>Functions</h2>
+          <div class="pill-key">
+            <div class="pill-key-item"><span class="pill fn" data-status="primary">●</span> Primary</div>
+            <div class="pill-key-item"><span class="pill fn" data-status="evaluating">●</span> Evaluating</div>
+            <div class="pill-key-item"><span class="pill fn" data-status="available">●</span> Available</div>
+          </div>
           <div class="right-section">
             <button class="btn small" id="addNewFunctionBtn">+ Add Function</button>
           </div>
-          <div class="pill-key">
-            <span class="pill key-primary">Primary</span>
-            <span class="pill key-evaluating">Evaluating</span>
-            <span class="pill key-available">Available</span>
-          </div>
-
         </div>
         <div id="functionsCards" class="cards-grid"></div>
       </section>
@@ -119,12 +118,10 @@
       <section class="apps-section">
         <div class="section-header">
           <h2>Integrations</h2>
-          <div class = "right-section">
-          </div>
           <div class="pill-key">
-            <span class="pill key-direct">Direct</span>
-            <span class="pill key-zapier">Zapier</span>
-            <span class="pill key-both">Both</span>
+            <div class="pill-key-item"><span class="pill fn" data-status="zapier">●</span> Zapier</div>
+            <div class="pill-key-item"><span class="pill fn" data-status="direct">●</span> Direct</div>
+            <div class="pill-key-item"><span class="pill fn" data-status="both">●</span> Both</div>
           </div>
         </div>
         <div id="integrationsCards" class="cards-grid"></div>
