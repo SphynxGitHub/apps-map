@@ -37,28 +37,25 @@
   // ============================================================
   // CRITICAL FIX — GLOBAL CLICK INTERCEPTION PROTECTION
   // ============================================================
-
   document.addEventListener("click", e => {
-    const card = e.target.closest(".card");
+    const header = e.target.closest(".card-header-left");
+    if (!header) return;
+  
+    const card = header.closest(".card");
     if (!card) return;
-
-    // ignore clicks on buttons, pills, or dropdowns
-    if (e.target.closest("button, .pill, select, input")) return;
-
   
     if (card.dataset.fnId) {
       OL.openFunctionModal(card.dataset.fnId);
     }
     else if (card.dataset.intId) {
-      const [appA, appB] = card.dataset.intId.split(",");
+      const appA = card.dataset.appId;
+      const appB = card.dataset.intId;
       OL.openIntegrationModal(appA, appB);
     }
     else if (card.dataset.appId) {
       OL.openAppModal(card.dataset.appId);
     }
   });
-
-
 
   // ============================================================
   // PUBLIC — open modal with HTML content
