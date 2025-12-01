@@ -32,21 +32,9 @@
   OL.openAppModal = function(appId) {
     const app = OL.state.apps.find(a => a.id === appId);
     if (!app) return;
-    
-    OL.openModal({
-      contentHTML: `
-        <div class="modal">
-          <div class="modal-head">
-            <div class="modal-title-text">${app.name}</div>
-          </div>
-          <div class="modal-body">
-            <p>Status: ${app.status || "Available"}</p>
-            <p>Notes: ${app.notes || "None"}</p>
-          </div>
-        </div>
-      `
-    });
-  }
+    showAppModal(app);
+  };
+
 
   // ============================================================
   // PUBLIC: OPEN NEW APP
@@ -245,7 +233,7 @@
   
     el.onclick = (evt) => {
       evt.stopPropagation();
-      OL.openIconPicker(el, "app");
+      OL.openIconPicker(app.id);
     };
   }
 
