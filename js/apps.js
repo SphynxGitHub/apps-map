@@ -182,15 +182,19 @@
 
     if (!ints.length) return `<span class="pill muted">None</span>`;
 
-    return ints.map(int => {
-      const otherId = (int.appA === appId) ? int.appB : int.appA;
-      return `<span class="pill integration-pill" data-int-id="${otherId}">
-        ${esc(OL.getAppName(otherId))}
-        ${formatFlipArrow(int.direction)}
-      </span>`;
+      return app.integrations.map(int => {
+      // if your integration object is { appId, direction } (old structure)
+      const otherId = int.appId || int.appB || int.appA;
+  
+      return `
+        <span class="pill integration-pill" data-int-id="${otherId}">
+          ${esc(getAppNameById(otherId))}
+          ${formatFlipArrow(int.direction)}
+        </span>
+      `;
     }).join("");
   }
-
+    
   OL.removeIntegration = function(appIdA, appIdB) {
     state.integrations = state.integrations.filter(i =>
       !((i.appA === appIdA && i.appB === appIdB) ||
