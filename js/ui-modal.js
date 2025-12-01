@@ -39,20 +39,13 @@
   // ============================================================
 
   document.addEventListener("click", e => {
-
-    // If clicking pills — stop modal launch
-    if (e.target.closest(".fnAppPill")) return;
-    if (e.target.closest(".app-pill")) return;
-    if (e.target.closest(".pill-label")) return;
-    if (e.target.closest(".fnAppsWrap")) return;
-
-    // If modal layer is active, ignore clicks inside modal
-    if (e.target.closest("#modal-layer")) return;
-
-    // Prevent modal from opening when clicking on any pill anywhere
-    if (e.target.classList.contains("pill")) return;
-
+    const pill = e.target.closest(".pill");
+    if (pill) {
+      // allow pill clicks to work normally
+      return;
+    }
   }, true);
+
 
   // ============================================================
   // PUBLIC — open modal with HTML content
